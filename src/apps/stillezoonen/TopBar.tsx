@@ -81,8 +81,26 @@ export function SoundMeter({
   const [hover, setHover] = useState(false);
   const [pinned, setPinned] = useState(false);
   const open = hover || pinned;
-  const closePinned = useCallback(() => setPinned(false), []);
+  // Luk først kort efter, musen er gået — så en skrå eller hurtig bevægelse ned
+  // mod kortet ikke lukker det undervejs.
+  const leaveTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(leaveTimer.current), []);
+  const enter = () => {
+    window.clearTimeout(leaveTimer.current);
+    setHover(true);
+  };
+  const leave = () => {
+    window.clearTimeout(leaveTimer.current);
+    leaveTimer.current = window.setTimeout(() => setHover(false), 250);
+  };
+  // Klik udenfor / Escape lukker med det samme — også hover-delen.
+  const closePinned = useCallback(() => {
+    window.clearTimeout(leaveTimer.current);
+    setPinned(false);
+    setHover(false);
+  }, []);
   useDismiss(pinned, closePinned, meterRef);
+
   const countdown = useCountdown(muted ? mutedUntil : null);
 
   return (
@@ -92,8 +110,8 @@ export function SoundMeter({
       data-open={open || undefined}
       data-muted={muted || undefined}
       style={{ "--threshold": `${threshold}%` } as CSSProperties}
-      onPointerEnter={(e) => e.pointerType === "mouse" && setHover(true)}
-      onPointerLeave={(e) => e.pointerType === "mouse" && setHover(false)}
+      onPointerEnter={(e) => e.pointerType === "mouse" && enter()}
+      onPointerLeave={(e) => e.pointerType === "mouse" && leave()}
     >
       <button
         type="button"

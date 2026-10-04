@@ -433,11 +433,12 @@
   overflow: hidden;
   cursor: pointer;
 }
-/* Større klikflade end selve stregen. */
-.zoo-meter-thin::before {
+/* Hover-flade over og under stregen (selve stregen klipper sit indhold med
+   overflow: hidden, så den kan ikke bære en større flade selv). */
+.zoo-meterbox::before {
   content: "";
   position: absolute;
-  inset: -0.85rem -0.25rem;
+  inset: 0 -0.25rem -0.6rem;
 }
 .zoo-meterbox .zoo-meter-fill {
   position: absolute;
@@ -498,6 +499,16 @@
   .zoo-muted-long {
     display: none;
   }
+}
+/* Usynlig bro i hele kortets bredde op til stregen, så musen ikke "falder ud"
+   i mellemrummet på vej ned til kortet. */
+.zoo-meter-card::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: 100%;
+  height: calc(0.6rem + 2px);
 }
 .zoo-meter-card {
   position: absolute;
