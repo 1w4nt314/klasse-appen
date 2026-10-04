@@ -19,10 +19,15 @@ export type Sighting = {
 const MAX_CLASSES = 50;
 const MAX_NAME = 24;
 
-/** "  2.a  " → "2.a". Kontroltegn fjernes. Tom eller for lang → null. */
+/** "  2.a  " → "2.a". Kontroltegn og usynlige tegn fjernes. Tom eller for lang → null. */
 function cleanName(name: unknown) {
   if (typeof name !== "string") return null;
-  const n = name.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim();
+  const n = name
+    .replace(/\s+/g, " ") // tab, linjeskift o.l. bliver til mellemrum
+    // Kontroltegn og usynlige formattegn (zero-width, retningsskift, BOM).
+    .replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
   return n && n.length <= MAX_NAME ? n : null;
 }
 

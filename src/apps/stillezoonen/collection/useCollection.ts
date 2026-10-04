@@ -18,6 +18,18 @@ export type CollectionSightings = Map<string, Map<string, Spot>>;
 
 const sightingKey = (collection: string, theme: string) => `${collection}\u0000${theme}`;
 
+/** Klassenavne huskes også i browseren, så den valgte klasse kan vises, før (eller hvis ikke) serveren svarer. */
+function loadCachedClasses(userKey: string): ZooClass[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(`stillezoonen:classes:${userKey}`) ?? "[]");
+    return Array.isArray(raw)
+      ? raw.filter((c) => typeof c?.id === "string" && typeof c?.name === "string").map((c) => ({ id: c.id, name: c.name }))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 function loadActive(userKey: string) {
   try {
     return localStorage.getItem(`stillezoonen:collection:${userKey}`) ?? MY_COLLECTION;
@@ -32,15 +44,25 @@ function loadActive(userKey: string) {
  * Den valgte samling huskes i browseren (pr. lærer).
  */
 export function useCollection(userKey: string) {
-  const [classes, setClasses] = useState<ZooClass[]>([]);
+  const [classes, setClasses] = useState<ZooClass[]>(() => loadCachedClasses(userKey));
   const [sightings, setSightings] = useState<Map<string, Map<string, Spot>>>(new Map());
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [storedActive, setStoredActive] = useState(() => loadActive(userKey));
 
+  /**
+   * Løbenumre: Next udfører server-handlinger én ad gangen i den rækkefølge,
+   * de sendes. Et svar fra getZooData (nr. F) indeholder derfor præcis de
+   * spottinger, der er sendt før nr. F — dem sendt efter lægges oven i.
+   */
+  const seq = useRef(0);
+  const recent = useRef<{ seq: number; key: string; kind: string; at: number }[]>([]);
+  const loadedRef = useRef(false);
+
   useEffect(() => {
     let alive = true;
+    const fetchSeq = ++seq.current;
     getZooData()
       .then((data) => {
         if (!alive) return;
@@ -48,17 +70,23 @@ export function useCollection(userKey: string) {
           setLoadError(true);
           return;
         }
+        recent.current = recent.current.filter((r) => r.seq > fetchSeq);
+        const base = toMap(data.sightings);
+        for (const r of recent.current) bump(base, r.key, r.kind, r.at);
         setClasses(data.classes);
-        // Flet med det, der er spottet imens (svaret kan komme sent) — ikke erstat.
-        setSightings((local) => merge(toMap(data.sightings), local));
+        setSightings(base);
+        loadedRef.current = true;
         setLoaded(true);
         setLoadError(false);
+        try {
+          localStorage.setItem(`stillezoonen:classes:${userKey}`, JSON.stringify(data.classes));
+        } catch {}
       })
       .catch(() => alive && setLoadError(true));
     return () => {
       alive = false;
     };
-  }, [attempt]);
+  }, [attempt, userKey]);
 
   // Prøv selv igen et par gange (med længere pause hver gang).
   useEffect(() => {
@@ -70,6 +98,7 @@ export function useCollection(userKey: string) {
 
   // En slettet (eller ukendt) klasse falder tilbage til lærerens egen samling.
   // Indtil klasserne er hentet, beholdes valget (så en fejl ikke skifter samling).
+  // Navnet kommer fra de huskede klasser, så det vises rigtigt imens.
   const active =
     storedActive === MY_COLLECTION || !loaded || classes.some((c) => c.id === storedActive)
       ? storedActive
@@ -104,39 +133,52 @@ export function useCollection(userKey: string) {
     sightingsRef.current = sightings;
   });
 
-  /** En figur er spottet i den aktive samling. Returnerer true, hvis den er ny. */
+  /**
+   * En figur er spottet i den aktive samling. Returnerer true, hvis den er ny.
+   * Før samlingen er hentet, vides det ikke — så aldrig "ny" (ingen falske toasts).
+   */
   const record = useCallback((theme: string, creature: string) => {
     const collection = activeRef.current;
     const key = sightingKey(collection, theme);
-    const isNew = !sightingsRef.current.get(key)?.has(creature);
+    const isNew = loadedRef.current && !sightingsRef.current.get(key)?.has(creature);
+    const at = Date.now();
+    recent.current.push({ seq: ++seq.current, key, kind: creature, at });
     setSightings((prev) => {
       const next = new Map(prev);
-      const spots = new Map(next.get(key) ?? []);
-      const old = spots.get(creature);
-      spots.set(creature, old ? { ...old, count: old.count + 1 } : { firstSeen: Date.now(), count: 1 });
-      next.set(key, spots);
+      bump(next, key, creature, at);
       return next;
     });
     recordSighting(collection, theme, creature).catch(() => {});
     return isNew;
   }, []);
 
+  // Ændringer i klasserne huskes også i browseren.
+  const cacheClasses = useCallback(
+    (cs: ZooClass[]) => {
+      try {
+        localStorage.setItem(`stillezoonen:classes:${userKey}`, JSON.stringify(cs));
+      } catch {}
+      return cs;
+    },
+    [userKey],
+  );
+
   const addClass = useCallback(async (name: string) => {
     const res = await createClass(name);
-    if (res.ok) setClasses((cs) => sortClasses([...cs, res.cls]));
+    if (res.ok) setClasses((cs) => cacheClasses(sortClasses([...cs, res.cls])));
     return res;
-  }, []);
+  }, [cacheClasses]);
 
   const changeClass = useCallback(async (id: string, name: string) => {
     const res = await renameClass(id, name);
-    if (res.ok) setClasses((cs) => sortClasses(cs.map((c) => (c.id === id ? res.cls : c))));
+    if (res.ok) setClasses((cs) => cacheClasses(sortClasses(cs.map((c) => (c.id === id ? res.cls : c)))));
     return res;
-  }, []);
+  }, [cacheClasses]);
 
   const removeClass = useCallback(async (id: string) => {
     const res = await deleteClass(id);
     if (res.ok) {
-      setClasses((cs) => cs.filter((c) => c.id !== id));
+      setClasses((cs) => cacheClasses(cs.filter((c) => c.id !== id)));
       setSightings((prev) => {
         const next = new Map(prev);
         for (const key of next.keys()) if (key.startsWith(`${id}\u0000`)) next.delete(key);
@@ -144,7 +186,7 @@ export function useCollection(userKey: string) {
       });
     }
     return res;
-  }, []);
+  }, [cacheClasses]);
 
   const activeName = useMemo(
     () => (active === MY_COLLECTION ? "Min samling" : (classes.find((c) => c.id === active)?.name ?? "Min samling")),
@@ -172,23 +214,12 @@ const EMPTY: ReadonlyMap<string, Spot> = new Map();
 const sortClasses = (cs: ZooClass[]) =>
   [...cs].sort((a, b) => a.name.localeCompare(b.name, "da", { numeric: true }));
 
-/** Foren serverens og de lokale fund: højeste antal og tidligste dato vinder. */
-function merge(server: Map<string, Map<string, Spot>>, local: Map<string, Map<string, Spot>>) {
-  const result = new Map(server);
-  for (const [key, spots] of local) {
-    const merged = new Map(result.get(key) ?? []);
-    for (const [kind, spot] of spots) {
-      const other = merged.get(kind);
-      merged.set(
-        kind,
-        other
-          ? { firstSeen: Math.min(other.firstSeen, spot.firstSeen), count: Math.max(other.count, spot.count) }
-          : spot,
-      );
-    }
-    result.set(key, merged);
-  }
-  return result;
+/** Én spotting mere af `kind` (ændrer `map` på plads; kopierer den indre Map). */
+function bump(map: Map<string, Map<string, Spot>>, key: string, kind: string, at: number) {
+  const spots = new Map(map.get(key) ?? []);
+  const old = spots.get(kind);
+  spots.set(kind, old ? { ...old, count: old.count + 1 } : { firstSeen: at, count: 1 });
+  map.set(key, spots);
 }
 
 function toMap(rows: Sighting[]) {

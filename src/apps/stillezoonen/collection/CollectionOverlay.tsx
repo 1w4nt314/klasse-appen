@@ -43,7 +43,7 @@ export function CollectionOverlay({
   useEffect(() => {
     closeButton.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
-      if (document.querySelector("dialog[open]")) return;
+      if (e.defaultPrevented || document.querySelector("dialog[open]")) return;
       if (e.key === "Escape") {
         onCloseRef.current();
         return;
@@ -219,6 +219,15 @@ function ClassManager({ collection }: { collection: Collection }) {
                   <input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
+                    onKeyDown={(e) => {
+                      // Escape annullerer kun omdøbningen — ikke hele oversigten.
+                      if (e.key === "Escape") {
+                        // React lytter på document (som oversigten), så markér
+                        // tasten som håndteret i stedet for at stoppe den.
+                        e.preventDefault();
+                        setEditing(null);
+                      }
+                    }}
                     maxLength={24}
                     aria-label={`Nyt navn til ${c.name}`}
                     autoFocus

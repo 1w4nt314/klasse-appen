@@ -1165,8 +1165,9 @@
 
 .zoo-toast {
   position: absolute;
-  /* Under topbjælken (lydmålerens kort, menuer) og under timer/tavle. */
-  z-index: 305;
+  /* Under topbjælken (lydmålerens kort, menuer), over timer/tavle — den er
+     kort, kan ikke klikkes på og må ikke forsvinde bag et vindue. */
+  z-index: 315;
   top: 4.25rem;
   left: 50%;
   translate: -50% 0;
