@@ -9,7 +9,7 @@ import type { CSSProperties } from "react";
 type Props = { className?: string; animated?: boolean };
 
 /** Krystal med lys venstre facet. Bunden ligger i (0,0). */
-const crystal = (
+export const crystal = (
   x: number,
   y: number,
   w: number,
@@ -131,10 +131,9 @@ export function Background({ className, animated = true }: Props) {
       <style>{`
         [data-animated] .zoo-alien-twinkle { animation: zoo-alien-twinkle var(--d, 3s) ease-in-out infinite alternate; animation-delay: var(--delay, 0s); }
         [data-animated] .zoo-alien-sway { transform-box: fill-box; transform-origin: 50% 100%; animation: zoo-alien-sway 6s ease-in-out infinite alternate; }
-        [data-animated] .zoo-alien-glow { animation: zoo-alien-glow 4s ease-in-out infinite alternate; }
         @keyframes zoo-alien-twinkle { from { opacity: 0.25; } to { opacity: 1; } }
         @keyframes zoo-alien-sway { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
-        @keyframes zoo-alien-glow { from { opacity: 0.35; } to { opacity: 0.75; } }
+        @media (prefers-reduced-motion: reduce) { [data-animated] .zoo-alien-twinkle, [data-animated] .zoo-alien-sway { animation: none; } }
       `}</style>
       <defs>
         <linearGradient id="alien-sky" x1="0" x2="0" y1="0" y2="1">
@@ -323,7 +322,7 @@ export function Foreground({ className }: { className?: string }) {
       aria-hidden="true"
     >
       {crystalCluster(70, 940, 1.1, CLUSTER_A, "fg-l1")}
-      {bulbPlant(250, 930, 0.7, "#1f9a86", "#ff7ac8", "#ffb0de", "fg-l2")}
+      {bulbPlant(120, 930, 0.7, "#1f9a86", "#ff7ac8", "#ffb0de", "fg-l2")}
       {crystalCluster(1530, 945, 1.15, CLUSTER_B, "fg-r1")}
       {tentaclePlant(1380, 930, 0.7, "#1f9a86", "#ffd84a", "fg-r2", true)}
     </svg>

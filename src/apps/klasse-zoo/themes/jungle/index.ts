@@ -8,6 +8,7 @@ export const jungle: Theme = {
   blurb: "Elefanter, aber, tigre og papegøjer",
   creatures,
   zone: "ground",
+  openRange: [36, 70],
   noun: "dyr",
   nounDefinite: "dyrene",
   place: "i junglen",

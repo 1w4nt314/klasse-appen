@@ -36,7 +36,8 @@ function loadSettings(): Settings {
 
 export default function KlasseZoo() {
   const mic = useMicrophone();
-  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  // Komponenten kører kun i browseren (ssr: false), så localStorage kan læses med det samme.
+  const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [isLoud, setIsLoud] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
@@ -51,10 +52,6 @@ export default function KlasseZoo() {
   const themeRef = useRef(theme);
 
   // Indstillinger huskes i browseren (pr. lærer-computer).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage findes først i browseren
-    setSettings(loadSettings());
-  }, []);
   useEffect(() => {
     themeRef.current = theme;
   }, [theme]);
@@ -165,6 +162,7 @@ export default function KlasseZoo() {
         const el = elementsRef.current.get(a.id);
         if (!el) continue;
         el.style.transform = `translate3d(${a.x * size.width}px,0,0)`;
+        if (a.bottom !== a.targetBottom) el.style.bottom = `${a.bottom}%`;
         if (el.dataset.mode !== a.mode) el.dataset.mode = a.mode;
         if (el.dataset.dir !== String(a.dir)) el.dataset.dir = String(a.dir);
       }
@@ -349,7 +347,7 @@ export default function KlasseZoo() {
               </fieldset>
 
               <fieldset>
-                <legend>Hvor ofte kommer et nyt dyr?</legend>
+                <legend>Hvor ofte kommer der nye {theme.noun}?</legend>
                 <div className="zoo-segment">
                   {TEMPOS.map((t) => (
                     <button
@@ -369,8 +367,8 @@ export default function KlasseZoo() {
 
               <label className="zoo-field">
                 <span>
-                  Højst <strong className="tabular-nums">{settings.maxAnimals}</strong> dyr
-                  ad gangen
+                  Højst <strong className="tabular-nums">{settings.maxAnimals}</strong>{" "}
+                  {theme.noun} ad gangen
                 </span>
                 <input
                   type="range"

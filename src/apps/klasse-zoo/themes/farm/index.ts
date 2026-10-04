@@ -8,6 +8,7 @@ export const farm: Theme = {
   blurb: "Køer, grise, får og høns",
   creatures,
   zone: "ground",
+  openRange: [36, 70],
   noun: "dyr",
   nounDefinite: "dyrene",
   place: "på gården",

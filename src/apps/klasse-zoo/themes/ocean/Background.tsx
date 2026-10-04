@@ -10,22 +10,18 @@ type Props = { className?: string; animated?: boolean };
 
 const weedBlade = "M-8 0 C -28 -50, 14 -92, -4 -150 C 24 -92, -18 -50, 8 0 Z";
 
-/** Tangtot af tre blade. Hvert blad svajer for sig (klassen animeres kun når scenen er animeret). */
+/** Tangtot af tre blade. Den faste placering ligger på en ydre <g>, så CSS-animationen på bladet ikke overskriver den. */
 const weed = (x: number, y: number, s: number, color: string, key: string, delay = 0) => (
   <g key={key} transform={`translate(${x} ${y}) scale(${s})`} fill={color}>
-    <path className="zoo-ocean-weed" style={{ animationDelay: `${-delay}s` }} d={weedBlade} />
-    <path
-      className="zoo-ocean-weed"
-      style={{ animationDelay: `${-delay - 1.3}s` }}
-      d={weedBlade}
-      transform="translate(-22 0) rotate(-14) scale(0.8)"
-    />
-    <path
-      className="zoo-ocean-weed"
-      style={{ animationDelay: `${-delay - 2.4}s` }}
-      d={weedBlade}
-      transform="translate(24 0) rotate(16) scale(0.9)"
-    />
+    <g>
+      <path className="zoo-ocean-weed" style={{ animationDelay: `${-delay}s` }} d={weedBlade} />
+    </g>
+    <g transform="translate(-22 0) rotate(-14) scale(0.8)">
+      <path className="zoo-ocean-weed" style={{ animationDelay: `${-delay - 1.3}s` }} d={weedBlade} />
+    </g>
+    <g transform="translate(24 0) rotate(16) scale(0.9)">
+      <path className="zoo-ocean-weed" style={{ animationDelay: `${-delay - 2.4}s` }} d={weedBlade} />
+    </g>
   </g>
 );
 
@@ -309,14 +305,15 @@ export function Foreground({ className }: { className?: string }) {
       preserveAspectRatio="xMidYMax slice"
       className={className}
       aria-hidden="true"
+      data-animated
     >
       <style>{css}</style>
       {weed(-10, 930, 1.9, "#1f7f4a", "fg-weed-l1", 0.5)}
       {weed(130, 940, 1.5, "#2a9558", "fg-weed-l2", 2.2)}
       {tubeCoral(60, 940, 1.5, "#9a62d0", "#5a2f90", "fg-tube-l")}
-      {branchCoral(1520, 945, 1.45, "#ff7f5e", "#ffbe9c", "fg-coral-r")}
+      {branchCoral(1545, 945, 1.1, "#ff7f5e", "#ffbe9c", "fg-coral-r")}
       {weed(1620, 930, 1.9, "#1f7f4a", "fg-weed-r1", 1.4)}
-      {weed(1430, 940, 1.4, "#2a9558", "fg-weed-r2", 3.1)}
+      {weed(1450, 940, 1.15, "#2a9558", "fg-weed-r2", 3.1)}
     </svg>
   );
 }

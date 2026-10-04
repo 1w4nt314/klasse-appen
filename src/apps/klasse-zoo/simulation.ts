@@ -21,6 +21,8 @@ export type Animal = {
   depth: number;
   /** Afstand fra bunden af scenen i procent. */
   bottom: number;
+  /** Højde figuren driver mod (kun zone "open"; ellers lig `bottom`). */
+  targetBottom: number;
   target: number;
   dir: 1 | -1;
   mode: Mode;
@@ -34,9 +36,6 @@ export type SceneSize = { width: number; height: number };
 
 /** Jorden: dybde 0 står bagerst (24 % oppe), dybde 1 forrest (4 %). */
 const groundBottom = (d: number) => 24 - d * 20;
-/** Frit vand/luft: figurerne fordeles i højden over hele scenen. */
-const OPEN_MIN = 10;
-const OPEN_MAX = 66;
 export const depthScale = (d: number) => 0.62 + d * 0.38;
 
 const WALK_SPEED = 0.11; // scenehøjder pr. sekund
@@ -65,13 +64,17 @@ function pickKind(animals: Animal[], theme: Theme) {
 }
 
 /** Find en ledig plads: det bedste af nogle tilfældige bud. */
-function pickSpot(animals: Animal[], s: SceneSize, open: boolean) {
+function pickSpot(
+  animals: Animal[],
+  s: SceneSize,
+  open: [number, number] | null,
+) {
   const ratio = s.height > 0 ? s.width / s.height : 16 / 9;
   let best = { x: 0.5, depth: 0.5, bottom: 10, score: -1 };
   for (let i = 0; i < 14; i++) {
     const x = rand(0.08, 0.92);
     const depth = Math.random();
-    const bottom = open ? rand(OPEN_MIN, OPEN_MAX) : groundBottom(depth);
+    const bottom = open ? rand(open[0], open[1]) : groundBottom(depth);
     let score = Infinity;
     for (const a of animals) {
       if (a.mode === "flee") continue;
@@ -84,22 +87,29 @@ function pickSpot(animals: Animal[], s: SceneSize, open: boolean) {
   return best;
 }
 
+const clampX = (x: number, half: number) =>
+  Math.min(0.94 - half, Math.max(0.06 + half, x));
+
 let nextId = 1;
 
 export function spawn(animals: Animal[], s: SceneSize, theme: Theme): Animal {
   const kind = pickKind(animals, theme);
   const spec = theme.creatures[kind];
-  const open = zoneOf(spec, theme) === "open";
-  const { x: target, depth, bottom } = pickSpot(animals, s, open);
+  const open = zoneOf(spec, theme) === "open" ? theme.openRange : null;
+  const spot = pickSpot(animals, s, open);
+  const { depth, bottom } = spot;
+  const half = widthFraction(spec, depth, s) / 2;
+  // Store figurer må ikke stå delvist uden for skærmen.
+  const target = clampX(spot.x, half);
   // Oftest ind fra den side der er tættest på målet.
   const fromLeft = Math.random() < (target < 0.5 ? 0.75 : 0.25);
-  const half = widthFraction(spec, depth, s) / 2;
   return {
     id: nextId++,
     kind,
     x: fromLeft ? -half - 0.01 : 1 + half + 0.01,
     depth,
     bottom,
+    targetBottom: bottom,
     target,
     dir: fromLeft ? 1 : -1,
     mode: "walk",
@@ -140,6 +150,13 @@ export function step(
     const pace = spec.pace * a.jitter;
     const half = widthFraction(spec, a.depth, s) / 2;
     const restless = isRestless(spec);
+    const open = zoneOf(spec, theme) === "open";
+
+    // Svømmende/svævende figurer driver blødt mod deres nye højde.
+    if (open && a.mode !== "flee" && a.bottom !== a.targetBottom) {
+      a.bottom += (a.targetBottom - a.bottom) * Math.min(1, dt * 0.7);
+      if (Math.abs(a.targetBottom - a.bottom) < 0.05) a.bottom = a.targetBottom;
+    }
 
     switch (a.mode) {
       case "walk": {
@@ -159,8 +176,11 @@ export function step(
         if (now < a.until) break;
         if (Math.random() < (restless ? 0.85 : 0.6)) {
           const range = restless ? 0.3 : 0.22;
-          const t = a.x + rand(-range, range);
-          a.target = Math.min(0.94 - half, Math.max(0.06 + half, t));
+          a.target = clampX(a.x + rand(-range, range), half);
+          if (open) {
+            const [lo, hi] = theme.openRange;
+            a.targetBottom = Math.min(hi, Math.max(lo, a.bottom + rand(-12, 12)));
+          }
           a.mode = "walk";
         } else {
           a.dir = a.dir === 1 ? -1 : 1;

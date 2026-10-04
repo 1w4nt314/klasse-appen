@@ -1,32 +1,16 @@
 import type { CSSProperties } from "react";
 import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
+import { crystal } from "./Background";
 
 /**
  * Rumvæsnerne i Klasse Zoo. Tegnet i profil, vendt mod højre, med fødderne
  * (eller bunden) på bunden af viewBox. Walk-figurer har ben i `zoo-leg-a`/`zoo-leg-b`.
  */
 
-/** Krystal: spids sekskant-agtig form med lys venstre side. Bunden ligger i (0,0). */
-const crystal = (
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  rot: number,
-  base: string,
-  light: string,
-  key: string,
-) => (
-  <g key={key} transform={`translate(${x} ${y}) rotate(${rot})`}>
-    <polygon points={`${-w / 2},0 ${-w / 2},${-h * 0.7} 0,${-h} ${w / 2},${-h * 0.7} ${w / 2},0`} fill={base} />
-    <polygon points={`${-w / 2},0 ${-w / 2},${-h * 0.7} 0,${-h} 0,0`} fill={light} />
-  </g>
-);
-
 const greenAlien: CreatureSpec = {
   name: "Grøn alien",
-  height: 14,
+  height: 19,
   aspect: 120 / 150,
   gait: "walk",
   pace: 1,
@@ -34,12 +18,8 @@ const greenAlien: CreatureSpec = {
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
-        <rect x="68" y="114" width="12" height="34" rx="6" fill="#43a84b" />
-        <ellipse cx="76" cy="147" rx="10" ry="4" fill="#43a84b" />
-      </g>
-      <g className="zoo-leg zoo-leg-b">
-        <rect x="44" y="114" width="12" height="34" rx="6" fill="#43a84b" />
-        <ellipse cx="52" cy="147" rx="10" ry="4" fill="#43a84b" />
+        <rect x="48" y="114" width="12" height="34" rx="6" fill="#43a84b" />
+        <ellipse cx="57" cy="147" rx="10" ry="4" fill="#43a84b" />
       </g>
       <g className="zoo-torso">
         <ellipse cx="62" cy="98" rx="27" ry="32" fill="#6fd36b" />
@@ -48,12 +28,8 @@ const greenAlien: CreatureSpec = {
         <circle cx="46" cy="106" r="2.5" fill="#56bd57" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="70" y="116" width="13" height="32" rx="6" fill="#7fe07a" />
-        <ellipse cx="80" cy="147" rx="11" ry="4" fill="#7fe07a" />
-      </g>
-      <g className="zoo-leg zoo-leg-a">
-        <rect x="46" y="116" width="13" height="32" rx="6" fill="#7fe07a" />
-        <ellipse cx="56" cy="147" rx="11" ry="4" fill="#7fe07a" />
+        <rect x="68" y="116" width="13" height="32" rx="6" fill="#7fe07a" />
+        <ellipse cx="78" cy="147" rx="11" ry="4" fill="#7fe07a" />
       </g>
       <g className="zoo-head">
         <path d="M54 24 C 50 14, 46 9, 41 5" stroke="#56bd57" strokeWidth="3.5" fill="none" strokeLinecap="round" />
@@ -78,7 +54,7 @@ const greenAlien: CreatureSpec = {
 
 const blob: CreatureSpec = {
   name: "Slim-klat",
-  height: 8,
+  height: 11,
   aspect: 110 / 84,
   gait: "hop",
   pace: 1.15,
@@ -112,7 +88,7 @@ const blob: CreatureSpec = {
 
 const ufo: CreatureSpec = {
   name: "UFO",
-  height: 10,
+  height: 14,
   aspect: 140 / 90,
   gait: "float",
   pace: 1,
@@ -150,7 +126,7 @@ const ufo: CreatureSpec = {
 
 const robot: CreatureSpec = {
   name: "Robot",
-  height: 14,
+  height: 19,
   aspect: 110 / 150,
   gait: "walk",
   pace: 0.9,
@@ -158,12 +134,8 @@ const robot: CreatureSpec = {
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
-        <rect x="64" y="108" width="14" height="36" rx="5" fill="#5f86d6" />
-        <rect x="59" y="142" width="28" height="8" rx="4" fill="#4b6fbd" />
-      </g>
-      <g className="zoo-leg zoo-leg-b">
-        <rect x="40" y="108" width="14" height="36" rx="5" fill="#5f86d6" />
-        <rect x="35" y="142" width="28" height="8" rx="4" fill="#4b6fbd" />
+        <rect x="42" y="108" width="14" height="36" rx="5" fill="#5f86d6" />
+        <rect x="37" y="142" width="28" height="8" rx="4" fill="#4b6fbd" />
       </g>
       <g className="zoo-torso">
         <rect x="32" y="70" width="58" height="46" rx="12" fill="#8fb3ff" />
@@ -172,12 +144,8 @@ const robot: CreatureSpec = {
         <circle cx="62" cy="92" r="4.2" fill="#ffd84a" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="68" y="110" width="14" height="34" rx="5" fill="#8fb3ff" />
-        <rect x="63" y="142" width="28" height="8" rx="4" fill="#6f95e8" />
-      </g>
-      <g className="zoo-leg zoo-leg-a">
-        <rect x="44" y="110" width="14" height="34" rx="5" fill="#8fb3ff" />
-        <rect x="39" y="142" width="28" height="8" rx="4" fill="#6f95e8" />
+        <rect x="64" y="110" width="14" height="34" rx="5" fill="#8fb3ff" />
+        <rect x="59" y="142" width="28" height="8" rx="4" fill="#6f95e8" />
       </g>
       <g className="zoo-head">
         <path d="M62 20 V 8" stroke="#5f86d6" strokeWidth="3.5" strokeLinecap="round" />
@@ -197,7 +165,7 @@ const robot: CreatureSpec = {
 
 const bouncer: CreatureSpec = {
   name: "Hoppefjeder",
-  height: 10,
+  height: 13,
   aspect: 100 / 130,
   gait: "hop",
   pace: 1.1,
@@ -239,7 +207,7 @@ const bouncer: CreatureSpec = {
 
 const floatingEye: CreatureSpec = {
   name: "Svævende øje",
-  height: 8,
+  height: 11,
   aspect: 120 / 96,
   gait: "float",
   pace: 0.9,
@@ -282,7 +250,7 @@ const SNAIL_SEGMENTS = [
 
 const crystalSnail: CreatureSpec = {
   name: "Krystalsnegl",
-  height: 7,
+  height: 10,
   aspect: 170 / 90,
   gait: "slither",
   pace: 0.5,
@@ -320,7 +288,7 @@ const crystalSnail: CreatureSpec = {
 
 const tentacleBuddy: CreatureSpec = {
   name: "Tentakelven",
-  height: 12,
+  height: 16,
   aspect: 140 / 130,
   gait: "walk",
   pace: 0.9,

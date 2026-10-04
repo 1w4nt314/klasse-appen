@@ -9,33 +9,24 @@ import type { CreatureSpec } from "../types";
 
 const clownfish: CreatureSpec = {
   name: "Klovnfisk",
-  height: 7,
+  height: 10,
   aspect: 120 / 76,
   gait: "swim",
   pace: 1.1,
   viewBox: "0 0 120 76",
   art: (
     <>
-      <defs>
-        <clipPath id="ocean-clip-clown">
-          <ellipse cx="68" cy="40" rx="46" ry="29" />
-        </clipPath>
-      </defs>
       <g className="zoo-tail">
         <path d="M26 40 C 16 32, 8 22, 2 20 C 8 32, 8 48, 2 60 C 8 58, 18 48, 26 40 Z" fill="#e8601a" />
       </g>
       <path d="M44 16 C 52 -2, 84 -2, 96 16 Z" fill="#e8601a" />
       <path d="M58 62 C 62 72, 74 76, 80 66 Z" fill="#e8601a" />
       <ellipse cx="68" cy="40" rx="46" ry="29" fill="#f58a2d" />
-      <g clipPath="url(#ocean-clip-clown)">
-        <rect x="48" y="0" width="12" height="80" fill="#fff6ea" />
-        <rect x="46" y="0" width="2.5" height="80" fill="#3a2a22" opacity="0.55" />
-        <rect x="60" y="0" width="2.5" height="80" fill="#3a2a22" opacity="0.55" />
-        <rect x="86" y="0" width="10" height="80" fill="#fff6ea" />
-        <rect x="84" y="0" width="2.5" height="80" fill="#3a2a22" opacity="0.55" />
-        <rect x="96" y="0" width="2.5" height="80" fill="#3a2a22" opacity="0.55" />
-        <ellipse cx="70" cy="58" rx="40" ry="16" fill="#ffc07a" opacity="0.55" />
-      </g>
+      <path d="M46 14.5 A46 29 0 0 1 62 11.3 L62 68.7 A46 29 0 0 1 46 65.5 Z" fill="#5a3a2a" />
+      <path d="M84 12.8 A46 29 0 0 1 98 18 L98 62 A46 29 0 0 1 84 67.2 Z" fill="#5a3a2a" />
+      <path d="M48 13.9 A46 29 0 0 1 60 11.4 L60 68.6 A46 29 0 0 1 48 66.1 Z" fill="#fff6ea" />
+      <path d="M86 13.3 A46 29 0 0 1 96 17 L96 63 A46 29 0 0 1 86 66.7 Z" fill="#fff6ea" />
+      <path d="M22.5 44 A46 29 0 0 0 113.5 44 C 96 56, 40 56, 22.5 44 Z" fill="#ffc07a" opacity="0.5" />
       <g className="zoo-head">
         <path d="M70 46 C 78 44, 82 54, 74 60 C 66 58, 64 50, 70 46 Z" fill="#e8601a" />
         {EYE(100, 34, 4.4)}
@@ -48,28 +39,21 @@ const clownfish: CreatureSpec = {
 
 const tang: CreatureSpec = {
   name: "Blå kirurgfisk",
-  height: 8,
+  height: 11,
   aspect: 132 / 90,
   gait: "swim",
   pace: 1,
   viewBox: "0 0 132 90",
   art: (
     <>
-      <defs>
-        <clipPath id="ocean-clip-tang">
-          <ellipse cx="74" cy="46" rx="50" ry="34" />
-        </clipPath>
-      </defs>
       <g className="zoo-tail">
         <path d="M28 46 C 20 38, 12 24, 2 20 C 8 34, 8 58, 2 72 C 12 66, 20 54, 28 46 Z" fill="#ffd23c" />
       </g>
       <path d="M40 18 C 56 0, 100 0, 112 22 Z" fill="#1f56b8" />
       <path d="M52 70 C 62 86, 88 88, 96 72 Z" fill="#1f56b8" />
       <ellipse cx="74" cy="46" rx="50" ry="34" fill="#3b95ee" />
-      <g clipPath="url(#ocean-clip-tang)">
-        <path d="M30 58 C 44 28, 84 18, 102 44 C 92 36, 72 40, 64 60 C 58 76, 36 80, 30 58 Z" fill="#17306e" />
-        <ellipse cx="78" cy="68" rx="44" ry="14" fill="#9fd0ff" opacity="0.4" />
-      </g>
+      <path d="M36 56 C 46 30, 82 22, 100 44 C 90 36, 72 40, 64 58 C 58 72, 40 72, 36 56 Z" fill="#17306e" />
+      <path d="M24.8 52 A50 34 0 0 0 123.2 52 C 104 64, 44 64, 24.8 52 Z" fill="#9fd0ff" opacity="0.4" />
       <path d="M30 48 l 8 -4 l 0 8 z" fill="#ffd23c" />
       <g className="zoo-head">
         <path d="M80 54 C 90 52, 92 64, 82 68 C 76 64, 74 58, 80 54 Z" fill="#2c78d4" />
@@ -86,7 +70,7 @@ const spike = (angle: number, key: string) => (
 
 const pufferfish: CreatureSpec = {
   name: "Kuglefisk",
-  height: 8,
+  height: 11,
   aspect: 112 / 100,
   gait: "swim",
   pace: 0.8,
@@ -117,18 +101,13 @@ const pufferfish: CreatureSpec = {
 
 const turtle: CreatureSpec = {
   name: "Havskildpadde",
-  height: 14,
+  height: 19,
   aspect: 210 / 122,
   gait: "swim",
   pace: 0.6,
   viewBox: "0 0 210 122",
   art: (
     <>
-      <defs>
-        <clipPath id="ocean-clip-shell">
-          <path d="M34 82 C 34 36, 86 18, 124 24 C 160 30, 176 58, 172 82 Z" />
-        </clipPath>
-      </defs>
       <g className="zoo-tail">
         <path d="M44 84 C 34 86, 18 94, 4 108 C 22 112, 38 104, 50 96 Z" fill="#6aa86a" />
       </g>
@@ -137,12 +116,10 @@ const turtle: CreatureSpec = {
       </g>
       <path d="M32 80 C 38 98, 160 100, 176 80 Z" fill="#efdca0" />
       <path d="M34 82 C 34 36, 86 18, 124 24 C 160 30, 176 58, 172 82 Z" fill="#5da05a" />
-      <g clipPath="url(#ocean-clip-shell)">
-        <path d="M60 50 L 86 36 L 116 40 L 128 62 L 104 76 L 70 72 Z" fill="#8cc774" />
-        <path d="M128 46 L 152 52 L 156 72 L 134 78 Z" fill="#8cc774" opacity="0.85" />
-        <path d="M36 62 L 58 56 L 66 76 L 36 82 Z" fill="#8cc774" opacity="0.85" />
-        <path d="M0 74 H 220 V 90 H 0 Z" fill="#3f7d48" opacity="0.5" />
-      </g>
+      <path d="M60 50 L 86 36 L 116 40 L 128 62 L 104 76 L 70 72 Z" fill="#8cc774" />
+      <path d="M128 46 L 152 52 L 156 72 L 134 78 Z" fill="#8cc774" opacity="0.85" />
+      <path d="M46 62 L 60 56 L 66 76 L 42 80 Z" fill="#8cc774" opacity="0.85" />
+      <path d="M38 70 C 60 78, 150 78, 172 70 L 172 82 L 34 82 Z" fill="#3f7d48" opacity="0.5" />
       <g className="zoo-head">
         <path d="M160 68 C 170 62, 182 60, 190 64 L 190 84 C 182 86, 168 86, 158 84 Z" fill="#7fb877" />
         <circle cx="190" cy="68" r="19" fill="#8cc774" />
@@ -160,7 +137,7 @@ const turtle: CreatureSpec = {
 
 const jellyfish: CreatureSpec = {
   name: "Vandmand",
-  height: 12,
+  height: 16,
   aspect: 100 / 130,
   gait: "float",
   pace: 0.7,
@@ -198,7 +175,7 @@ const jellyfish: CreatureSpec = {
 
 const seahorse: CreatureSpec = {
   name: "Søhest",
-  height: 11,
+  height: 15,
   aspect: 76 / 130,
   gait: "float",
   pace: 0.7,
@@ -234,7 +211,7 @@ const seahorse: CreatureSpec = {
 
 const octopus: CreatureSpec = {
   name: "Blæksprutte",
-  height: 13,
+  height: 18,
   aspect: 150 / 130,
   gait: "float",
   pace: 0.8,
@@ -281,7 +258,7 @@ const octopus: CreatureSpec = {
 
 const crab: CreatureSpec = {
   name: "Krabbe",
-  height: 6,
+  height: 8,
   aspect: 130 / 72,
   gait: "walk",
   pace: 1,
@@ -290,18 +267,22 @@ const crab: CreatureSpec = {
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M40 52 L 22 52 L 16 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M90 56 L 108 58 L 112 69" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M38 50 L 22 50 L 18 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M40 58 L 24 62 L 22 70" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M90 50 L 106 48 L 116 62" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M40 57 L 26 61 L 24 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M50 62 L 40 66 L 38 71" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M50 62 L 41 66 L 39 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M80 62 L 90 66 L 92 71" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M92 50 L 108 50 L 112 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <g className="zoo-leg zoo-leg-a">
+        <path d="M90 57 L 104 61 L 106 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+      <g className="zoo-leg zoo-leg-b">
+        <path d="M80 62 L 89 66 L 91 68" stroke="#d0402e" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-torso">
         <path d="M30 24 C 24 8, 10 6, 6 16 C 4 26, 14 32, 22 32 Z" fill="#e8553f" />

@@ -8,6 +8,7 @@ export const ocean: Theme = {
   blurb: "Fisk, skildpadder og vandmænd",
   creatures,
   zone: "open",
+  openRange: [26, 66],
   noun: "dyr",
   nounDefinite: "dyrene",
   place: "i akvariet",

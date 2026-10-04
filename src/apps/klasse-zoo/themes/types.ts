@@ -38,6 +38,11 @@ export type Theme = {
   creatures: Record<string, CreatureSpec>;
   /** Standardzone for temaets figurer. */
   zone: Zone;
+  /**
+   * Hvor højt figurer i zone "open" må svæve, i procent fra bunden [min, max].
+   * Fx over sandbunden i akvariet eller over horisonten på planeten.
+   */
+  openRange: [number, number];
   /** "dyr" / "rumvæsner" — bruges i tælleren. */
   noun: string;
   /** "dyrene" / "rumvæsnerne" — bruges i "Shhh"-beskeden. */

@@ -305,8 +305,8 @@
   }
 }
 
-/* Lianerne svajer stille. */
-.zoo-sway {
+/* Lianerne svajer stille (ikke i små forhåndsvisninger). */
+[data-animated] .zoo-sway {
   transform-box: view-box;
   transform-origin: 50% 0%;
   animation: zoo-sway 7s ease-in-out infinite alternate;
@@ -741,7 +741,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .zoo-sway,
+  [data-animated] .zoo-sway,
   .zoo-eye {
     animation: none;
   }

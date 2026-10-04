@@ -8,6 +8,7 @@ export const alien: Theme = {
   blurb: "Søde rumvæsner og UFO'er",
   creatures,
   zone: "ground",
+  openRange: [38, 70],
   noun: "rumvæsner",
   nounDefinite: "rumvæsnerne",
   place: "på planeten",
