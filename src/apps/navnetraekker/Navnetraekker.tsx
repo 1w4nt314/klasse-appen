@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ClassEditor } from "./ClassEditor";
 import { DrawView } from "./DrawView";
 import type { AppProps } from "../runtime";
@@ -33,6 +33,8 @@ export default function Navnetraekker({ userKey }: AppProps) {
   const [creating, setCreating] = useState(false);
   // Mens rullen kører, kan klasse og visning ikke skiftes (navnet er allerede trukket).
   const [spinning, setSpinning] = useState(false);
+  // Valgt med mus/berøring? Så gives fokus fra sig bagefter; med tastaturet beholdes det.
+  const pickedWithPointer = useRef(false);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -62,11 +64,14 @@ export default function Navnetraekker({ userKey }: AppProps) {
               <select
                 value={active?.id ?? ""}
                 disabled={spinning}
+                onPointerDown={() => (pickedWithPointer.current = true)}
+                onKeyDown={() => (pickedWithPointer.current = false)}
                 onChange={(e) => {
                   setCreating(false);
                   selectClass(e.target.value);
-                  // Giv fokus fra sig, så mellemrum bagefter trækker.
-                  e.target.blur();
+                  // Valgt med musen: giv fokus fra sig, så mellemrum bagefter trækker.
+                  if (pickedWithPointer.current) e.target.blur();
+                  pickedWithPointer.current = false;
                 }}
                 className="rounded-control border border-line-strong bg-surface px-2.5 py-1.5 font-bold"
               >
