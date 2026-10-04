@@ -47,6 +47,8 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
       "scrypt$00000000000000000000000000000000$" + "0".repeat(128),
   );
   if (!user || !ok) return { error: "Forkert e-mail eller adgangskode.", values };
+  if (user.disabled_at)
+    return { error: "Din bruger er deaktiveret. Kontakt Klasse-appen, hvis det er en fejl.", values };
 
   await startSession(user.id);
   redirect(safeNext(str(form, "next")));

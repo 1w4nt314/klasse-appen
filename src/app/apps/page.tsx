@@ -25,7 +25,7 @@ export default async function AppsPage() {
 
   return (
     <>
-      <SiteHeader teacher={teacher} />
+      <SiteHeader teacher={teacher} current="apps" />
       <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-10">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-brand-strong sm:text-4xl">
           {firstName ? `Hej ${firstName}` : "Dine apps"}

@@ -1,11 +1,18 @@
 import { createHash, randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { db } from "./db";
 
-export type Teacher = { id: string; name: string; school: string; email: string };
+export type Teacher = {
+  id: string;
+  name: string;
+  school: string;
+  email: string;
+  /** Platform-admin. Kan kun gives fra serverens shell (scripts/admin.mjs). */
+  isAdmin: boolean;
+};
 
 const COOKIE = "klasse_session";
 const SESSION_DAYS = 30;
@@ -49,8 +56,8 @@ export function createUser(input: {
 
 export function findUserByEmail(email: string) {
   return db()
-    .prepare("select id, password_hash from users where email = ?")
-    .get(email) as { id: string; password_hash: string } | undefined;
+    .prepare("select id, password_hash, disabled_at from users where email = ?")
+    .get(email) as { id: string; password_hash: string; disabled_at: number | null } | undefined;
 }
 
 /** Opret en session og sæt cookien. Kun i Server Actions/Route Handlers. */
@@ -85,21 +92,34 @@ export const getTeacher = cache(async (): Promise<Teacher | null> => {
   if (!token) return null;
   const row = db()
     .prepare(
-      `select u.id, u.email, u.full_name, u.school
+      `select u.id, u.email, u.full_name, u.school, u.role
          from sessions s join users u on u.id = s.user_id
-        where s.token_hash = ? and s.expires_at > ?`,
+        where s.token_hash = ? and s.expires_at > ? and u.disabled_at is null`,
     )
     .get(sha256(token), Date.now()) as
-    | { id: string; email: string; full_name: string; school: string }
+    | { id: string; email: string; full_name: string; school: string; role: string }
     | undefined;
   if (!row) return null;
-  return { id: row.id, email: row.email, name: row.full_name, school: row.school };
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.full_name,
+    school: row.school,
+    isAdmin: row.role === "admin",
+  };
 });
 
 /** Som getTeacher, men sender til login hvis man ikke er logget ind. */
 export async function requireTeacher(next: string) {
   const teacher = await getTeacher();
   if (!teacher) redirect(`/login?next=${encodeURIComponent(next)}`);
+  return teacher;
+}
+
+/** Kun for platform-admins; andre får en 404, så siden ikke afslører sig selv. */
+export async function requireAdmin(next: string) {
+  const teacher = await requireTeacher(next);
+  if (!teacher.isAdmin) notFound();
   return teacher;
 }
 
