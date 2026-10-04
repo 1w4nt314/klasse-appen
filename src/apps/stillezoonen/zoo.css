@@ -468,10 +468,15 @@
 }
 /* Skal kunne ses på afstand: læreren må ikke glemme, at mikrofonen er slået fra. */
 .zoo-muted-tag {
+  /* Absolut, så mærket ikke gør midterkolonnen bredere og skubber til siderne. */
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  translate: -50% 0;
+  max-width: calc(100vw - 2rem);
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  margin-top: 0.5rem;
   padding: 0.4rem 0.5rem 0.4rem 0.75rem;
   border-radius: var(--radius-card);
   background: var(--danger);
@@ -489,10 +494,9 @@
   background: #fff;
   color: var(--danger);
 }
-@media (max-width: 720px) {
-  .zoo-muted-tag {
-    white-space: normal;
-    max-width: 70vw;
+@media (max-width: 900px) {
+  .zoo-muted-long {
+    display: none;
   }
 }
 .zoo-meter-card {

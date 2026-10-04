@@ -305,6 +305,8 @@ export default function Stillezoonen() {
       <FloatingTimer
         storageKey="stillezoonen:timer"
         hidden={!settings.timer}
+        // Over startskærmens overlay (400), men under menuen mens zoo'en kører.
+        zIndex={running ? 310 : 410}
         onClose={() => setSettings((s) => ({ ...s, timer: false }))}
         onDone={() => setSettings((s) => ({ ...s, timer: true }))}
       />

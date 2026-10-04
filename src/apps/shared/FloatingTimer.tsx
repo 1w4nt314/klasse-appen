@@ -197,7 +197,14 @@ export function FloatingTimer({
 
       <div className="ft-body">
         {phase === "setup" ? (
-          <div className="ft-setup">
+          <form
+            className="ft-setup"
+            onSubmit={(e) => {
+              e.preventDefault();
+              start();
+            }}
+          >
+            <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
             <div className="ft-inputs">
               <label>
                 <input
@@ -230,7 +237,7 @@ export function FloatingTimer({
                 </button>
               ))}
             </div>
-          </div>
+          </form>
         ) : (
           <div className="ft-time" role="timer" aria-live="off">
             {phase === "done" ? "Tiden er gået!" : fmt(left)}

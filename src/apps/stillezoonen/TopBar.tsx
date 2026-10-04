@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import { TEMPOS, type Settings } from "./settings";
 import { ThemePicker } from "./ThemePicker";
+import { MUTE_MS } from "./useMicrophone";
 import type { Theme } from "./themes/types";
 
 /** Luk når der klikkes udenfor eller trykkes Escape (så får `onEscape` lov at flytte fokus). */
@@ -31,16 +40,18 @@ function useDismiss(
   }, [open, close, ref, onEscape]);
 }
 
-/** "2:41" til automatisk genaktivering. Tikker hvert sekund mens den vises. */
+const subscribeSeconds = (cb: () => void) => {
+  const id = window.setInterval(cb, 250);
+  return () => window.clearInterval(id);
+};
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+/** "2:41" til automatisk genaktivering. */
 function useCountdown(until: number | null) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (until === null) return;
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [until]);
+  const now = useSyncExternalStore(subscribeSeconds, nowSeconds, () => 0) * 1000;
   if (until === null) return "";
-  const s = Math.max(0, Math.ceil((until - now) / 1000));
+  // Uret er rundet ned til hele sekunder, så værdien kappes ved mute-varigheden.
+  const s = Math.max(0, Math.min(MUTE_MS / 1000, Math.ceil((until - now) / 1000)));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
@@ -94,7 +105,10 @@ export function SoundMeter({
       {muted && !open && (
         <button type="button" className="zoo-muted-tag" onClick={() => onMute(false)}>
           <MicIcon off />
-          Mikrofonen er slået fra · tændes om {countdown}
+          <span>
+            <span className="zoo-muted-long">Mikrofonen er slået fra · tændes om </span>
+            {countdown}
+          </span>
           <span className="zoo-muted-action">Slå til</span>
         </button>
       )}
@@ -164,7 +178,14 @@ export function SettingsMenu({
   }, [open]);
 
   return (
-    <div ref={ref} className="zoo-menu-wrap">
+    <div
+      ref={ref}
+      className="zoo-menu-wrap"
+      onBlur={(e) => {
+        if (open && !e.currentTarget.contains(e.relatedTarget as Node | null) && e.relatedTarget)
+          setOpen(false);
+      }}
+    >
       <button
         ref={button}
         type="button"
