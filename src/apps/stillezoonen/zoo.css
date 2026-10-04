@@ -1094,6 +1094,8 @@
 }
 .mb-text {
   margin: 0;
+  /* Brydes et ord, så med bindestreg (sproget er dansk, <html lang="da">). */
+  hyphens: auto;
   max-width: 100%;
   text-align: center;
   white-space: pre-line;

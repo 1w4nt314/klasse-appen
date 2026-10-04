@@ -68,7 +68,11 @@ export function MessageBoard({
 }) {
   const [text, setText] = useState(loadMessage);
   // En tom tavle — eller en halvskrevet kladde — åbner direkte i redigering.
-  const [editing, setEditing] = useState(() => !loadMessage() || loadDraft() !== null);
+  const [editing, setEditing] = useState(() => {
+    const saved = loadMessage();
+    const pending = loadDraft();
+    return !saved || (pending !== null && pending !== saved);
+  });
   const [draft, setDraft] = useState(() => loadDraft() ?? loadMessage());
   const editor = useRef<HTMLTextAreaElement>(null);
   const editButton = useRef<HTMLButtonElement>(null);
@@ -90,12 +94,14 @@ export function MessageBoard({
     if (editing) editor.current?.focus({ preventScroll: true });
   }, [editing]);
 
+  // Kun en egentlig ændring gemmes som kladde — "Redigér" og luk uden at
+  // ændre noget skal ikke få tavlen til at åbne i redigering næste gang.
   const changeDraft = (value: string) => {
     setDraft(value);
-    saveDraft(value);
+    saveDraft(value === text ? null : value);
   };
   const startEdit = () => {
-    changeDraft(text);
+    setDraft(text);
     setEditing(true);
   };
   const save = () => {
