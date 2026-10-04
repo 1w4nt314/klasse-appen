@@ -128,36 +128,45 @@ const jaguar: CreatureSpec = {
 
 const orangutan: CreatureSpec = {
   name: "Orangutang",
-  height: 20,
-  aspect: 150 / 156,
+  height: 22,
+  aspect: 170 / 150,
   gait: "walk",
   pace: 0.7,
-  viewBox: "0 0 150 156",
+  viewBox: "0 0 170 150",
   art: (
     <>
-      <g className="zoo-leg zoo-leg-a"><path d="M52 118 v 30" stroke="#a8461f" strokeWidth="15" strokeLinecap="round" /></g>
-      <g className="zoo-leg zoo-leg-b"><path d="M92 68 C 108 92, 112 122, 108 146" stroke="#a8461f" strokeWidth="13" strokeLinecap="round" fill="none" /></g>
-      <g className="zoo-torso">
-        <ellipse cx="64" cy="88" rx="34" ry="35" fill="#c9622b" />
-        <path d="M40 70 q 7 12 0 24 M52 62 q 7 14 0 28 M64 58 q 7 14 0 28" stroke="#dd8140" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <path d="M38 110 q 6 9 12 0 q 6 9 12 0 q 6 9 12 0" stroke="#b05224" strokeWidth="3" fill="none" strokeLinecap="round" />
-      </g>
-      <g className="zoo-leg zoo-leg-b"><path d="M72 114 v 34" stroke="#c9622b" strokeWidth="17" strokeLinecap="round" /><ellipse cx="76" cy="150" rx="11" ry="4" fill="#7a3a1c" /></g>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M88 72 C 106 94, 112 124, 108 146" stroke="#8f3c18" strokeWidth="19" strokeLinecap="round" fill="none" />
-        <path d="M88 72 C 106 94, 112 124, 108 146" stroke="#d8702f" strokeWidth="15" strokeLinecap="round" fill="none" />
-        <path d="M100 92 q 4 14 2 26 M92 88 q 4 10 3 20" stroke="#ee9650" strokeWidth="3" strokeLinecap="round" fill="none" />
-        <ellipse cx="108" cy="149" rx="10" ry="5" fill="#7a3a1c" />
+        <path d="M46 104 C 44 120, 46 134, 46 143" stroke="#a8461f" strokeWidth="14" strokeLinecap="round" fill="none" />
+        <ellipse cx="50" cy="146" rx="10" ry="4" fill="#6e3318" />
+      </g>
+      <g className="zoo-leg zoo-leg-b">
+        <path d="M100 62 C 120 84, 136 114, 134 140" stroke="#a8461f" strokeWidth="12" strokeLinecap="round" fill="none" />
+        <ellipse cx="137" cy="145" rx="9" ry="4.5" fill="#6e3318" />
+      </g>
+      <g className="zoo-torso">
+        <path d="M20 100 C 16 70, 46 54, 84 52 C 112 50, 128 62, 124 86 C 120 110, 50 126, 20 100 Z" fill="#c9622b" />
+        <path d="M40 72 q 6 12 0 24 M54 64 q 6 14 0 28 M68 60 q 6 14 0 28 M82 58 q 6 14 0 26" stroke="#dd8140" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <path d="M30 106 q 6 10 12 2 q 6 10 12 2 q 6 10 12 2 q 6 8 12 0 q 6 8 12 -2" stroke="#b05224" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+      </g>
+      <g className="zoo-leg zoo-leg-b">
+        <path d="M62 108 C 60 122, 62 134, 62 143" stroke="#c9622b" strokeWidth="16" strokeLinecap="round" fill="none" />
+        <ellipse cx="66" cy="146" rx="11" ry="4" fill="#7a3a1c" />
+      </g>
+      <g className="zoo-leg zoo-leg-a">
+        <path d="M90 70 C 110 90, 126 118, 122 141" stroke="#9a4119" strokeWidth="18" strokeLinecap="round" fill="none" />
+        <path d="M90 70 C 110 90, 126 118, 122 141" stroke="#d8702f" strokeWidth="14" strokeLinecap="round" fill="none" />
+        <path d="M104 88 q 6 12 4 24 M96 84 q 5 10 4 20 M114 108 q 4 8 2 16" stroke="#ee9650" strokeWidth="3" strokeLinecap="round" fill="none" />
+        <ellipse cx="125" cy="146" rx="10" ry="5" fill="#7a3a1c" />
       </g>
       <g className="zoo-head">
-        <path d="M78 44 C 74 22, 98 14, 114 22 C 130 30, 130 54, 118 66 C 104 74, 82 66, 78 44 Z" fill="#c9622b" />
-        <path d="M86 24 q 6 -8 14 -4 M100 18 q 6 -4 12 2" stroke="#dd8140" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <ellipse cx="106" cy="54" rx="18" ry="19" fill="#e0a37c" />
-        <ellipse cx="94" cy="58" rx="10" ry="12" fill="#d08e66" />
-        <ellipse cx="116" cy="62" rx="9" ry="6" fill="#efc09c" />
-        <path d="M110 68 q 5 4 10 0" stroke="#7a3a1c" strokeWidth="2.2" fill="none" strokeLinecap="round" />
-        <circle cx="116" cy="60" r="1.4" fill="#7a3a1c" />
-        {EYE(110, 48, 3.4)}
+        <path d="M112 54 C 108 38, 122 30, 136 34 C 150 38, 152 56, 144 68 C 134 76, 118 70, 112 54 Z" fill="#c9622b" />
+        <path d="M118 36 q 6 -7 14 -4 M108 56 q -4 8 -2 16 M112 66 q -2 6 0 12" stroke="#dd8140" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <ellipse cx="136" cy="56" rx="11" ry="12" fill="#e0a37c" />
+        <ellipse cx="126" cy="60" rx="7" ry="11" fill="#cf8c62" />
+        <ellipse cx="144" cy="64" rx="8" ry="6" fill="#f2c9a6" />
+        <path d="M140 68 q 4 3 8 0" stroke="#7a3a1c" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <circle cx="148" cy="62" r="1.2" fill="#7a3a1c" />
+        {EYE(138, 51, 3)}
       </g>
     </>
   ),
@@ -275,31 +284,38 @@ const lemur: CreatureSpec = {
 const gibbon: CreatureSpec = {
   name: "Gibbon",
   height: 19,
-  aspect: 130 / 170,
+  aspect: 120 / 170,
   gait: "walk",
   pace: 1.2,
-  viewBox: "0 0 130 170",
+  viewBox: "0 0 120 170",
   art: (
     <>
-      <g className="zoo-leg zoo-leg-a"><path d="M52 134 C 48 144, 50 154, 50 164" stroke="#b8935a" strokeWidth="11" strokeLinecap="round" fill="none" /><ellipse cx="56" cy="166" rx="9" ry="4" fill="#3a2c26" /></g>
-      <path d="M50 78 C 34 68, 24 46, 28 16" stroke="#b8935a" strokeWidth="8" fill="none" strokeLinecap="round" />
-      <circle cx="28" cy="14" r="5.5" fill="#3a2c26" />
-      <g className="zoo-torso">
-        <ellipse cx="64" cy="102" rx="24" ry="34" fill="#d8b878" />
-        <ellipse cx="70" cy="108" rx="13" ry="22" fill="#ecd9a8" />
+      <g className="zoo-leg zoo-leg-a">
+        <path d="M54 130 C 50 142, 50 154, 50 163" stroke="#b8935a" strokeWidth="11" strokeLinecap="round" fill="none" />
+        <ellipse cx="56" cy="166" rx="10" ry="4" fill="#3a2c26" />
       </g>
-      <g className="zoo-leg zoo-leg-b"><path d="M68 140 C 66 148, 66 156, 66 164" stroke="#d8b878" strokeWidth="12" strokeLinecap="round" fill="none" /><ellipse cx="72" cy="166" rx="9.5" ry="4" fill="#3a2c26" /></g>
-      <path d="M74 80 C 98 72, 110 48, 106 16" stroke="#d8b878" strokeWidth="9" fill="none" strokeLinecap="round" />
-      <circle cx="106" cy="14" r="6" fill="#3a2c26" />
+      <g className="zoo-torso">
+        <path d="M66 74 C 76 92, 80 108, 78 124" stroke="#b8935a" strokeWidth="8" fill="none" strokeLinecap="round" />
+        <circle cx="78" cy="126" r="5" fill="#3a2c26" />
+        <ellipse cx="58" cy="98" rx="17" ry="34" fill="#d8b878" />
+        <ellipse cx="66" cy="104" rx="9" ry="22" fill="#ecd9a8" />
+        <path d="M52 72 C 34 72, 20 58, 14 40" stroke="#d8b878" strokeWidth="9" fill="none" strokeLinecap="round" />
+        <circle cx="13" cy="37" r="6" fill="#3a2c26" />
+      </g>
+      <g className="zoo-leg zoo-leg-b">
+        <path d="M62 132 C 60 144, 62 154, 62 163" stroke="#d8b878" strokeWidth="12" strokeLinecap="round" fill="none" />
+        <ellipse cx="69" cy="166" rx="10.5" ry="4" fill="#3a2c26" />
+      </g>
       <g className="zoo-head">
-        <circle cx="66" cy="54" r="20" fill="#d8b878" />
-        <path d="M54 38 q 6 -8 16 -6" stroke="#b8935a" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <ellipse cx="74" cy="57" rx="14" ry="15" fill="#5b4538" />
-        <ellipse cx="74" cy="57" rx="14" ry="15" fill="none" stroke="#fbf6ea" strokeWidth="3.5" />
-        <circle cx="79" cy="51" r="5" fill="#fff" />
-        {EYE(80, 51, 3.2)}
-        <ellipse cx="83" cy="60" rx="4" ry="3" fill="#3a2c26" />
-        <path d="M74 66 q 4 3 8 0" stroke="#fbf6ea" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <circle cx="60" cy="52" r="18" fill="#d8b878" />
+        <path d="M46 40 q 6 -9 18 -7" stroke="#b8935a" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <circle cx="52" cy="54" r="5" fill="#b8935a" />
+        <ellipse cx="72" cy="53" rx="11" ry="13" fill="#5b4538" />
+        <ellipse cx="72" cy="53" rx="11" ry="13" fill="none" stroke="#fbf6ea" strokeWidth="3.5" />
+        <circle cx="75" cy="48" r="4.6" fill="#fff" />
+        {EYE(76, 48, 3)}
+        <ellipse cx="82" cy="56" rx="3.6" ry="3" fill="#3a2c26" />
+        <path d="M72 61 q 4 3 8 0" stroke="#fbf6ea" strokeWidth="2" fill="none" strokeLinecap="round" />
       </g>
     </>
   ),
