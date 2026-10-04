@@ -305,7 +305,12 @@ export default function Stillezoonen() {
               settings={settings}
               theme={theme}
               onTheme={changeTheme}
-              onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+              onChange={(patch) => {
+                // Åbnes et vindue fra menuen, kommer det forrest.
+                if (patch.board) setFront("board");
+                if (patch.timer) setFront("timer");
+                setSettings((s) => ({ ...s, ...patch }));
+              }}
               onFullscreen={toggleFullscreen}
               onReset={reset}
               onStop={mic.stop}
@@ -328,7 +333,7 @@ export default function Stillezoonen() {
       {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start.
           Det vindue, man sidst rørte (timer eller tavle), ligger øverst. Over
           startskærmens overlay (400), men under menuerne mens zoo'en kører. */}
-      <div onPointerDownCapture={() => setFront("timer")}>
+      <div onPointerDownCapture={() => setFront("timer")} onFocusCapture={() => setFront("timer")}>
         <FloatingTimer
           storageKey="stillezoonen:timer"
           hidden={!settings.timer}
@@ -343,7 +348,7 @@ export default function Stillezoonen() {
 
       {/* Tekst og placering huskes i browseren, så tavlen kan monteres efter behov. */}
       {settings.board && (
-        <div onPointerDownCapture={() => setFront("board")}>
+        <div onPointerDownCapture={() => setFront("board")} onFocusCapture={() => setFront("board")}>
           <MessageBoard
             theme={theme.id}
             zIndex={(running ? 310 : 410) + (front === "board" ? 1 : 0)}

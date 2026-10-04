@@ -5,9 +5,13 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { useFloatingWindow } from "../shared/useFloatingWindow";
 
 const MESSAGE_KEY = "stillezoonen:message";
+/** Halvskrevet tekst under redigering — så den ikke går tabt, uanset hvordan tavlen lukkes. */
+const DRAFT_KEY = "stillezoonen:message-draft";
 const MAX_LENGTH = 500;
 const MIN_FONT = 8;
 const MAX_FONT = 320;
+/** Under denne størrelse må et meget langt ord hellere brydes. */
+const READABLE = 20;
 
 function loadMessage() {
   try {
@@ -21,6 +25,31 @@ function saveMessage(text: string) {
     if (text) localStorage.setItem(MESSAGE_KEY, text);
     else localStorage.removeItem(MESSAGE_KEY);
   } catch {}
+}
+function loadDraft() {
+  try {
+    return localStorage.getItem(DRAFT_KEY);
+  } catch {
+    return null;
+  }
+}
+function saveDraft(draft: string | null) {
+  try {
+    if (draft === null) localStorage.removeItem(DRAFT_KEY);
+    else localStorage.setItem(DRAFT_KEY, draft);
+  } catch {}
+}
+
+/** Efter tavlen lukkes: fokus til tavle-knappen (eller tandhjulet på små skærme). */
+function focusToggle() {
+  requestAnimationFrame(() => {
+    const toggle = document.querySelector<HTMLElement>(".zoo-top-right button[aria-label='Beskedtavle']");
+    const target =
+      toggle && toggle.offsetParent !== null
+        ? toggle
+        : document.querySelector<HTMLElement>(".zoo-top-right button[aria-label='Indstillinger']");
+    target?.focus({ preventScroll: true });
+  });
 }
 
 /**
@@ -38,10 +67,16 @@ export function MessageBoard({
   onClose: () => void;
 }) {
   const [text, setText] = useState(loadMessage);
-  // En tom tavle åbner direkte i redigering.
-  const [editing, setEditing] = useState(() => !loadMessage());
-  const [draft, setDraft] = useState(text);
+  // En tom tavle — eller en halvskrevet kladde — åbner direkte i redigering.
+  const [editing, setEditing] = useState(() => !loadMessage() || loadDraft() !== null);
+  const [draft, setDraft] = useState(() => loadDraft() ?? loadMessage());
   const editor = useRef<HTMLTextAreaElement>(null);
+  const editButton = useRef<HTMLButtonElement>(null);
+  // Efter "Vis": fokus på "Redigér" (som erstatter knappen, der havde fokus).
+  const [focusEdit, setFocusEdit] = useState(0);
+  useEffect(() => {
+    if (focusEdit) editButton.current?.focus({ preventScroll: true });
+  }, [focusEdit]);
 
   const { shown, bar, resize } = useFloatingWindow({
     storageKey: "stillezoonen:message-window",
@@ -55,31 +90,32 @@ export function MessageBoard({
     if (editing) editor.current?.focus({ preventScroll: true });
   }, [editing]);
 
+  const changeDraft = (value: string) => {
+    setDraft(value);
+    saveDraft(value);
+  };
   const startEdit = () => {
-    setDraft(text);
+    changeDraft(text);
     setEditing(true);
   };
   const save = () => {
     const next = draft.trim();
+    if (!next) return;
     setText(next);
     saveMessage(next);
-    setEditing(!next);
+    saveDraft(null);
+    setEditing(false);
+    setFocusEdit((n) => n + 1);
   };
-  /** Luk (✕): noget halvskrevet gemmes, så det ikke går tabt. */
   const close = () => {
-    if (editing && draft.trim()) {
-      const next = draft.trim();
-      setText(next);
-      saveMessage(next);
-    }
     onClose();
+    focusToggle();
   };
   const remove = () => {
-    setText("");
-    setDraft("");
     saveMessage("");
-    setEditing(true);
+    saveDraft(null);
     onClose();
+    focusToggle();
   };
 
   return (
@@ -100,7 +136,13 @@ export function MessageBoard({
             Vis
           </button>
         ) : (
-          <button type="button" className="mb-btn" onClick={startEdit} aria-label="Redigér beskeden">
+          <button
+            ref={editButton}
+            type="button"
+            className="mb-btn"
+            onClick={startEdit}
+            aria-label="Redigér beskeden"
+          >
             <PencilIcon /> Redigér
           </button>
         )}
@@ -129,12 +171,12 @@ export function MessageBoard({
             value={draft}
             maxLength={MAX_LENGTH}
             placeholder="Skriv en besked til klassen …"
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => changeDraft(e.target.value)}
             onKeyDown={(e) => {
               // Ctrl/Cmd + Enter viser beskeden; Enter alene giver ny linje.
               if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
                 e.preventDefault();
-                if (draft.trim()) save();
+                save();
               }
             }}
             aria-label="Besked"
@@ -176,15 +218,18 @@ function FitText({ text }: { text: string }) {
         if (fits()) lo = mid;
         else hi = mid;
       }
-      return lo;
+      // Mål ved den fundne størrelse (ikke ved det sidst afprøvede trin).
+      el.style.fontSize = `${lo}px`;
+      return { size: lo, ok: fits() };
     };
     const fit = () => {
       const whole = largest("normal");
       const broken = largest("anywhere");
-      // Hele ord, medmindre det koster mere end en tredjedel af størrelsen.
-      const wrap = whole >= broken * 0.67 ? "normal" : "anywhere";
-      el.style.overflowWrap = wrap;
-      el.style.fontSize = `${wrap === "normal" ? whole : broken}px`;
+      // Hele ord, medmindre de slet ikke kan være der, eller et meget langt
+      // ord (fx en adresse) tvinger teksten under læsbar størrelse.
+      const useBroken = !whole.ok || (whole.size < READABLE && broken.size > whole.size * 1.5);
+      el.style.overflowWrap = useBroken ? "anywhere" : "normal";
+      el.style.fontSize = `${useBroken ? broken.size : whole.size}px`;
       outer.dataset.overflow = String(!fits());
     };
     fit();

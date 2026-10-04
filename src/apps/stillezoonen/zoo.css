@@ -1079,6 +1079,8 @@
   flex: 1;
   min-width: 0;
   display: grid;
+  /* Sporet må aldrig blive bredere end boksen (ellers klippes teksten i siderne). */
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
   overflow: hidden;
 }
