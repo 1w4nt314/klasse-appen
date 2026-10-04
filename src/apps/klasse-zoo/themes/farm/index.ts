@@ -5,14 +5,14 @@ import { creatures } from "./creatures";
 export const farm: Theme = {
   id: "farm",
   name: "Bondegård",
-  blurb: "PLADSHOLDER",
+  blurb: "Køer, grise, får og høns",
   creatures,
   zone: "ground",
   noun: "dyr",
   nounDefinite: "dyrene",
   place: "på gården",
-  backdrop: "#cfe6f5",
-  showcase: ["placeholder", "placeholder", "placeholder"],
+  backdrop: "#bfe5f8",
+  showcase: ["pig", "hen", "rabbit"],
   Background,
   Foreground,
 };
