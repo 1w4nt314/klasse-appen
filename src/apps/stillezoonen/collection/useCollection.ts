@@ -35,28 +35,51 @@ export function useCollection(userKey: string) {
   const [classes, setClasses] = useState<ZooClass[]>([]);
   const [sightings, setSightings] = useState<Map<string, Map<string, Spot>>>(new Map());
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [storedActive, setStoredActive] = useState(() => loadActive(userKey));
 
   useEffect(() => {
     let alive = true;
     getZooData()
       .then((data) => {
-        if (!alive || !data) return;
+        if (!alive) return;
+        if (!data) {
+          setLoadError(true);
+          return;
+        }
         setClasses(data.classes);
-        setSightings(toMap(data.sightings));
+        // Flet med det, der er spottet imens (svaret kan komme sent) — ikke erstat.
+        setSightings((local) => merge(toMap(data.sightings), local));
         setLoaded(true);
+        setLoadError(false);
       })
-      .catch(() => alive && setLoaded(true));
+      .catch(() => alive && setLoadError(true));
     return () => {
       alive = false;
     };
-  }, []);
+  }, [attempt]);
+
+  // Prøv selv igen et par gange (med længere pause hver gang).
+  useEffect(() => {
+    if (!loadError || attempt >= 4) return;
+    const id = window.setTimeout(() => setAttempt((a) => a + 1), 2000 * (attempt + 1));
+    return () => window.clearTimeout(id);
+  }, [loadError, attempt]);
+  const retry = useCallback(() => setAttempt((a) => a + 1), []);
 
   // En slettet (eller ukendt) klasse falder tilbage til lærerens egen samling.
+  // Indtil klasserne er hentet, beholdes valget (så en fejl ikke skifter samling).
   const active =
     storedActive === MY_COLLECTION || !loaded || classes.some((c) => c.id === storedActive)
       ? storedActive
       : MY_COLLECTION;
+  useEffect(() => {
+    if (!loaded || active === storedActive) return;
+    try {
+      localStorage.setItem(`stillezoonen:collection:${userKey}`, active);
+    } catch {}
+  }, [loaded, active, storedActive, userKey]);
 
   const setActive = useCallback(
     (id: string) => {
@@ -130,6 +153,8 @@ export function useCollection(userKey: string) {
 
   return {
     loaded,
+    loadError,
+    retry,
     classes,
     active,
     activeName,
@@ -146,6 +171,25 @@ const EMPTY: ReadonlyMap<string, Spot> = new Map();
 
 const sortClasses = (cs: ZooClass[]) =>
   [...cs].sort((a, b) => a.name.localeCompare(b.name, "da", { numeric: true }));
+
+/** Foren serverens og de lokale fund: højeste antal og tidligste dato vinder. */
+function merge(server: Map<string, Map<string, Spot>>, local: Map<string, Map<string, Spot>>) {
+  const result = new Map(server);
+  for (const [key, spots] of local) {
+    const merged = new Map(result.get(key) ?? []);
+    for (const [kind, spot] of spots) {
+      const other = merged.get(kind);
+      merged.set(
+        kind,
+        other
+          ? { firstSeen: Math.min(other.firstSeen, spot.firstSeen), count: Math.max(other.count, spot.count) }
+          : spot,
+      );
+    }
+    result.set(key, merged);
+  }
+  return result;
+}
 
 function toMap(rows: Sighting[]) {
   const map = new Map<string, Map<string, Spot>>();

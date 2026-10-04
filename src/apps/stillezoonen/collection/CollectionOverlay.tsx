@@ -30,18 +30,47 @@ export function CollectionOverlay({
   const kinds = Object.keys(shown.creatures);
   const found = kinds.filter((k) => spots.has(k)).length;
 
+  const panel = useRef<HTMLElement>(null);
+  // Seneste onClose i en ref: forælderen laver en ny funktion ved hver render
+  // (hver gang et dyr kommer/går), og effekten må kun køre én gang.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
+  // Ved åbning: fokus på ✕. Escape lukker (men ikke mens en bekræft-dialog er
+  // åben), og Tab holdes inde i oversigten.
   useEffect(() => {
     closeButton.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector("dialog[open]")) onClose();
+      if (document.querySelector("dialog[open]")) return;
+      if (e.key === "Escape") {
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !panel.current) return;
+      const focusable = [
+        ...panel.current.querySelectorAll<HTMLElement>("button:not(:disabled), input, select, [tabindex]:not([tabindex='-1'])"),
+      ].filter((el) => el.offsetParent !== null);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const inside = panel.current.contains(document.activeElement);
+      if (e.shiftKey && (document.activeElement === first || !inside)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   return (
     <div className="zc-backdrop" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <section className="zc-panel" role="dialog" aria-modal="true" aria-labelledby="zc-title">
+      <section ref={panel} className="zc-panel" role="dialog" aria-modal="true" aria-labelledby="zc-title">
         <header className="zc-head">
           <h2 id="zc-title" className="zc-title">
             <PawMark /> Samling
@@ -147,6 +176,7 @@ function ClassManager({ collection }: { collection: Collection }) {
 
   return (
     <div className="zc-classes">
+      {collection.loadError && <LoadError collection={collection} />}
       <form
         className="zc-add"
         onSubmit={(e) => {
@@ -250,6 +280,7 @@ export function CollectionPicker({ collection }: { collection: Collection }) {
 
   return (
     <div className="zc-picker">
+      {collection.loadError && <LoadError collection={collection} />}
       <div className="zc-chips">
         {options.map((o) => (
           <button
@@ -305,6 +336,17 @@ export function CollectionPicker({ collection }: { collection: Collection }) {
         </p>
       )}
     </div>
+  );
+}
+
+function LoadError({ collection }: { collection: Collection }) {
+  return (
+    <p role="alert" className="zc-error">
+      Kunne ikke hente dine klasser.{" "}
+      <button type="button" className="zc-link" onClick={collection.retry}>
+        Prøv igen
+      </button>
+    </p>
   );
 }
 

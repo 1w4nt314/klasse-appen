@@ -29,7 +29,14 @@ export default function Stillezoonen({ userKey }: AppProps) {
   const mic = useMicrophone();
   const collection = useCollection(userKey);
   const [showCollection, setShowCollection] = useState(false);
-  const [toast, setToast] = useState<{ id: number; name: string; found: number; total: number } | null>(null);
+  const [toast, setToast] = useState<{
+    id: number;
+    name: string;
+    found: number;
+    total: number;
+    noun: string;
+    collection: string;
+  } | null>(null);
   // Komponenten kører kun i browseren (ssr: false), så localStorage kan læses med det samme.
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
@@ -52,7 +59,7 @@ export default function Stillezoonen({ userKey }: AppProps) {
   const spottedRef = useRef<ReadonlySet<string>>(new Set());
   // Kaldes fra animationsløkken, når en figur har været fremme længe nok.
   const onSpotRef = useRef<(kind: string) => void>(() => {});
-  const { record } = collection;
+  const { record, activeName } = collection;
   useEffect(() => {
     spottedRef.current = new Set(spots.keys());
     onSpotRef.current = (kind) => {
@@ -61,7 +68,15 @@ export default function Stillezoonen({ userKey }: AppProps) {
       const name = t.creatures[kind]?.name ?? kind;
       const now = Object.keys(t.creatures).filter((k) => spottedRef.current.has(k) || k === kind).length;
       spottedRef.current = new Set([...spottedRef.current, kind]);
-      setToast({ id: Date.now(), name, found: now, total: Object.keys(t.creatures).length });
+      // Tema og samling huskes fra spot-øjeblikket (de kan skifte, mens toasten vises).
+      setToast({
+        id: Date.now(),
+        name,
+        found: now,
+        total: Object.keys(t.creatures).length,
+        noun: t.noun === "dyr" ? "dyr" : "væsen",
+        collection: activeName,
+      });
     };
   });
   // "Nyt dyr!" forsvinder af sig selv.
@@ -385,9 +400,9 @@ export default function Stillezoonen({ userKey }: AppProps) {
         <div key={toast.id} className="zoo-toast" role="status">
           <PawMark size={22} />
           <span>
-            <strong>Nyt {theme.noun === "dyr" ? "dyr" : "væsen"} spottet!</strong> {toast.name}
+            <strong>Nyt {toast.noun} spottet!</strong> {toast.name}
             <small className="tabular-nums">
-              {toast.found} af {toast.total} · {collection.activeName}
+              {toast.found} af {toast.total} · {toast.collection}
             </small>
           </span>
         </div>

@@ -378,16 +378,6 @@
   align-items: flex-start;
   gap: 0.5rem;
 }
-.zoo-count {
-  white-space: nowrap;
-  font-size: 1.05rem;
-  color: var(--accent);
-}
-@media (max-width: 1400px) {
-  .zoo-count-label {
-    display: none;
-  }
-}
 @media (max-width: 480px) {
   .zoo-back-label {
     display: none;
@@ -1140,19 +1130,43 @@
   background: #fff;
   color: var(--brand);
 }
-/* Lille skærm: kun antallet, så knappen ikke rammer lydmåleren. */
-@media (max-width: 480px) {
+/* Smallere skærme: kun antallet, så knappen ikke rammer lydmåleren. */
+@media (max-width: 1000px) {
   .zoo-paw-total {
     display: none;
   }
+}
+@media (max-width: 480px) {
   .zoo-paw {
-    padding-inline: 0.6rem;
+    padding-inline: 0.55rem;
+  }
+}
+/* Meget smalle skærme: lidt mindre knapper og afstande. */
+@media (max-width: 400px) {
+  .zoo-topbar {
+    gap: 0.4rem;
+    padding-inline: 0.5rem;
+  }
+  .zoo-top-right {
+    gap: 0.3rem;
+  }
+  .zoo-round {
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+  .zoo-paw {
+    min-height: 2.15rem;
+    padding: 0.3rem 0.45rem;
+  }
+  .zoo-meterbox {
+    width: clamp(4.5rem, 30vw, 30rem);
   }
 }
 
 .zoo-toast {
   position: absolute;
-  z-index: 330;
+  /* Under topbjælken (lydmålerens kort, menuer) og under timer/tavle. */
+  z-index: 305;
   top: 4.25rem;
   left: 50%;
   translate: -50% 0;
@@ -1218,10 +1232,21 @@
   animation: zoo-pop 160ms ease-out;
 }
 .zc-head {
+  position: sticky;
+  top: calc(-1 * clamp(0.9rem, 2vw, 1.4rem));
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+  margin: calc(-1 * clamp(0.9rem, 2vw, 1.4rem)) calc(-1 * clamp(0.9rem, 2vw, 1.4rem)) 0;
+  padding: clamp(0.9rem, 2vw, 1.4rem) clamp(0.9rem, 2vw, 1.4rem) 0.5rem;
+  background: var(--surface);
+}
+.zc-link {
+  font-weight: 800;
+  text-decoration: underline;
+  color: inherit;
 }
 .zc-title {
   display: flex;
@@ -1481,5 +1506,10 @@
   .zc-who,
   .zc-head > .zc-btn {
     order: 2;
+  }
+}
+@media (max-width: 340px) {
+  .zoo-meterbox {
+    width: clamp(4rem, 26vw, 30rem);
   }
 }

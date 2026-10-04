@@ -19,12 +19,15 @@ export type Sighting = {
 const MAX_CLASSES = 50;
 const MAX_NAME = 24;
 
-/** "  2.a  " → "2.a". Tom eller for lang → null. */
+/** "  2.a  " → "2.a". Kontroltegn fjernes. Tom eller for lang → null. */
 function cleanName(name: unknown) {
   if (typeof name !== "string") return null;
-  const n = name.replace(/\s+/g, " ").trim();
+  const n = name.replace(/[\u0000-\u001f\u007f]/g, "").replace(/\s+/g, " ").trim();
   return n && n.length <= MAX_NAME ? n : null;
 }
+
+/** Højst så mange ændringer af klasser pr. 10 min — mod fejlklik i en løkke og misbrug. */
+const classOpsLimited = (userId: string) => zooLimiter.limited(`classes:${userId}`, 60, 10 * 60 * 1000);
 
 /** Lærerens egen samling eller en af lærerens klasser. */
 function ownsCollection(userId: string, collection: unknown): collection is string {
@@ -91,14 +94,20 @@ export async function recordSighting(collection: unknown, theme: unknown, creatu
 
 type ClassResult = { ok: true; cls: ZooClass } | { ok: false; error: string };
 
-const nameTaken = (userId: string, name: string, exceptId?: string) =>
-  !!db()
-    .prepare("select 1 from zoo_classes where user_id = ? and lower(name) = lower(?) and id != ?")
-    .get(userId, name, exceptId ?? "");
+/** Samme navn uanset store/små bogstaver — også Æ/Ø/Å (SQLites lower() kender kun ASCII). */
+const nameTaken = (userId: string, name: string, exceptId?: string) => {
+  const wanted = name.toLocaleLowerCase("da");
+  return (
+    db()
+      .prepare("select id, name from zoo_classes where user_id = ?")
+      .all(userId) as { id: string; name: string }[]
+  ).some((c) => c.id !== exceptId && c.name.toLocaleLowerCase("da") === wanted);
+};
 
 export async function createClass(name: unknown): Promise<ClassResult> {
   const teacher = await getTeacher();
   if (!teacher) return { ok: false, error: "Du skal være logget ind." };
+  if (classOpsLimited(teacher.id)) return { ok: false, error: "For mange ændringer lige nu. Prøv igen om lidt." };
   const clean = cleanName(name);
   if (!clean) return { ok: false, error: `Skriv et navn på højst ${MAX_NAME} tegn, fx “2.A”.` };
   const conn = db();
@@ -123,6 +132,7 @@ export async function createClass(name: unknown): Promise<ClassResult> {
 export async function renameClass(id: unknown, name: unknown): Promise<ClassResult> {
   const teacher = await getTeacher();
   if (!teacher) return { ok: false, error: "Du skal være logget ind." };
+  if (classOpsLimited(teacher.id)) return { ok: false, error: "For mange ændringer lige nu. Prøv igen om lidt." };
   const clean = cleanName(name);
   if (!clean) return { ok: false, error: `Skriv et navn på højst ${MAX_NAME} tegn.` };
   if (typeof id !== "string" || id === MY_COLLECTION || !ownsCollection(teacher.id, id))
@@ -137,6 +147,8 @@ export async function deleteClass(id: unknown) {
   const teacher = await getTeacher();
   if (!teacher || typeof id !== "string" || id === MY_COLLECTION || !ownsCollection(teacher.id, id))
     return { ok: false as const, error: "Klassen findes ikke." };
+  if (classOpsLimited(teacher.id))
+    return { ok: false as const, error: "For mange ændringer lige nu. Prøv igen om lidt." };
   const conn = db();
   conn.prepare("delete from zoo_sightings where user_id = ? and collection = ?").run(teacher.id, id);
   conn.prepare("delete from zoo_classes where id = ? and user_id = ?").run(id, teacher.id);
