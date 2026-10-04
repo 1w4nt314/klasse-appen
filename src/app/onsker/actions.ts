@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { rateLimited } from "@/lib/rate-limit";
+import { likeLimiter, wishLimiter } from "@/lib/rate-limit";
 import { getTeacher } from "@/lib/session";
 import { isCategory, isStatus, MAX_BODY, MAX_PER_DAY, MAX_TITLE } from "@/lib/wishes";
 
@@ -45,7 +45,7 @@ export async function createWish(_: WishFormState, form: FormData): Promise<Wish
     .prepare("select count(*) as n from wishes where user_id = ? and created_at > ?")
     .get(teacher.id, Date.now() - DAY) as { n: number };
   // Tælleren i hukommelsen fanger også ønsker, der er oprettet og slettet igen.
-  if (n >= MAX_PER_DAY || rateLimited(`wish:${teacher.id}`, MAX_PER_DAY, DAY))
+  if (n >= MAX_PER_DAY || wishLimiter.limited(`wish:${teacher.id}`, MAX_PER_DAY, DAY))
     return {
       error: `Du kan højst skrive ${MAX_PER_DAY} ønsker pr. døgn. Prøv igen i morgen.`,
       values,
@@ -69,7 +69,7 @@ export async function createWish(_: WishFormState, form: FormData): Promise<Wish
 export async function setLike(wishId: unknown, liked: unknown) {
   const teacher = await getTeacher();
   if (!teacher || typeof wishId !== "string" || typeof liked !== "boolean") return { ok: false };
-  if (rateLimited(`like:${teacher.id}`, 300, 10 * 60 * 1000)) return { ok: false };
+  if (likeLimiter.limited(`like:${teacher.id}`, 300, 10 * 60 * 1000)) return { ok: false };
   const conn = db();
   const exists = conn.prepare("select 1 from wishes where id = ?").get(wishId);
   if (!exists) return { ok: false };

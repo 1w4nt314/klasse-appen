@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { rateLimited, refund } from "@/lib/rate-limit";
+import { isKnownDevice, rememberDevice } from "@/lib/known-device";
+import { loginLimiter, signupLimiter } from "@/lib/rate-limit";
 import {
   createUser,
   findUserByEmail,
@@ -44,17 +45,24 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get("password") ?? "");
   const values = { email: str(form, "email") };
 
-  // Forsøget tælles MED DET SAMME (før den langsomme kode-tjek), så samtidige
-  // forespørgsler ikke kan smutte forbi grænsen; et vellykket login gives tilbage.
-  // Grænsen er pr. IP+mail og pr. IP — ikke pr. mail alene, for så kunne enhver
-  // låse en lærer ude ved at gætte forkert 30 gange.
   const ip = await clientIp();
-  const keys = [`login:${ip}:${email}`, `login-ip:${ip}`];
-  const overIpMail = rateLimited(keys[0], 10, LOGIN_WINDOW);
-  const overIp = rateLimited(keys[1], 50, LOGIN_WINDOW);
-  if (overIpMail || overIp) return { error: "For mange forsøg. Vent et kvarter og prøv igen.", values };
-
   const user = email ? findUserByEmail(email) : undefined;
+  // Fra en kendt enhed (har logget ind som denne lærer før) gælder en grænse,
+  // som andre på samme IP ikke kan bruge op. Ellers: pr. IP+mail og pr. IP.
+  const limits: [key: string, limit: number][] =
+    user && (await isKnownDevice(user.id))
+      ? [[`device:${user.id}:${ip}`, 10]]
+      : [
+          [`ip-mail:${ip}:${email}`, 10],
+          [`ip:${ip}`, 50],
+        ];
+  const blocked = { error: "For mange forsøg. Vent et kvarter og prøv igen.", values };
+  // Spærrede forsøg tælles ikke og opretter ingen nye nøgler.
+  if (limits.some(([key, limit]) => loginLimiter.isOver(key, limit))) return blocked;
+  // Forsøget tælles MED DET SAMME (før den langsomme kode-tjek), så samtidige
+  // forespørgsler ikke kan smutte forbi grænsen. Et vellykket login gives tilbage.
+  if (!limits.every(([key]) => loginLimiter.hit(key, LOGIN_WINDOW))) return blocked;
+
   // Tjek adgangskoden selv når brugeren ikke findes, så svartiden ikke afslører det.
   const ok = await verifyPassword(
     password,
@@ -62,10 +70,11 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
       "scrypt$00000000000000000000000000000000$" + "0".repeat(128),
   );
   if (!user || !ok) return { error: "Forkert e-mail eller adgangskode.", values };
-  keys.forEach(refund);
   if (user.disabled_at)
     return { error: "Din bruger er deaktiveret. Kontakt Klasse-appen, hvis det er en fejl.", values };
 
+  for (const [key] of limits) loginLimiter.refund(key);
+  await rememberDevice(user.id);
   await startSession(user.id);
   redirect(safeNext(str(form, "next")));
 }
@@ -85,7 +94,7 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
   if (fullName.length > 120 || school.length > 160 || email.length > 254)
     return fail("Et af felterne er for langt.");
 
-  if (rateLimited(`signup:${await clientIp()}`, 20, 60 * 60 * 1000))
+  if (signupLimiter.limited(`signup:${await clientIp()}`, 20, 60 * 60 * 1000))
     return fail("For mange oprettelser herfra. Prøv igen senere.");
 
   if (findUserByEmail(email))

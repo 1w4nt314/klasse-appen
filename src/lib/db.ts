@@ -66,6 +66,13 @@ const MIGRATIONS = [
     primary key (wish_id, user_id)
   );
   `,
+  // Serverens egne hemmeligheder (fx nøglen til "kendt enhed"-cookien).
+  `
+  create table app_secrets (
+    name text primary key,
+    value text not null
+  );
+  `,
 ];
 
 /** Hvor databasen ligger. scripts/admin.mjs finder den på samme måde (DATA_DIR → /var/data → ./data). */
