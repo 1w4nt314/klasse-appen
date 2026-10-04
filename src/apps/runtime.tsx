@@ -13,6 +13,10 @@ const components: Record<string, ComponentType> = {
     ssr: false,
     loading: Loading,
   }),
+  navnetraekker: dynamic(() => import("./navnetraekker/Navnetraekker"), {
+    ssr: false,
+    loading: Loading,
+  }),
 };
 
 export function AppRuntime({ slug }: { slug: string }) {

@@ -1,4 +1,5 @@
 import { manifest as klasseZoo } from "./klasse-zoo/manifest";
+import { manifest as navnetraekker } from "./navnetraekker/manifest";
 import type { AppManifest } from "./types";
 
 /**
@@ -7,7 +8,7 @@ import type { AppManifest } from "./types";
  *      klientkomponent.
  *   2. Tilføj manifestet her og komponenten i runtime.tsx.
  */
-export const apps: AppManifest[] = [klasseZoo];
+export const apps: AppManifest[] = [klasseZoo, navnetraekker];
 
 export function getApp(slug: string) {
   return apps.find((a) => a.slug === slug);
