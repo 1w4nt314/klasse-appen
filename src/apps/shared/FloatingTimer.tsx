@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./floating-timer.css";
+import { useFloatingWindow } from "./useFloatingWindow";
 
 /**
  * Nedtællings-timer i et lille vindue, der kan flyttes og ændres i størrelse.
  * Position og størrelse huskes i browseren under `storageKey`.
  */
 
-type Rect = { x: number; y: number; w: number; h: number };
 type Phase = "setup" | "running" | "paused" | "done";
 
 const MIN_W = 220;
@@ -17,33 +17,6 @@ const PRESETS = [3, 5, 10, 15];
 /** Opsætningen (pile, felter, genveje) skal altid kunne ses helt. */
 const SETUP_MIN_W = 260;
 const SETUP_MIN_H = 250;
-
-const clampRect = (r: Rect): Rect => {
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
-  const w = Math.min(Math.max(r.w, MIN_W), vw - 16);
-  const h = Math.min(Math.max(r.h, MIN_H), vh - 16);
-  return {
-    w,
-    h,
-    x: Math.min(Math.max(r.x, 8), vw - w - 8),
-    y: Math.min(Math.max(r.y, 8), vh - h - 8),
-  };
-};
-
-function loadRect(key: string): Rect {
-  // Øverst til venstre under "Alle apps" — fri himmel, ikke oven på menuen.
-  const fallback = { x: 16, y: 72, w: 320, h: 270 };
-  try {
-    const raw = localStorage.getItem(key);
-    if (raw) {
-      const r = JSON.parse(raw);
-      if ([r.x, r.y, r.w, r.h].every((n) => typeof n === "number" && Number.isFinite(n)))
-        return clampRect(r);
-    }
-  } catch {}
-  return clampRect(fallback);
-}
 
 const fmt = (ms: number) => {
   const total = Math.ceil(ms / 1000);
@@ -67,7 +40,6 @@ export function FloatingTimer({
   hidden?: boolean;
   zIndex?: number;
 }) {
-  const [rect, setRect] = useState<Rect>(() => loadRect(storageKey));
   const [phase, setPhase] = useState<Phase>("setup");
   // Felterne holdes som tekst, så et tomt felt ikke hopper til "0" mens man skriver.
   const [minutesText, setMinutesText] = useState("5");
@@ -78,30 +50,20 @@ export function FloatingTimer({
   const [remaining, setRemaining] = useState(0);
   const [endAt, setEndAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const drag = useRef<{ mode: "move" | "resize"; sx: number; sy: number; start: Rect } | null>(null);
-
-  // Gem kun når læreren selv flytter/ændrer vinduet — ikke når det klemmes
-  // midlertidigt af et lille browservindue.
-  const rectRef = useRef(rect);
-  useEffect(() => {
-    rectRef.current = rect;
+  // Under opsætningen gøres vinduet mindst SETUP_MIN stort, så pile, felter og
+  // genveje altid kan ses — og flyttes ind, hvis det så stikker ud over kanten.
+  const { shown, bar, resize } = useFloatingWindow({
+    storageKey,
+    // Øverst til venstre under "Alle apps" — fri himmel, ikke oven på menuen.
+    fallback: { x: 16, y: 72, w: 320, h: 270 },
+    minW: MIN_W,
+    minH: MIN_H,
+    enlargeTo: phase === "setup" ? { w: SETUP_MIN_W, h: SETUP_MIN_H } : null,
   });
-  const saveRect = () => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(rectRef.current));
-    } catch {}
-  };
   const onDoneRef = useRef(onDone);
   useEffect(() => {
     onDoneRef.current = onDone;
   });
-
-  // Hold vinduet inden for skærmen, når den ændrer størrelse (fx fuld skærm).
-  useEffect(() => {
-    const onResize = () => setRect((r) => clampRect(r));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
 
   // Tik mens den kører.
   useEffect(() => {
@@ -173,47 +135,6 @@ export function FloatingTimer({
     setPhase("setup");
   };
 
-  // Under opsætningen gøres vinduet mindst SETUP_MIN stort — og flyttes ind,
-  // hvis det så ville stikke ud over skærmkanten. (`rect` skifter også ved resize.)
-  const shown = useMemo(
-    () =>
-      phase === "setup"
-        ? clampRect({ ...rect, w: Math.max(rect.w, SETUP_MIN_W), h: Math.max(rect.h, SETUP_MIN_H) })
-        : rect,
-    [rect, phase],
-  );
-
-  const onPointerDown = useCallback(
-    (mode: "move" | "resize") => (e: ReactPointerEvent<HTMLElement>) => {
-      if (mode === "move" && (e.target as HTMLElement).closest("button, input")) return;
-      e.preventDefault();
-      e.currentTarget.setPointerCapture(e.pointerId);
-      // Træk fra det, der faktisk ses, så vinduet ikke hopper ved første bevægelse.
-      drag.current = { mode, sx: e.clientX, sy: e.clientY, start: shown };
-    },
-    [shown],
-  );
-  const onPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
-    const d = drag.current;
-    if (!d) return;
-    const dx = e.clientX - d.sx;
-    const dy = e.clientY - d.sy;
-    if (d.mode === "move") {
-      // Kun positionen flyttes — lærerens egen størrelse bevares, også når
-      // vinduet midlertidigt er forstørret under opsætningen.
-      setRect((r) => {
-        const moved = clampRect({ ...d.start, x: d.start.x + dx, y: d.start.y + dy });
-        return { ...r, x: moved.x, y: moved.y };
-      });
-    } else {
-      setRect(clampRect({ ...d.start, w: d.start.w + dx, h: d.start.h + dy }));
-    }
-  };
-  const onPointerUp = () => {
-    if (drag.current) saveRect();
-    drag.current = null;
-  };
-
   return (
     <section
       className="ft-window"
@@ -229,13 +150,7 @@ export function FloatingTimer({
       }}
       aria-label="Timer"
     >
-      <header
-        className="ft-bar"
-        onPointerDown={onPointerDown("move")}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
+      <header className="ft-bar" {...bar}>
         <span className="ft-grip" aria-hidden="true">⠿</span>
         <span className="ft-title">Timer</span>
         <button type="button" className="ft-icon" onClick={onClose} aria-label="Skjul timer">
@@ -326,14 +241,7 @@ export function FloatingTimer({
         {phase === "done" ? "Tiden er gået" : ""}
       </span>
 
-      <div
-        className="ft-resize"
-        onPointerDown={onPointerDown("resize")}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-        aria-hidden="true"
-      />
+      <div className="ft-resize" {...resize} aria-hidden="true" />
     </section>
   );
 }

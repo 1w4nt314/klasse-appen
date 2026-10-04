@@ -9,7 +9,8 @@ import type { Theme } from "./themes/types";
 import { FloatingTimer } from "../shared/FloatingTimer";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 import { ThemePicker } from "./ThemePicker";
-import { SettingsMenu, SoundMeter } from "./TopBar";
+import { MessageBoard } from "./MessageBoard";
+import { MessageIcon, SettingsMenu, SoundMeter, ThemeMenu, TimerIcon, ToggleButton } from "./TopBar";
 import { useMicrophone, type MicStatus } from "./useMicrophone";
 import "./zoo.css";
 
@@ -26,6 +27,8 @@ export default function Stillezoonen() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [isLoud, setIsLoud] = useState(false);
+  /** Timer og beskedtavle: det sidst brugte vindue ligger øverst. */
+  const [front, setFront] = useState<"timer" | "board">("board");
 
   const sceneRef = useRef<HTMLDivElement>(null);
   const sizeRef = useRef<SceneSize>({ width: 0, height: 0 });
@@ -277,11 +280,37 @@ export default function Stillezoonen() {
                 {theme.noun} {theme.place}
               </span>
             </div>
+            <ToggleButton
+              label="Beskedtavle"
+              pressed={settings.board}
+              onToggle={() => {
+                setFront("board");
+                setSettings((s) => ({ ...s, board: !s.board }));
+              }}
+            >
+              <MessageIcon />
+            </ToggleButton>
+            <ToggleButton
+              label="Timer"
+              pressed={settings.timer}
+              onToggle={() => {
+                setFront("timer");
+                setSettings((s) => ({ ...s, timer: !s.timer }));
+              }}
+            >
+              <TimerIcon />
+            </ToggleButton>
+            <ThemeMenu theme={theme} onTheme={changeTheme} />
             <SettingsMenu
               settings={settings}
               theme={theme}
               onTheme={changeTheme}
-              onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+              onChange={(patch) => {
+                // Åbnes et vindue fra menuen, kommer det forrest.
+                if (patch.board) setFront("board");
+                if (patch.timer) setFront("timer");
+                setSettings((s) => ({ ...s, ...patch }));
+              }}
               onFullscreen={toggleFullscreen}
               onReset={reset}
               onStop={mic.stop}
@@ -301,15 +330,32 @@ export default function Stillezoonen() {
         </div>
       )}
 
-      {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start. */}
-      <FloatingTimer
-        storageKey="stillezoonen:timer"
-        hidden={!settings.timer}
-        // Over startskærmens overlay (400), men under menuen mens zoo'en kører.
-        zIndex={running ? 310 : 410}
-        onClose={() => setSettings((s) => ({ ...s, timer: false }))}
-        onDone={() => setSettings((s) => ({ ...s, timer: true }))}
-      />
+      {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start.
+          Det vindue, man sidst rørte (timer eller tavle), ligger øverst. Over
+          startskærmens overlay (400), men under menuerne mens zoo'en kører. */}
+      <div onPointerDownCapture={() => setFront("timer")} onFocusCapture={() => setFront("timer")}>
+        <FloatingTimer
+          storageKey="stillezoonen:timer"
+          hidden={!settings.timer}
+          zIndex={(running ? 310 : 410) + (front === "timer" ? 1 : 0)}
+          onClose={() => setSettings((s) => ({ ...s, timer: false }))}
+          onDone={() => {
+            setFront("timer");
+            setSettings((s) => ({ ...s, timer: true }));
+          }}
+        />
+      </div>
+
+      {/* Tekst og placering huskes i browseren, så tavlen kan monteres efter behov. */}
+      {settings.board && (
+        <div onPointerDownCapture={() => setFront("board")} onFocusCapture={() => setFront("board")}>
+          <MessageBoard
+            theme={theme.id}
+            zIndex={(running ? 310 : 410) + (front === "board" ? 1 : 0)}
+            onClose={() => setSettings((s) => ({ ...s, board: false }))}
+          />
+        </div>
+      )}
 
       {running ? null : (
         <StartScreen

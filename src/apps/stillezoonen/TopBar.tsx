@@ -7,6 +7,7 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type ReactNode,
   type RefObject,
 } from "react";
 import { TEMPOS, type Settings } from "./settings";
@@ -168,7 +169,136 @@ export function SoundMeter({
   );
 }
 
-/** Tandhjul øverst til højre med alle indstillinger. */
+/**
+ * Rund knap øverst til højre, der åbner et panel. Lukker ved klik udenfor,
+ * Escape (fokus tilbage på knappen) og når fokus forlader panelet.
+ */
+function Popover({
+  id,
+  label,
+  icon,
+  panelLabel,
+  className,
+  children,
+}: {
+  id: string;
+  label: string;
+  icon: ReactNode;
+  panelLabel: string;
+  className?: string;
+  children: (close: () => void) => ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const refocus = useCallback(() => button.current?.focus(), []);
+  useDismiss(open, close, ref, refocus);
+  // Flyt fokus ind i panelet, når det åbnes — til det første synlige felt
+  // (dele af menuen er kun synlige på smalle skærme).
+  useEffect(() => {
+    if (!open) return;
+    const first = [...(panel.current?.querySelectorAll<HTMLElement>("button, input") ?? [])].find(
+      (el) => el.offsetParent !== null,
+    );
+    first?.focus({ preventScroll: true });
+  }, [open]);
+  // Luk og giv fokus tilbage til knappen (fx efter et valg i panelet).
+  const [focusRequest, setFocusRequest] = useState(0);
+  useEffect(() => {
+    if (focusRequest) button.current?.focus({ preventScroll: true });
+  }, [focusRequest]);
+  const closeAndRefocus = useCallback(() => {
+    setOpen(false);
+    setFocusRequest((n) => n + 1);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`zoo-menu-wrap ${className ?? ""}`}
+      onBlur={(e) => {
+        if (open && !e.currentTarget.contains(e.relatedTarget as Node | null) && e.relatedTarget)
+          setOpen(false);
+      }}
+    >
+      <button
+        ref={button}
+        type="button"
+        className="zoo-chip zoo-round"
+        aria-haspopup="dialog"
+        aria-controls={id}
+        aria-expanded={open}
+        aria-label={label}
+        title={label}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {icon}
+      </button>
+      {open && (
+        <section ref={panel} id={id} role="dialog" className="zoo-menu" aria-label={panelLabel}>
+          {children(closeAndRefocus)}
+        </section>
+      )}
+    </div>
+  );
+}
+
+/** Rund tænd/sluk-knap (timer, beskedtavle). */
+export function ToggleButton({
+  label,
+  pressed,
+  onToggle,
+  children,
+}: {
+  label: string;
+  pressed: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      className="zoo-chip zoo-round zoo-wide-only"
+      aria-pressed={pressed}
+      aria-label={label}
+      title={label}
+      onClick={onToggle}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Tema-knappen: alle temaer, ét pr. række med billede og beskrivelse. */
+export function ThemeMenu({ theme, onTheme }: { theme: Theme; onTheme: (id: string) => void }) {
+  return (
+    <Popover
+      id="zoo-themes"
+      label="Skift tema"
+      icon={<SceneIcon />}
+      panelLabel="Vælg tema"
+      className="zoo-wide-only zoo-theme-menu"
+    >
+      {(close) => (
+        <>
+          <p className="zoo-menu-title">Tema</p>
+          <ThemePicker
+            current={theme.id}
+            layout="list"
+            onChange={(id) => {
+              onTheme(id);
+              close();
+            }}
+          />
+        </>
+      )}
+    </Popover>
+  );
+}
+
+/** Tandhjul øverst til højre. På smalle skærme også tema, timer og besked. */
 export function SettingsMenu({
   settings,
   theme,
@@ -186,52 +316,29 @@ export function SettingsMenu({
   onReset: () => void;
   onStop: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  const panel = useRef<HTMLElement>(null);
-  const close = useCallback(() => setOpen(false), []);
-  const refocus = useCallback(() => button.current?.focus(), []);
-  useDismiss(open, close, ref, refocus);
-  // Flyt fokus ind i menuen, når den åbnes med tastaturet.
-  useEffect(() => {
-    if (open) panel.current?.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
-  }, [open]);
-
   return (
-    <div
-      ref={ref}
-      className="zoo-menu-wrap"
-      onBlur={(e) => {
-        if (open && !e.currentTarget.contains(e.relatedTarget as Node | null) && e.relatedTarget)
-          setOpen(false);
-      }}
-    >
-      <button
-        ref={button}
-        type="button"
-        className="zoo-chip zoo-gear"
-        aria-haspopup="dialog"
-        aria-controls="zoo-settings"
-        aria-expanded={open}
-        aria-label="Indstillinger"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <GearIcon />
-      </button>
-
-      {open && (
-        <section
-          ref={panel}
-          id="zoo-settings"
-          role="dialog"
-          className="zoo-menu"
-          aria-label="Indstillinger for Stillezoonen"
-        >
-          <fieldset>
-            <legend>Tema</legend>
-            <ThemePicker current={theme.id} onChange={onTheme} compact />
-          </fieldset>
+    <Popover id="zoo-settings" label="Indstillinger" icon={<GearIcon />} panelLabel="Indstillinger for Stillezoonen">
+      {() => (
+        <>
+          {/* Knapperne i topbjælken er der ikke plads til på en lille skærm. */}
+          <div className="zoo-narrow-only">
+            <fieldset>
+              <legend>Tema</legend>
+              <ThemePicker current={theme.id} onChange={onTheme} layout="compact" />
+            </fieldset>
+            <Switch
+              checked={settings.timer}
+              onChange={(timer) => onChange({ timer })}
+              title="Vis timer"
+              hint="Et lille vindue du kan flytte og trække større"
+            />
+            <Switch
+              checked={settings.board}
+              onChange={(board) => onChange({ board })}
+              title="Vis beskedtavle"
+              hint="Skriv en besked til klassen"
+            />
+          </div>
 
           <fieldset>
             <legend>Hvor ofte kommer der nye {theme.noun}?</legend>
@@ -264,19 +371,6 @@ export function SettingsMenu({
             />
           </label>
 
-          <label className="zoo-switch">
-            <input
-              type="checkbox"
-              checked={settings.timer}
-              onChange={(e) => onChange({ timer: e.target.checked })}
-            />
-            <span className="zoo-switch-track" aria-hidden="true" />
-            <span>
-              <strong>Vis timer</strong>
-              <small>Et lille vindue du kan flytte og trække større</small>
-            </span>
-          </label>
-
           <div className="zoo-actions">
             <button type="button" onClick={onFullscreen}>
               Fuld skærm
@@ -288,9 +382,60 @@ export function SettingsMenu({
               Stop
             </button>
           </div>
-        </section>
+        </>
       )}
-    </div>
+    </Popover>
+  );
+}
+
+function Switch({
+  checked,
+  onChange,
+  title,
+  hint,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  title: string;
+  hint: string;
+}) {
+  return (
+    <label className="zoo-switch">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className="zoo-switch-track" aria-hidden="true" />
+      <span>
+        <strong>{title}</strong>
+        <small>{hint}</small>
+      </span>
+    </label>
+  );
+}
+
+export function TimerIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="13.5" r="7.5" />
+      <path d="M12 9.5v4l2.5 2M10 2.5h4M18.5 6l1.5-1.5" />
+    </svg>
+  );
+}
+
+export function MessageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 5.5h16v10H10l-4.5 3.5v-3.5H4z" />
+      <path d="M8 9.5h8M8 12.5h5" />
+    </svg>
+  );
+}
+
+function SceneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="m3.5 17 5-5.5 4 4 2.5-2.5 5.5 5" />
+      <circle cx="16" cy="9" r="1.6" />
+    </svg>
   );
 }
 

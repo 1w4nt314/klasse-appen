@@ -11,8 +11,17 @@ export type Settings = {
   theme: string;
   /** Vis den flytbare timer. */
   timer: boolean;
+  /** Vis beskedtavlen. */
+  board: boolean;
 };
-export const DEFAULTS: Settings = { threshold: 55, tempo: 10, maxAnimals: 12, theme: "jungle", timer: false };
+export const DEFAULTS: Settings = {
+  threshold: 55,
+  tempo: 10,
+  maxAnimals: 12,
+  theme: "jungle",
+  timer: false,
+  board: false,
+};
 export const STORAGE_KEY = "stillezoonen:settings";
 /** Fra før appen hed Stillezoonen. */
 const OLD_STORAGE_KEY = "klasse-zoo:settings";
