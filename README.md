@@ -75,12 +75,15 @@ miljøvariabler er sat (fx på Render → Environment):
 
 - **Uden** `RESEND_API_KEY`/`EMAIL_FROM` oprettes nye brugere som før (straks
   aktive), og "glemt adgangskode" siger, at det ikke er slået til endnu.
-- **Med** dem skal nye brugere bekræfte via linket i mailen (gælder 24 timer)
-  *og* den adgangskode, de valgte — så en fremmed ikke kan oprette en konto med
-  en lærers mail og få læreren til at godkende den. Linket åbner en side med en
-  knap, så mail-scannere ikke bruger det op. En uafsluttet oprettelse erstattes,
-  hvis nogen opretter sig med samme mail igen. /opret svarer det samme, uanset
-  om mailen findes (ejeren får en mail om, at nogen prøvede).
+- **Med** dem oprettes brugeren først, når linket i mailen er brugt (gælder 24
+  timer) *sammen med* den adgangskode, der blev valgt. Indtil da er oprettelsen
+  kun "ventende" (egen tabel), så en fremmed hverken kan reservere, slette eller
+  overtage en lærers mail. Linket åbner en side med en knap, så mail-scannere
+  ikke bruger det op. /opret og login svarer det samme, uanset om mailen findes
+  (ejeren af en eksisterende bruger får en mail om, at nogen prøvede).
+- Mails begrænses pr. IP og pr. modtager (3 pr. kvarter, 10 pr. døgn) med
+  separate grænser for oprettelse og nulstilling. Fra lærerens egen kendte enhed
+  gælder grænsen pr. modtager ikke for nulstilling.
 - "Glemt adgangskode" svarer altid det samme, uanset om mailen findes. Linket
   virker i 1 time og én gang; en ny adgangskode logger brugeren ud alle andre
   steder.

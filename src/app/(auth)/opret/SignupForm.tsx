@@ -12,11 +12,12 @@ export function SignupForm() {
     return (
       <div role="status" className="space-y-3">
         <p className="rounded-control bg-brand-soft px-4 py-3 text-ink">
-          Vi har sendt en mail til <strong>{state.sent}</strong> med et link. Klik på det for at
-          bekræfte din e-mail — så er din bruger klar.
+          Vi har sendt en mail til <strong>{state.sent}</strong>. Klik på linket i mailen og skriv
+          din adgangskode — så er din bruger oprettet.
         </p>
         <p className="text-sm text-muted">
-          Ingen mail efter et par minutter? Tjek spam, eller <TextLink href="/login">log ind</TextLink> for at få et nyt link.
+          Ingen mail efter et par minutter? Tjek spam, eller{" "}
+          <TextLink href="/opret">opret dig igen</TextLink> for at få et nyt link.
         </p>
       </div>
     );

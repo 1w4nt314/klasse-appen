@@ -95,21 +95,6 @@ export function setPassword(userId: string, passwordHash: string) {
   conn.prepare("delete from auth_tokens where user_id = ? and purpose = 'reset'").run(userId);
 }
 
-/**
- * En oprettelse, der aldrig er bekræftet og aldrig har været logget ind,
- * frigives, når nogen opretter sig med samme mail igen. Så kan en fremmed ikke
- * "reservere" en lærers mail. Deaktiverede eller brugte konti røres aldrig.
- */
-export function releaseUnusedSignup(email: string) {
-  db()
-    .prepare(
-      `delete from users
-        where email = ? and email_verified_at is null and disabled_at is null
-          and not exists (select 1 from sessions s where s.user_id = users.id)`,
-    )
-    .run(email);
-}
-
 /** Opret en session og sæt cookien. Kun i Server Actions/Route Handlers. */
 export async function startSession(userId: string) {
   const token = randomBytes(32).toString("base64url");
