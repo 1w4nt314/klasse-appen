@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SiteHeader } from "@/components/SiteHeader";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
@@ -53,7 +54,10 @@ export default async function AdminPage() {
         <p className="mt-2 text-muted">
           <span className="tabular-nums">{users.length}</span> brugere på platformen ·{" "}
           <span className="tabular-nums">{active}</span> aktive. Kun du som platform-admin kan se
-          denne side.
+          denne side.{" "}
+          <Link href="/admin/dyr" className="font-bold text-brand underline-offset-2 hover:underline">
+            Se alle figurer i Stillezoonen →
+          </Link>
         </p>
         <UserTable users={users} />
       </main>

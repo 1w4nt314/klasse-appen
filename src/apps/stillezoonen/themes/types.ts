@@ -30,6 +30,12 @@ export type CreatureSpec = {
   viewBox: string;
   /** Tegnet i profil, vendt mod højre, med fødderne/bunden på viewBox'ens bund. */
   art: ReactNode;
+  /**
+   * Særlig opførsel (typisk sjældne/legendariske): en anden tegning i samme
+   * viewBox, som vises, mens figuren står stille — fx sætter sig og læser.
+   * Animeres med zoo-fx-*-klasserne i zoo.css.
+   */
+  special?: ReactNode;
   /** Overstyrer temaets zone, fx en krabbe der går på havbunden. */
   zone?: Zone;
 };
