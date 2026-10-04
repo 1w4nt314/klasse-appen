@@ -37,6 +37,11 @@ const MIGRATIONS = [
     primary key (user_id, app_slug)
   );
   `,
+  // Klasse Zoo er omdøbt til Stillezoonen: flyt lærernes favoritter med.
+  `
+  update or ignore favorites set app_slug = 'stillezoonen' where app_slug = 'klasse-zoo';
+  delete from favorites where app_slug = 'klasse-zoo';
+  `,
 ];
 
 function open() {

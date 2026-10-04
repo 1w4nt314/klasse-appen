@@ -4,7 +4,7 @@ import type { CreatureSpec } from "../types";
 import { crystal } from "./Background";
 
 /**
- * Rumvæsnerne i Klasse Zoo. Tegnet i profil, vendt mod højre, med fødderne
+ * Rumvæsnerne i Stillezoonen. Tegnet i profil, vendt mod højre, med fødderne
  * (eller bunden) på bunden af viewBox. Walk-figurer har ben i `zoo-leg-a`/`zoo-leg-b`.
  */
 

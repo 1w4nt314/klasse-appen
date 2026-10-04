@@ -23,6 +23,7 @@ const RELEASE = 0.45;
  */
 export function useMicrophone() {
   const [status, setStatus] = useState<MicStatus>("idle");
+  const [muted, setMutedState] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -36,7 +37,17 @@ export function useMicrophone() {
     contextRef.current = null;
     analyserRef.current = null;
     levelRef.current = 0;
+    setMutedState(false);
     setStatus("idle");
+  }, []);
+
+  /**
+   * Slå mikrofonen fra/til (fx mens læreren giver en besked). Lydsporet slås fra
+   * i browseren, så måleren ser stilhed og dyrene bliver.
+   */
+  const setMuted = useCallback((next: boolean) => {
+    streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
+    setMutedState(next);
   }, []);
 
   const start = useCallback(async () => {
@@ -101,5 +112,5 @@ export function useMicrophone() {
 
   useEffect(() => stop, [stop]);
 
-  return { status, start, stop, readLevel };
+  return { status, start, stop, readLevel, muted, setMuted };
 }

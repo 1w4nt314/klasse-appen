@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      // Klasse Zoo hedder nu Stillezoonen.
+      { source: "/apps/klasse-zoo", destination: "/apps/stillezoonen", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

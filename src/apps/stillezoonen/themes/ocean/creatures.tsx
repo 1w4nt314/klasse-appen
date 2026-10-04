@@ -2,7 +2,7 @@ import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
 
 /**
- * Havdyrene i Klasse Zoo. Fisk og skildpadde er tegnet i profil, vendt mod højre;
+ * Havdyrene i Stillezoonen. Fisk og skildpadde er tegnet i profil, vendt mod højre;
  * halen/finnen ligger i `zoo-tail` yderst til venstre (CSS drejer den om dens højre kant).
  * Krabben er set forfra og går sidelæns på sandbunden.
  */

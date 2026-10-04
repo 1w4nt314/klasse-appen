@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: "%s · Klasse-appen",
   },
   description:
-    "Gratis, enkle apps som lærere kan bruge på tavlen i klasseværelset. Første app: Klasse Zoo, der belønner ro i klassen med dyr på skærmen.",
+    "Gratis, enkle apps som lærere kan bruge på tavlen i klasseværelset. Første app: Stillezoonen, der belønner ro i klassen med dyr på skærmen.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
