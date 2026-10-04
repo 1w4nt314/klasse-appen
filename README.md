@@ -46,8 +46,9 @@ npm install
 npm run dev
 ```
 
-Databasen oprettes automatisk i `./data/klasse-appen.db` ved første request
-(skift mappe med `DATA_DIR`). Tabellerne (`users`, `sessions`, `favorites`)
+Databasen oprettes automatisk i `./data/klasse-appen.db` ved første request.
+Findes mappen `/var/data` (Render-disk), bruges den i stedet. `DATA_DIR`
+overstyrer begge. Tabellerne (`users`, `sessions`, `favorites`)
 oprettes/migreres af [`src/lib/db.ts`](src/lib/db.ts).
 
 ## Login

@@ -1,12 +1,16 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 /**
- * SQLite-databasen ligger som en fil på web-instansen. På Render skal
- * DATA_DIR pege på en persistent disk, ellers forsvinder data ved hvert deploy.
+ * SQLite-databasen ligger som en fil på web-instansen. På Render skal den ligge
+ * på en persistent disk, ellers forsvinder data ved hvert deploy. Er der monteret
+ * en disk på /var/data, bruges den automatisk; ellers kan DATA_DIR sættes.
  */
-const DATA_DIR = process.env.DATA_DIR ?? path.join(process.cwd(), "data");
+const RENDER_DISK = "/var/data";
+const DATA_DIR =
+  process.env.DATA_DIR ||
+  (existsSync(RENDER_DISK) ? RENDER_DISK : path.join(process.cwd(), "data"));
 
 const MIGRATIONS = [
   `
@@ -37,6 +41,7 @@ const MIGRATIONS = [
 
 function open() {
   mkdirSync(DATA_DIR, { recursive: true });
+  console.info(`[db] SQLite i ${DATA_DIR}`);
   const db = new DatabaseSync(path.join(DATA_DIR, "klasse-appen.db"));
   db.exec("pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;");
 
