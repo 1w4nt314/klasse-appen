@@ -3,17 +3,22 @@
 import { THEMES } from "./themes";
 import { CreatureArt } from "./themes/shared";
 
+/**
+ * Temavælger. `grid` (startskærmen): kort med billede. `list` (tema-knappen):
+ * ét tema pr. række med billede og beskrivelse. `compact`: kun navne.
+ */
 export function ThemePicker({
   current,
   onChange,
-  compact,
+  layout = "grid",
 }: {
   current: string;
   onChange: (id: string) => void;
-  compact?: boolean;
+  layout?: "grid" | "list" | "compact";
 }) {
+  const compact = layout === "compact";
   return (
-    <div className="zoo-themes" data-compact={compact || undefined}>
+    <div className="zoo-themes" data-layout={layout}>
       {THEMES.map((t) => (
         <button
           key={t.id}
@@ -28,8 +33,10 @@ export function ThemePicker({
               <CreatureArt spec={t.creatures[t.showcase[0]]} className="zoo-theme-creature" />
             </span>
           )}
-          <span className="zoo-theme-name">{t.name}</span>
-          {!compact && <span className="zoo-theme-blurb">{t.blurb}</span>}
+          <span className="zoo-theme-text">
+            <span className="zoo-theme-name">{t.name}</span>
+            {!compact && <span className="zoo-theme-blurb">{t.blurb}</span>}
+          </span>
         </button>
       ))}
     </div>

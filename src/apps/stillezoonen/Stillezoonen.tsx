@@ -9,7 +9,8 @@ import type { Theme } from "./themes/types";
 import { FloatingTimer } from "../shared/FloatingTimer";
 import { loadSettings, saveSettings, type Settings } from "./settings";
 import { ThemePicker } from "./ThemePicker";
-import { SettingsMenu, SoundMeter } from "./TopBar";
+import { MessageBoard } from "./MessageBoard";
+import { MessageIcon, SettingsMenu, SoundMeter, ThemeMenu, TimerIcon, ToggleButton } from "./TopBar";
 import { useMicrophone, type MicStatus } from "./useMicrophone";
 import "./zoo.css";
 
@@ -277,6 +278,21 @@ export default function Stillezoonen() {
                 {theme.noun} {theme.place}
               </span>
             </div>
+            <ToggleButton
+              label={settings.board ? "Skjul beskedtavle" : "Vis beskedtavle"}
+              pressed={settings.board}
+              onToggle={() => setSettings((s) => ({ ...s, board: !s.board }))}
+            >
+              <MessageIcon />
+            </ToggleButton>
+            <ToggleButton
+              label={settings.timer ? "Skjul timer" : "Vis timer"}
+              pressed={settings.timer}
+              onToggle={() => setSettings((s) => ({ ...s, timer: !s.timer }))}
+            >
+              <TimerIcon />
+            </ToggleButton>
+            <ThemeMenu theme={theme} onTheme={changeTheme} />
             <SettingsMenu
               settings={settings}
               theme={theme}
@@ -310,6 +326,15 @@ export default function Stillezoonen() {
         onClose={() => setSettings((s) => ({ ...s, timer: false }))}
         onDone={() => setSettings((s) => ({ ...s, timer: true }))}
       />
+
+      {/* Tekst og placering huskes i browseren, så tavlen kan monteres efter behov. */}
+      {settings.board && (
+        <MessageBoard
+          theme={theme.id}
+          zIndex={running ? 311 : 411}
+          onClose={() => setSettings((s) => ({ ...s, board: false }))}
+        />
+      )}
 
       {running ? null : (
         <StartScreen
