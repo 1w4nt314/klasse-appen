@@ -5,14 +5,14 @@ import { creatures } from "./creatures";
 export const alien: Theme = {
   id: "alien",
   name: "Alien planet",
-  blurb: "PLADSHOLDER",
+  blurb: "Søde rumvæsner og UFO'er",
   creatures,
   zone: "ground",
   noun: "rumvæsner",
   nounDefinite: "rumvæsnerne",
   place: "på planeten",
-  backdrop: "#2a1f4a",
-  showcase: ["placeholder", "placeholder", "placeholder"],
+  backdrop: "#3a2a7a",
+  showcase: ["greenAlien", "blob", "robot"],
   Background,
   Foreground,
 };
