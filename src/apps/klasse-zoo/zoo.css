@@ -1,0 +1,581 @@
+/* Klasse Zoo — alle klasser er præfikset `zoo-` da filen er global. */
+
+.zoo-root {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #cfe8b8;
+  font-family: var(--font-sans);
+  color: var(--ink);
+  user-select: none;
+}
+
+.zoo-scene,
+.zoo-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.zoo-foreground {
+  z-index: 200;
+  pointer-events: none;
+}
+
+/* ---------- Dyr ---------- */
+
+.zoo-animal {
+  position: absolute;
+  left: 0;
+  will-change: transform;
+  /* translate3d sætter midtpunktet; margin centrerer sprite om det. */
+  translate: -50% 0;
+}
+
+.zoo-flip,
+.zoo-body {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.zoo-flip {
+  transition: transform 160ms ease-out;
+}
+
+.zoo-animal[data-dir="-1"] .zoo-flip {
+  transform: scaleX(-1);
+}
+
+.zoo-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.zoo-shadow {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  bottom: -3%;
+  height: 8%;
+  border-radius: 50%;
+  background: rgb(30 50 20 / 0.28);
+  filter: blur(2px);
+}
+
+.zoo-leg {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+
+.zoo-torso,
+.zoo-head {
+  transform-box: view-box;
+}
+
+.zoo-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: zoo-blink 5s infinite;
+}
+
+/* Gang: diagonale benpar svinger i modfase, kroppen vipper let. */
+.zoo-animal[data-gait="walk"][data-mode="walk"] .zoo-leg-a,
+.zoo-animal[data-gait="walk"][data-mode="flee"] .zoo-leg-a {
+  animation: zoo-swing var(--step) ease-in-out infinite alternate;
+}
+.zoo-animal[data-gait="walk"][data-mode="walk"] .zoo-leg-b,
+.zoo-animal[data-gait="walk"][data-mode="flee"] .zoo-leg-b {
+  animation: zoo-swing var(--step) ease-in-out infinite alternate-reverse;
+}
+.zoo-animal[data-gait="walk"][data-mode="walk"] .zoo-body {
+  animation: zoo-bob var(--step) ease-in-out infinite alternate;
+}
+
+/* Hop: tukan og frø hopper af sted. */
+.zoo-animal[data-gait="hop"][data-mode="walk"] .zoo-body {
+  animation: zoo-hop calc(var(--step) * 1.4) ease-in-out infinite;
+}
+.zoo-animal[data-gait="hop"][data-mode="flee"] .zoo-body {
+  animation: zoo-hop 260ms ease-in-out infinite;
+}
+
+/* Flugt: alt går meget hurtigere. */
+.zoo-animal[data-mode="flee"] {
+  --step: 140ms !important;
+}
+.zoo-animal[data-gait="walk"][data-mode="flee"] .zoo-body {
+  animation: zoo-run 140ms ease-in-out infinite alternate;
+}
+
+/* Hvile: rolig vejrtrækning. */
+.zoo-animal[data-mode="idle"] .zoo-body {
+  transform-origin: 50% 100%;
+  animation: zoo-breathe 3.2s ease-in-out infinite;
+}
+
+/* Forskrækkelse: lille hop og et udråbstegn. */
+.zoo-animal[data-mode="startle"] .zoo-body {
+  animation: zoo-startle 260ms ease-out;
+}
+
+.zoo-alarm {
+  position: absolute;
+  top: -22%;
+  right: 6%;
+  display: grid;
+  place-items: center;
+  width: clamp(18px, 2.4vh, 32px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--danger);
+  color: var(--danger);
+  font-weight: 900;
+  font-size: clamp(12px, 1.7vh, 22px);
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    opacity 120ms,
+    transform 120ms;
+}
+.zoo-animal[data-dir="-1"] .zoo-alarm {
+  transform: scale(0.4) scaleX(-1);
+}
+.zoo-animal[data-mode="startle"] .zoo-alarm,
+.zoo-animal[data-mode="flee"] .zoo-alarm {
+  opacity: 1;
+  transform: scale(1);
+}
+.zoo-animal[data-dir="-1"][data-mode="startle"] .zoo-alarm,
+.zoo-animal[data-dir="-1"][data-mode="flee"] .zoo-alarm {
+  transform: scaleX(-1);
+}
+
+@keyframes zoo-swing {
+  from {
+    transform: rotate(18deg);
+  }
+  to {
+    transform: rotate(-18deg);
+  }
+}
+@keyframes zoo-bob {
+  from {
+    transform: translateY(0) rotate(-0.6deg);
+  }
+  to {
+    transform: translateY(-2.5%) rotate(0.6deg);
+  }
+}
+@keyframes zoo-run {
+  from {
+    transform: translateY(0) rotate(-3deg);
+  }
+  to {
+    transform: translateY(-5%) rotate(2deg);
+  }
+}
+@keyframes zoo-hop {
+  0%,
+  100% {
+    transform: translateY(0) scaleY(1);
+  }
+  15% {
+    transform: translateY(0) scaleY(0.9);
+  }
+  50% {
+    transform: translateY(-28%) scaleY(1.04);
+  }
+  85% {
+    transform: translateY(0) scaleY(0.95);
+  }
+}
+@keyframes zoo-breathe {
+  0%,
+  100% {
+    transform: scale(1, 1);
+  }
+  50% {
+    transform: scale(1.01, 1.025);
+  }
+}
+@keyframes zoo-startle {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-16%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes zoo-blink {
+  0%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  97% {
+    transform: scaleY(0.1);
+  }
+}
+
+/* Lianerne svajer stille. */
+.zoo-sway {
+  transform-box: view-box;
+  transform-origin: 50% 0%;
+  animation: zoo-sway 7s ease-in-out infinite alternate;
+}
+@keyframes zoo-sway {
+  from {
+    transform: skewX(-0.6deg);
+  }
+  to {
+    transform: skewX(0.6deg);
+  }
+}
+
+/* Når det er for larmende, bliver junglen en anelse mørkere. */
+.zoo-scene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 150;
+  pointer-events: none;
+  background: rgb(20 30 40 / 0.18);
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+.zoo-root[data-loud] .zoo-scene::after {
+  opacity: 1;
+}
+
+/* ---------- Overlays ---------- */
+
+.zoo-chip {
+  position: absolute;
+  z-index: 300;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line);
+  background: rgb(255 255 255 / 0.92);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.zoo-back {
+  top: 1rem;
+  left: 1rem;
+  text-decoration: none;
+}
+.zoo-back:hover {
+  background: #fff;
+  color: var(--brand);
+}
+
+.zoo-count {
+  top: 1rem;
+  right: 1rem;
+  font-size: 1.05rem;
+  color: var(--accent);
+}
+
+.zoo-banner {
+  position: absolute;
+  z-index: 300;
+  top: 12%;
+  left: 50%;
+  translate: -50% 0;
+  max-width: min(90vw, 40rem);
+  text-align: center;
+  font-size: clamp(1.1rem, 2.6vh, 2rem);
+  line-height: 1.35;
+  pointer-events: none;
+}
+.zoo-banner:not(:empty) {
+  padding: 0.9rem 1.4rem;
+  border-radius: var(--radius-card);
+  background: rgb(255 255 255 / 0.94);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+  animation: zoo-pop 220ms ease-out;
+}
+.zoo-banner strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.6em;
+  color: var(--danger);
+}
+@keyframes zoo-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+}
+
+/* ---------- Kontrolpanel ---------- */
+
+.zoo-panel {
+  position: absolute;
+  z-index: 300;
+  top: 4.25rem;
+  left: 1rem;
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 5.25rem);
+  overflow-y: auto;
+  padding: 0.85rem 1rem 1rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: rgb(255 255 255 / 0.95);
+  box-shadow: var(--shadow-float);
+}
+
+.zoo-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.zoo-panel-head h2 {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.zoo-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.5rem;
+  border-radius: var(--radius-control);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.zoo-icon-btn:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.zoo-meter {
+  --level: 0%;
+  position: relative;
+  height: 2.25rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(
+    to right,
+    var(--accent-soft) 0 var(--threshold),
+    var(--danger-soft) var(--threshold) 100%
+  );
+  overflow: hidden;
+}
+
+.zoo-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--level);
+  background: var(--accent);
+  transition: background-color 200ms;
+}
+.zoo-meter[data-over="true"] .zoo-meter-fill {
+  background: var(--danger);
+}
+
+.zoo-meter-limit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--threshold);
+  width: 4px;
+  margin-left: -2px;
+  background: var(--ink);
+  pointer-events: none;
+}
+
+/* Usynlig slider oven på måleren: læreren trækker direkte i stregen. */
+.zoo-meter input[type="range"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+.zoo-meter:has(input:focus-visible) {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.zoo-hint {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.zoo-panel-body {
+  display: grid;
+  gap: 0.9rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.zoo-panel-body legend,
+.zoo-field > span {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.zoo-segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.zoo-segment button {
+  padding: 0.4rem 0.25rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+.zoo-segment button + button {
+  border-left: 1px solid var(--line-strong);
+}
+.zoo-segment button span {
+  display: block;
+  font-weight: 500;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.zoo-segment button[aria-pressed="true"] {
+  background: var(--brand);
+  color: #fff;
+}
+.zoo-segment button[aria-pressed="true"] span {
+  color: rgb(255 255 255 / 0.8);
+}
+
+.zoo-field input[type="range"] {
+  width: 100%;
+  accent-color: var(--brand);
+}
+
+.zoo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.zoo-actions button {
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.zoo-actions button:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* ---------- Startskærm ---------- */
+
+.zoo-start {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgb(22 33 46 / 0.25);
+}
+
+.zoo-start-card {
+  width: min(32rem, 100%);
+  padding: 2rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow-float);
+  text-align: center;
+}
+
+.zoo-start-animals {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 1rem;
+  height: 5.5rem;
+  margin-bottom: 1rem;
+}
+.zoo-start-animal {
+  height: 100%;
+  width: auto;
+}
+.zoo-start-animal:nth-child(2) {
+  height: 75%;
+}
+.zoo-start-animal:nth-child(3) {
+  height: 50%;
+}
+
+.zoo-start-card h1 {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--brand-strong);
+}
+.zoo-start-card > p {
+  margin-top: 0.75rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.zoo-start-btn {
+  margin-top: 1.5rem;
+  padding: 0.85rem 1.75rem;
+  border-radius: var(--radius-control);
+  background: var(--brand);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+.zoo-start-btn:hover:not(:disabled) {
+  background: var(--brand-strong);
+}
+.zoo-start-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+.zoo-start-note {
+  font-size: 0.85rem;
+}
+.zoo-start-error {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+  color: var(--danger) !important;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zoo-sway,
+  .zoo-eye {
+    animation: none;
+  }
+}
