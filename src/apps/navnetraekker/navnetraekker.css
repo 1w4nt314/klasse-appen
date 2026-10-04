@@ -1,0 +1,82 @@
+/* Navnetrækker — klasser præfikset `nt-`, da filen er global. */
+
+.nt-reel-window {
+  --item: 1.25em;
+  position: relative;
+  height: var(--item);
+  overflow: hidden;
+  line-height: var(--item);
+  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+}
+
+.nt-reel {
+  will-change: transform;
+}
+.nt-reel > div {
+  height: var(--item);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nt-reveal {
+  animation: nt-pop 520ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes nt-pop {
+  0% {
+    transform: scale(0.92);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.nt-confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.nt-confetti span {
+  position: absolute;
+  top: -12px;
+  width: 10px;
+  height: 14px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: nt-fall 1.6s ease-in forwards;
+}
+@keyframes nt-fall {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx), 420px, 0) rotate(var(--rot));
+  }
+}
+
+.nt-group {
+  animation: nt-in 360ms ease-out backwards;
+}
+@keyframes nt-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-reveal,
+  .nt-group,
+  .nt-confetti span {
+    animation: none;
+  }
+  .nt-confetti {
+    display: none;
+  }
+}
