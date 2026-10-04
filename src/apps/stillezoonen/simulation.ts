@@ -1,7 +1,7 @@
 import type { CreatureSpec, Theme } from "./themes/types";
 
 /**
- * Figurernes adfærd. Ren logik uden DOM: KlasseZoo kalder `step` hver frame og
+ * Figurernes adfærd. Ren logik uden DOM: Stillezoonen kalder `step` hver frame og
  * skriver positionerne ud på elementerne.
  *
  *   walk   → bevæger sig mod sit mål (ind fra kanten, eller en lille tur rundt)

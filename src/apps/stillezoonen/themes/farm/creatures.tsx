@@ -2,7 +2,7 @@ import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
 
 /**
- * Bondegårdsdyrene i Klasse Zoo. Hvert dyr er tegnet i profil, vendt mod højre,
+ * Bondegårdsdyrene i Stillezoonen. Hvert dyr er tegnet i profil, vendt mod højre,
  * med fødderne på bunden af viewBox. Ben ligger i `zoo-leg-a`/`zoo-leg-b`
  * (diagonal gangart): fjerne ben tegnes før kroppen, nære ben efter.
  */

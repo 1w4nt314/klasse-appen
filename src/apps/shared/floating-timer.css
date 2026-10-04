@@ -1,0 +1,198 @@
+/* Flytbar timer — klasser præfikset `ft-`, da filen er global. */
+
+.ft-window {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: var(--shadow-float);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Virker også uden Tailwinds preflight. */
+.ft-window[hidden] {
+  display: none;
+}
+
+.ft-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+  user-select: none;
+}
+.ft-bar:active {
+  cursor: grabbing;
+}
+.ft-grip {
+  color: var(--line-strong);
+  font-size: 0.9rem;
+}
+.ft-title {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.ft-icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.ft-icon:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.ft-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 0.25rem 0.75rem;
+  container-type: size;
+}
+
+.ft-time {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--brand-strong);
+  font-size: min(30cqw, 80cqh);
+  white-space: nowrap;
+}
+.ft-window[data-phase="paused"] .ft-time {
+  opacity: 0.55;
+}
+.ft-window[data-phase="done"] .ft-time {
+  font-size: min(12cqw, 40cqh);
+  color: var(--danger);
+  animation: ft-flash 900ms ease-in-out infinite alternate;
+}
+.ft-window[data-phase="done"] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger), var(--shadow-float);
+}
+@keyframes ft-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+.ft-setup {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+}
+.ft-inputs {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3rem;
+}
+.ft-inputs label {
+  display: grid;
+  justify-items: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ft-inputs input {
+  width: 4.2rem;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-strong);
+  background: #fff;
+}
+.ft-colon {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ft-presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+}
+.ft-presets button {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.ft-presets button:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.ft-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem 0.55rem;
+}
+.ft-actions button {
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.ft-actions .ft-primary {
+  border-color: var(--brand);
+  background: var(--brand);
+  color: #fff;
+}
+.ft-actions button:disabled {
+  opacity: 0.5;
+}
+
+/* Stort greb, så det kan rammes med en finger på en smartboard. */
+.ft-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 36px;
+  height: 36px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(
+    135deg,
+    transparent 55%,
+    var(--line-strong) 55% 61%,
+    transparent 61% 70%,
+    var(--line-strong) 70% 76%,
+    transparent 76% 85%,
+    var(--line-strong) 85% 91%,
+    transparent 91%
+  );
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ft-window[data-phase="done"] .ft-time {
+    animation: none;
+  }
+}

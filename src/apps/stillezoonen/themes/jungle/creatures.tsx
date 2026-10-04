@@ -3,7 +3,7 @@ import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
 
 /**
- * Jungledyrene i Klasse Zoo. Hvert dyr er tegnet i profil, vendt mod højre,
+ * Jungledyrene i Stillezoonen. Hvert dyr er tegnet i profil, vendt mod højre,
  * med fødderne på bunden af viewBox. Ben ligger i grupperne `zoo-leg-a`/`zoo-leg-b`
  * (diagonal gangart) så CSS kan svinge dem når dyret går.
  */

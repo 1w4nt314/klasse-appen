@@ -16,6 +16,8 @@ const CEIL_DB = -15;
 /** Tidskonstanter (sek.) — hurtig op, langsommere ned, så måleren ikke flimrer. */
 const ATTACK = 0.08;
 const RELEASE = 0.45;
+/** Mute slår automatisk fra igen efter så lang tid, hvis læreren glemmer det. */
+export const MUTE_MS = 3 * 60_000;
 
 /**
  * Mikrofonadgang og lydniveau. Lyden analyseres udelukkende lokalt i
@@ -23,6 +25,9 @@ const RELEASE = 0.45;
  */
 export function useMicrophone() {
   const [status, setStatus] = useState<MicStatus>("idle");
+  const [muted, setMutedState] = useState(false);
+  /** Hvornår mikrofonen automatisk slås til igen (kun mens den er slået fra). */
+  const [mutedUntil, setMutedUntil] = useState<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const contextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -36,8 +41,27 @@ export function useMicrophone() {
     contextRef.current = null;
     analyserRef.current = null;
     levelRef.current = 0;
+    setMutedState(false);
+    setMutedUntil(null);
     setStatus("idle");
   }, []);
+
+  /**
+   * Slå mikrofonen fra/til (fx mens læreren giver en besked). Lydsporet slås fra
+   * i browseren, så måleren ser stilhed og dyrene bliver.
+   */
+  const setMuted = useCallback((next: boolean) => {
+    streamRef.current?.getAudioTracks().forEach((t) => (t.enabled = !next));
+    setMutedState(next);
+    setMutedUntil(next ? Date.now() + MUTE_MS : null);
+  }, []);
+
+  // Slå automatisk til igen, så zoo'en ikke er "døv" resten af timen.
+  useEffect(() => {
+    if (mutedUntil === null) return;
+    const id = window.setTimeout(() => setMuted(false), Math.max(0, mutedUntil - Date.now()));
+    return () => window.clearTimeout(id);
+  }, [mutedUntil, setMuted]);
 
   const start = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
@@ -101,5 +125,5 @@ export function useMicrophone() {
 
   useEffect(() => stop, [stop]);
 
-  return { status, start, stop, readLevel };
+  return { status, start, stop, readLevel, muted, mutedUntil, setMuted };
 }

@@ -3,21 +3,15 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { depthScale, scare, spawn, step, type Animal, type SceneSize } from "./simulation";
-import { getTheme, THEMES } from "./themes";
+import { getTheme } from "./themes";
 import { CreatureArt } from "./themes/shared";
 import type { Theme } from "./themes/types";
+import { FloatingTimer } from "../shared/FloatingTimer";
+import { loadSettings, saveSettings, type Settings } from "./settings";
+import { ThemePicker } from "./ThemePicker";
+import { SettingsMenu, SoundMeter } from "./TopBar";
 import { useMicrophone, type MicStatus } from "./useMicrophone";
 import "./zoo.css";
-
-const TEMPOS = [
-  { label: "Langsomt", seconds: 20 },
-  { label: "Normalt", seconds: 10 },
-  { label: "Hurtigt", seconds: 5 },
-] as const;
-
-type Settings = { threshold: number; tempo: number; maxAnimals: number; theme: string };
-const DEFAULTS: Settings = { threshold: 55, tempo: 10, maxAnimals: 12, theme: "jungle" };
-const STORAGE_KEY = "klasse-zoo:settings";
 
 /** Hvor længe lyden skal være over grænsen før dyrene bliver bange. */
 const LOUD_AFTER_MS = 250;
@@ -26,21 +20,12 @@ const CALM_AFTER_MS = 2000;
 /** Første dyr efter start eller efter ro. */
 const FIRST_SPAWN_MS = 1500;
 
-function loadSettings(): Settings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
-  } catch {}
-  return DEFAULTS;
-}
-
-export default function KlasseZoo() {
+export default function Stillezoonen() {
   const mic = useMicrophone();
   // Komponenten kører kun i browseren (ssr: false), så localStorage kan læses med det samme.
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [isLoud, setIsLoud] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
 
   const sceneRef = useRef<HTMLDivElement>(null);
   const sizeRef = useRef<SceneSize>({ width: 0, height: 0 });
@@ -57,9 +42,7 @@ export default function KlasseZoo() {
   }, [theme]);
   useEffect(() => {
     settingsRef.current = settings;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch {}
+    saveSettings(settings);
   }, [settings]);
 
   useEffect(() => {
@@ -195,7 +178,7 @@ export default function KlasseZoo() {
   }, [running]);
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
@@ -259,27 +242,53 @@ export default function KlasseZoo() {
         <theme.Foreground className="zoo-layer zoo-foreground" />
       </div>
 
-      <Link href="/apps" className="zoo-chip zoo-back">
-        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-          <path
-            d="M12.5 4.5 7 10l5.5 5.5"
-            stroke="currentColor"
-            strokeWidth="2"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-        Alle apps
-      </Link>
+      <div className="zoo-topbar">
+        <Link href="/apps" className="zoo-chip zoo-back" aria-label="Alle apps">
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+            <path
+              d="M12.5 4.5 7 10l5.5 5.5"
+              stroke="currentColor"
+              strokeWidth="2"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span className="zoo-back-label">Alle apps</span>
+        </Link>
 
-      {running && (
-        <div className="zoo-chip zoo-count" aria-live="polite">
-          <PawIcon />
-          <span className="tabular-nums">{visibleCount}</span>
-          {theme.noun} {theme.place}
-        </div>
-      )}
+        {running && (
+          <SoundMeter
+            meterRef={meterRef}
+            threshold={settings.threshold}
+            onThreshold={(threshold) => setSettings((s) => ({ ...s, threshold }))}
+            muted={mic.muted}
+            mutedUntil={mic.mutedUntil}
+            onMute={mic.setMuted}
+          />
+        )}
+
+        {running && (
+          <div className="zoo-top-right">
+            <div className="zoo-chip zoo-count" aria-live="polite">
+              <PawIcon />
+              <span className="tabular-nums">{visibleCount}</span>
+              <span className="zoo-count-label">
+                {theme.noun} {theme.place}
+              </span>
+            </div>
+            <SettingsMenu
+              settings={settings}
+              theme={theme}
+              onTheme={changeTheme}
+              onChange={(patch) => setSettings((s) => ({ ...s, ...patch }))}
+              onFullscreen={toggleFullscreen}
+              onReset={reset}
+              onStop={mic.stop}
+            />
+          </div>
+        )}
+      </div>
 
       {running && (
         <div className="zoo-banner" role="status" aria-live="assertive">
@@ -292,111 +301,17 @@ export default function KlasseZoo() {
         </div>
       )}
 
-      {running ? (
-        <section
-          className="zoo-panel"
-          data-open={panelOpen || undefined}
-          aria-label="Indstillinger for Klasse Zoo"
-        >
-          <div className="zoo-panel-head">
-            <h2>Lydniveau</h2>
-            <button
-              type="button"
-              className="zoo-icon-btn"
-              onClick={() => setPanelOpen((o) => !o)}
-              aria-expanded={panelOpen}
-            >
-              {panelOpen ? "Skjul" : "Indstillinger"}
-              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-                <path
-                  d={panelOpen ? "M5 12.5 10 7.5l5 5" : "M5 7.5l5 5 5-5"}
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          </div>
+      {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start. */}
+      <FloatingTimer
+        storageKey="stillezoonen:timer"
+        hidden={!settings.timer}
+        // Over startskærmens overlay (400), men under menuen mens zoo'en kører.
+        zIndex={running ? 310 : 410}
+        onClose={() => setSettings((s) => ({ ...s, timer: false }))}
+        onDone={() => setSettings((s) => ({ ...s, timer: true }))}
+      />
 
-          <div
-            ref={meterRef}
-            className="zoo-meter"
-            style={{ "--threshold": `${settings.threshold}%` } as React.CSSProperties}
-          >
-            <div className="zoo-meter-fill" />
-            <div className="zoo-meter-limit" />
-            <input
-              type="range"
-              min={5}
-              max={95}
-              value={settings.threshold}
-              onChange={(e) =>
-                setSettings((s) => ({ ...s, threshold: Number(e.target.value) }))
-              }
-              aria-label="Grænse for lydniveau"
-            />
-          </div>
-          <p className="zoo-hint">Træk i stregen for at flytte grænsen.</p>
-
-          {panelOpen && (
-            <div className="zoo-panel-body">
-              <fieldset>
-                <legend>Tema</legend>
-                <ThemePicker current={theme.id} onChange={changeTheme} compact />
-              </fieldset>
-
-              <fieldset>
-                <legend>Hvor ofte kommer der nye {theme.noun}?</legend>
-                <div className="zoo-segment">
-                  {TEMPOS.map((t) => (
-                    <button
-                      key={t.seconds}
-                      type="button"
-                      aria-pressed={settings.tempo === t.seconds}
-                      onClick={() =>
-                        setSettings((s) => ({ ...s, tempo: t.seconds }))
-                      }
-                    >
-                      {t.label}
-                      <span>hvert {t.seconds}. sek.</span>
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-
-              <label className="zoo-field">
-                <span>
-                  Højst <strong className="tabular-nums">{settings.maxAnimals}</strong>{" "}
-                  {theme.noun} ad gangen
-                </span>
-                <input
-                  type="range"
-                  min={3}
-                  max={24}
-                  value={settings.maxAnimals}
-                  onChange={(e) =>
-                    setSettings((s) => ({ ...s, maxAnimals: Number(e.target.value) }))
-                  }
-                />
-              </label>
-
-              <div className="zoo-actions">
-                <button type="button" onClick={toggleFullscreen}>
-                  Fuld skærm
-                </button>
-                <button type="button" onClick={reset}>
-                  Start forfra
-                </button>
-                <button type="button" onClick={mic.stop}>
-                  Stop
-                </button>
-              </div>
-            </div>
-          )}
-        </section>
-      ) : (
+      {running ? null : (
         <StartScreen
           status={mic.status}
           onStart={mic.start}
@@ -436,7 +351,7 @@ function StartScreen({
             <CreatureArt key={k} spec={theme.creatures[k]} className="zoo-start-animal" />
           ))}
         </div>
-        <h1>Klasse Zoo</h1>
+        <h1>Stillezoonen</h1>
         <p>
           Når klassen arbejder roligt, kommer {theme.nounDefinite} langsomt frem på
           skærmen. Bliver der for larmende, stikker de hurtigt af – og kommer
@@ -452,7 +367,7 @@ function StartScreen({
           onClick={onStart}
           disabled={status === "requesting"}
         >
-          {status === "requesting" ? "Venter på mikrofon …" : "Start Klasse Zoo"}
+          {status === "requesting" ? "Venter på mikrofon …" : "Start Stillezoonen"}
         </button>
         {message ? (
           <p className="zoo-start-error" role="alert">
@@ -465,39 +380,6 @@ function StartScreen({
           </p>
         )}
       </div>
-    </div>
-  );
-}
-
-function ThemePicker({
-  current,
-  onChange,
-  compact,
-}: {
-  current: string;
-  onChange: (id: string) => void;
-  compact?: boolean;
-}) {
-  return (
-    <div className="zoo-themes" data-compact={compact || undefined}>
-      {THEMES.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          aria-pressed={t.id === current}
-          onClick={() => onChange(t.id)}
-          className="zoo-theme"
-        >
-          {!compact && (
-            <span className="zoo-theme-preview" aria-hidden="true">
-              <t.Background className="zoo-theme-bg" animated={false} />
-              <CreatureArt spec={t.creatures[t.showcase[0]]} className="zoo-theme-creature" />
-            </span>
-          )}
-          <span className="zoo-theme-name">{t.name}</span>
-          {!compact && <span className="zoo-theme-blurb">{t.blurb}</span>}
-        </button>
-      ))}
     </div>
   );
 }

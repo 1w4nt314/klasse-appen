@@ -15,7 +15,7 @@ export type AppProps = { userKey: string };
 
 /** Appens selve kode hentes først når den åbnes. */
 const components: Record<string, ComponentType<AppProps>> = {
-  "klasse-zoo": dynamic(() => import("./klasse-zoo/KlasseZoo"), {
+  "stillezoonen": dynamic(() => import("./stillezoonen/Stillezoonen"), {
     ssr: false,
     loading: Loading,
   }),

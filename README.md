@@ -17,9 +17,9 @@ src/apps/
   registry.ts        ← liste over alle apps (manifester)
   runtime.tsx        ← slug → app-komponent (indlæses først når appen åbnes)
   types.ts
-  klasse-zoo/        ← én mappe pr. app
+  stillezoonen/        ← én mappe pr. app
     manifest.ts      ← navn, beskrivelse, tags, thumbnail
-    KlasseZoo.tsx    ← selve appen (default export)
+    Stillezoonen.tsx    ← selve appen (default export)
     ...
 ```
 
@@ -28,7 +28,7 @@ Alle apps vises automatisk for alle lærere på `/apps` og køres på `/apps/<sl
 **Ny app:** opret `src/apps/<slug>/` med `manifest.ts` og en default-eksporteret
 klientkomponent, og tilføj den i `registry.ts` og `runtime.tsx`.
 
-### Klasse Zoo (V1)
+### Stillezoonen (V1)
 
 Måler lydniveauet i klassen via mikrofonen (kun lokalt i browseren — intet
 optages eller sendes). Så længe lyden er under lærerens grænse, kommer dyr
@@ -36,7 +36,7 @@ langsomt ind på skærmen. Bliver det for højt i mere end ¼ sekund, stikker
 dyrene hurtigt af og kommer først igen efter 2 sekunders ro.
 
 Der er fire temaer — jungle, bondegård, akvarium og alien planet — hver med sin
-egen baggrund og sine egne figurer i `src/apps/klasse-zoo/themes/<tema>/`
+egen baggrund og sine egne figurer i `src/apps/stillezoonen/themes/<tema>/`
 (`creatures.tsx`, `Background.tsx`, `index.ts`). Nyt tema: lav en mappe efter
 samme skabelon og tilføj det i `themes/index.ts`. Felter og bevægelsesformer er
 dokumenteret i `themes/types.ts`.

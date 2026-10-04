@@ -4,7 +4,7 @@ import { jungle } from "./jungle";
 import { ocean } from "./ocean";
 import type { Theme } from "./types";
 
-/** Alle temaer i Klasse Zoo, i den rækkefølge de vises i temavælgeren. */
+/** Alle temaer i Stillezoonen, i den rækkefølge de vises i temavælgeren. */
 export const THEMES: Theme[] = [jungle, farm, ocean, alien];
 
 export function getTheme(id: string | undefined): Theme {

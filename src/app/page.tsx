@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Thumbnail as ZooScene } from "@/apps/klasse-zoo/Thumbnail";
+import { Thumbnail as ZooScene } from "@/apps/stillezoonen/Thumbnail";
 import { SiteHeader } from "@/components/SiteHeader";
 import { getTeacher } from "@/lib/session";
 
@@ -32,11 +32,11 @@ const PROMISES = [
   },
   {
     title: "Lyd bliver i lokalet",
-    text: "Klasse Zoo måler kun lydniveauet lokalt. Intet optages eller sendes.",
+    text: "Stillezoonen måler kun lydniveauet lokalt. Intet optages eller sendes.",
   },
   {
     title: "Flere apps på vej",
-    text: "Klasse Zoo er den første. Nye apps dukker op på din liste, når de er klar.",
+    text: "Stillezoonen og Navnetrækker er de første. Nye apps dukker op på din liste, når de er klar.",
   },
 ];
 
@@ -87,7 +87,7 @@ export default async function Home() {
             </div>
             <div className="mx-auto h-3 w-1/3 rounded-b-card bg-[#3a4553]" />
             <figcaption className="mt-3 text-center text-sm text-muted">
-              Klasse Zoo på smartboardet: jo mere ro, jo flere dyr.
+              Stillezoonen på smartboardet: jo mere ro, jo flere dyr.
             </figcaption>
           </figure>
         </section>
@@ -96,7 +96,7 @@ export default async function Home() {
           <div className="mx-auto max-w-6xl px-5 py-14">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h2 className="font-display text-3xl font-semibold tracking-tight text-brand-strong">
-                Første app: Klasse Zoo
+                Første app: Stillezoonen
               </h2>
               <p className="text-muted">Lydniveau gjort til noget eleverne kan se.</p>
             </div>
