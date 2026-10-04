@@ -43,7 +43,8 @@ export function findPendingSignup(token: unknown) {
 
 /** Når en oprettelse er gennemført, er alle andre ventende for samme mail uden betydning. */
 export function clearPendingSignups(email: string) {
-  db().prepare("delete from pending_signups where email = ?").run(email);
+  const conn = db();
+  conn.prepare("delete from pending_signups where email = ? or expires_at < ?").run(email, Date.now());
 }
 
 /** Bruges som nøgle til at begrænse forsøg på ét link. */

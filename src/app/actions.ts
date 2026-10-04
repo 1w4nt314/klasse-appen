@@ -105,7 +105,9 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     user?.password_hash ??
       "scrypt$00000000000000000000000000000000$" + "0".repeat(128),
   );
-  if (!user || !ok)
+  // En bruger uden bekræftet mail (kun mulig fra tidlige test-udgaver) behandles
+  // som ukendt — mailen er aldrig bevist.
+  if (!user || !ok || !user.email_verified_at)
     return {
       // Samme svar for alle — også for en oprettelse, der endnu ikke er bekræftet.
       error: emailEnabled()
@@ -139,7 +141,7 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
     return fail("Et af felterne er for langt.");
 
   const ip = await clientIp();
-  if (signupLimiter.limited(`signup:${ip}`, 20, 60 * 60 * 1000))
+  if (signupLimiter.limited(`signup:${ip}`, 50, 60 * 60 * 1000))
     return fail("For mange oprettelser herfra. Prøv igen senere.");
 
   const passwordHash = await hashPassword(password);
@@ -157,8 +159,9 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
   // confirmSignup). Svaret er det samme, uanset om mailen findes — opslag og
   // afsendelse sker efter svaret. Grænsen pr. modtager tælles ens i begge
   // tilfælde, så ingen kan bombe en adresse med mails.
+  if (mailLimiter.limited(`signup-ip:${ip}`, MAIL_IP_LIMIT, QUARTER)) return fail(tooManyFromHere);
   const base = await appUrl();
-  if (mailAllowed("signup", email, ip))
+  if (recipientAllowed("signup", email))
     after(() => {
       const existing = findUserByEmail(email);
       if (existing) {
@@ -198,20 +201,17 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
 }
 
 /**
- * Grænser for mails. Pr. IP (10/kvarter) og pr. modtager og slags
- * (3/kvarter, 10/døgn). Hver slags har sine egne grænser, så fx mange
- * oprettelser ikke kan spærre for "glemt adgangskode". Overskrides de, sendes
- * der bare ikke — svaret til brugeren er det samme.
+ * Grænser for mails:
+ * - pr. IP (30/kvarter): overskrides den, får man en ærlig fejl — den siger
+ *   intet om den enkelte mail, og en skole med fælles IP skal kunne se det.
+ * - pr. modtager og slags (3/kvarter): overskrides den, sendes der bare ikke,
+ *   og svaret er det samme. Ingen dagsgrænse, for den kunne en fremmed bruge
+ *   op og spærre en lærer et helt døgn.
  */
 const QUARTER = 15 * 60 * 1000;
-const DAY = 24 * 60 * 60 * 1000;
-function mailAllowed(kind: string, email: string, ip: string) {
-  return (
-    !mailLimiter.limited(`${kind}-ip:${ip}`, 10, QUARTER) &&
-    !mailLimiter.limited(`${kind}:${email}`, 3, QUARTER) &&
-    !mailLimiter.limited(`${kind}-day:${email}`, 10, DAY)
-  );
-}
+const MAIL_IP_LIMIT = 30;
+const tooManyFromHere = "For mange mails herfra lige nu. Vent et kvarter og prøv igen.";
+const recipientAllowed = (kind: string, email: string) => !mailLimiter.limited(`${kind}:${email}`, 3, QUARTER);
 
 /**
  * Glemt adgangskode. Svaret er altid det samme og kommer lige hurtigt, uanset
@@ -228,32 +228,28 @@ export async function requestPasswordReset(_: FormState, form: FormData): Promis
   if (!EMAIL_RE.test(email) || email.length > 254)
     return { error: "E-mailadressen ser ikke rigtig ud.", values };
 
-  const ip = await clientIp();
-  if (!mailLimiter.limited(`reset-ip:${ip}`, 10, QUARTER)) {
-    const base = await appUrl();
-    after(async () => {
-      const user = findUserByEmail(email);
-      if (!user || user.disabled_at) return;
-      const ownDevice = (await knownDeviceId(user.id)) !== null;
-      if (
-        !ownDevice &&
-        (mailLimiter.limited(`reset:${email}`, 3, QUARTER) || mailLimiter.limited(`reset-day:${email}`, 10, DAY))
-      )
-        return;
-      return sendMail(
-        user.email,
-        "Nulstil din adgangskode til Klasse-appen",
-        linkMail({
-          greeting: `Hej ${user.full_name}`,
-          lines: ["Vi har fået en anmodning om at nulstille adgangskoden til din bruger på Klasse-appen."],
-          button: "Vælg ny adgangskode",
-          link: `${base}/nulstil?token=${createToken(user.id, "reset")}`,
-          footer:
-            "Linket virker i 1 time og kan kun bruges én gang. Har du ikke bedt om det, kan du se bort fra mailen — din adgangskode er uændret.",
-        }),
-      );
-    });
-  }
+  if (mailLimiter.limited(`reset-ip:${await clientIp()}`, MAIL_IP_LIMIT, QUARTER))
+    return { error: tooManyFromHere, values };
+
+  const base = await appUrl();
+  after(async () => {
+    const user = findUserByEmail(email);
+    if (!user || user.disabled_at) return;
+    const ownDevice = (await knownDeviceId(user.id)) !== null;
+    if (!ownDevice && !recipientAllowed("reset", email)) return;
+    return sendMail(
+      user.email,
+      "Nulstil din adgangskode til Klasse-appen",
+      linkMail({
+        greeting: `Hej ${user.full_name}`,
+        lines: ["Vi har fået en anmodning om at nulstille adgangskoden til din bruger på Klasse-appen."],
+        button: "Vælg ny adgangskode",
+        link: `${base}/nulstil?token=${createToken(user.id, "reset")}`,
+        footer:
+          "Linket virker i 1 time og kan kun bruges én gang. Har du ikke bedt om det, kan du se bort fra mailen — din adgangskode er uændret.",
+      }),
+    );
+  });
   return {
     notice: `Hvis der findes en bruger med ${email}, har vi sendt en mail med et link til at nulstille adgangskoden. Linket virker i 1 time. Tjek også spam.`,
   };
@@ -288,9 +284,11 @@ export async function confirmSignup(_: FormState, form: FormData): Promise<FormS
       passwordHash: pending.password_hash,
       verified: true,
     });
-  } catch {
+  } catch (err) {
     // To bekræftelser på samme tid: den anden rammer unik-kravet på e-mail.
-    return { error: "Der findes allerede en bruger med denne e-mail. Prøv at logge ind." };
+    if (String(err).includes("UNIQUE"))
+      return { error: "Der findes allerede en bruger med denne e-mail. Prøv at logge ind." };
+    throw err;
   }
   clearPendingSignups(pending.email);
   await startSession(id);

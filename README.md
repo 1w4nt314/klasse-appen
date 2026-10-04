@@ -81,8 +81,9 @@ miljøvariabler er sat (fx på Render → Environment):
   overtage en lærers mail. Linket åbner en side med en knap, så mail-scannere
   ikke bruger det op. /opret og login svarer det samme, uanset om mailen findes
   (ejeren af en eksisterende bruger får en mail om, at nogen prøvede).
-- Mails begrænses pr. IP og pr. modtager (3 pr. kvarter, 10 pr. døgn) med
-  separate grænser for oprettelse og nulstilling. Fra lærerens egen kendte enhed
+- Mails begrænses pr. IP (30 pr. kvarter — så får man en ærlig fejl) og pr.
+  modtager (3 pr. kvarter, sendes bare ikke) med separate grænser for
+  oprettelse og nulstilling. Fra lærerens egen kendte enhed
   gælder grænsen pr. modtager ikke for nulstilling.
 - "Glemt adgangskode" svarer altid det samme, uanset om mailen findes. Linket
   virker i 1 time og én gang; en ny adgangskode logger brugeren ud alle andre
