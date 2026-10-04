@@ -71,13 +71,16 @@ miljøvariabler er sat (fx på Render → Environment):
 |---|---|---|
 | `RESEND_API_KEY` | `re_…` | API-nøgle fra Resend |
 | `EMAIL_FROM` | `Klasse-appen <noreply@klasse-appen.dk>` | Afsender på et domæne, der er verificeret i Resend |
-| `APP_URL` | `https://klasse-appen.dk` | Valgfri. Adressen i links; ellers bruges Renders `RENDER_EXTERNAL_URL` |
+| `APP_URL` | `https://klasse-appen.dk` | Adressen i links. Sæt den, når sitet får sit eget domæne — ellers peger links på Renders `RENDER_EXTERNAL_URL` (`*.onrender.com`). I produktion bruges Host-headeren aldrig |
 
 - **Uden** `RESEND_API_KEY`/`EMAIL_FROM` oprettes nye brugere som før (straks
-  aktive), og links fra "glemt adgangskode" skrives kun i serverloggen.
-- **Med** dem skal nye brugere klikke på linket i mailen (gælder 24 timer), før
-  de kan logge ind. Linket åbner en side med en knap, så mail-scannere ikke
-  bruger linket op. Uafsluttede oprettelser frigives efter en uge.
+  aktive), og "glemt adgangskode" siger, at det ikke er slået til endnu.
+- **Med** dem skal nye brugere bekræfte via linket i mailen (gælder 24 timer)
+  *og* den adgangskode, de valgte — så en fremmed ikke kan oprette en konto med
+  en lærers mail og få læreren til at godkende den. Linket åbner en side med en
+  knap, så mail-scannere ikke bruger det op. En uafsluttet oprettelse erstattes,
+  hvis nogen opretter sig med samme mail igen. /opret svarer det samme, uanset
+  om mailen findes (ejeren får en mail om, at nogen prøvede).
 - "Glemt adgangskode" svarer altid det samme, uanset om mailen findes. Linket
   virker i 1 time og én gang; en ny adgangskode logger brugeren ud alle andre
   steder.

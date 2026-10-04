@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { isIPv6 } from "node:net";
 import { consumeToken, createToken, peekToken } from "@/lib/auth-tokens";
 import { knownDeviceId, rememberDevice } from "@/lib/known-device";
@@ -13,7 +14,7 @@ import {
   findUserById,
   hashPassword,
   markEmailVerified,
-  releaseStaleSignup,
+  releaseUnusedSignup,
   setPassword,
   startSession,
   verifyPassword,
@@ -78,6 +79,7 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const email = str(form, "email").toLowerCase();
   const password = String(form.get("password") ?? "");
   const values = { email: str(form, "email") };
+  if (password.length > MAX_PASSWORD) return { error: "Forkert e-mail eller adgangskode.", values };
 
   const ip = await clientIp();
   const user = email ? findUserByEmail(email) : undefined;
@@ -111,12 +113,16 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
 
   for (const [key] of limits) loginLimiter.refund(key);
   // Bekræftelse kræves kun, når der kan sendes mails (se lib/mail.ts).
-  if (!user.email_verified_at && emailEnabled())
-    return {
-      error: "Du mangler at bekræfte din e-mail. Tjek din indbakke — og evt. spam.",
-      values,
-      unverified: true,
-    };
+  if (!user.email_verified_at) {
+    if (emailEnabled())
+      return {
+        error: "Du mangler at bekræfte din e-mail. Tjek din indbakke — og evt. spam.",
+        values,
+        unverified: true,
+      };
+    // Mail er slået fra igen: så er brugeren en almindelig bruger fra nu af.
+    markEmailVerified(user.id);
+  }
 
   await rememberDevice(user.id);
   await startSession(user.id);
@@ -139,106 +145,156 @@ export async function signup(_: FormState, form: FormData): Promise<FormState> {
   if (fullName.length > 120 || school.length > 160 || email.length > 254)
     return fail("Et af felterne er for langt.");
 
-  if (signupLimiter.limited(`signup:${await clientIp()}`, 20, 60 * 60 * 1000))
+  const ip = await clientIp();
+  if (signupLimiter.limited(`signup:${ip}`, 20, 60 * 60 * 1000))
     return fail("For mange oprettelser herfra. Prøv igen senere.");
 
-  releaseStaleSignup(email);
-  if (findUserByEmail(email))
-    return fail("Der findes allerede en bruger med den e-mail. Prøv at logge ind.");
+  // Hash altid, så svartiden er den samme, uanset om mailen findes.
+  const passwordHash = await hashPassword(password);
+  releaseUnusedSignup(email);
+  const existing = findUserByEmail(email);
 
-  // Uden mailopsætning oprettes brugeren som i dag og logges ind med det samme.
-  const verified = !emailEnabled();
-  const id = createUser({
-    email,
-    fullName,
-    school,
-    passwordHash: await hashPassword(password),
-    verified,
-  });
-  if (verified) {
+  if (!emailEnabled()) {
+    // Uden mail: som før — oprettet og logget ind med det samme.
+    if (existing) return fail("Der findes allerede en bruger med den e-mail. Prøv at logge ind.");
+    const id = createUser({ email, fullName, school, passwordHash, verified: true });
     await startSession(id);
     redirect("/apps");
   }
-  await sendVerifyMail(id, email, fullName);
+
+  // Med mail: samme svar, uanset om mailen findes. Ejeren af en eksisterende
+  // konto får i stedet besked om, at nogen prøvede (og et link til "glemt").
+  const base = await appUrl();
+  if (existing) {
+    if (!existing.disabled_at && mailAllowed("exists", email, ip))
+      after(() =>
+        sendMail(
+          existing.email,
+          "Du har allerede en bruger på Klasse-appen",
+          linkMail({
+            greeting: `Hej ${existing.full_name}`,
+            lines: [
+              "Nogen (måske dig) har prøvet at oprette en ny bruger på Klasse-appen med denne e-mail. Du har allerede en bruger, så der er ikke oprettet en ny.",
+              "Har du glemt din adgangskode, kan du vælge en ny her:",
+            ],
+            button: "Nulstil adgangskode",
+            link: `${base}/glemt`,
+            footer: "Var det ikke dig, kan du se bort fra denne mail.",
+          }),
+        ),
+      );
+  } else {
+    const id = createUser({ email, fullName, school, passwordHash, verified: false });
+    const token = createToken(id, "verify");
+    after(() => sendVerifyMail(base, token, email, fullName));
+  }
   return { sent: email };
 }
 
-async function sendVerifyMail(userId: string, email: string, name: string) {
-  const link = `${await appUrl()}/bekraeft?token=${createToken(userId, "verify")}`;
-  await sendMail(
+function sendVerifyMail(base: string, token: string, email: string, name: string) {
+  return sendMail(
     email,
     "Bekræft din e-mail til Klasse-appen",
     linkMail({
       greeting: `Hej ${name}`,
-      lines: ["Tak fordi du har oprettet en bruger på Klasse-appen. Bekræft din e-mail, så er du klar."],
+      lines: [
+        "Tak fordi du har oprettet en bruger på Klasse-appen. Bekræft din e-mail med den adgangskode, du valgte — så er du klar.",
+      ],
       button: "Bekræft min e-mail",
-      link,
-      footer: "Linket virker i 24 timer. Har du ikke oprettet en bruger, kan du se bort fra denne mail.",
+      link: `${base}/bekraeft?token=${token}`,
+      footer: "Linket virker i 24 timer. Har du ikke selv oprettet en bruger, kan du se bort fra denne mail.",
     }),
   );
 }
 
-/** Grænse for mails pr. IP og pr. modtager. Overskrides den, sendes der bare ikke. */
-async function mayMail(kind: string, email: string) {
-  const ip = await clientIp();
-  const W = 15 * 60 * 1000;
-  return !mailLimiter.limited(`${kind}-ip:${ip}`, 10, W) && !mailLimiter.limited(`${kind}:${email}`, 3, W);
+/**
+ * Grænse for mails: pr. IP og pr. modtager (pr. kvarter og pr. døgn).
+ * Overskrides den, sendes der bare ikke — svaret til brugeren er det samme.
+ */
+const QUARTER = 15 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
+function mailAllowed(kind: string, email: string, ip: string) {
+  return (
+    !mailLimiter.limited(`${kind}-ip:${ip}`, 10, QUARTER) &&
+    !mailLimiter.limited(`${kind}:${email}`, 3, QUARTER) &&
+    !mailLimiter.limited(`day:${email}`, 10, DAY)
+  );
 }
 
 /** "Send link igen" fra login. Svarer det samme, uanset om mailen findes. */
 export async function resendVerification(_: FormState, form: FormData): Promise<FormState> {
   const email = str(form, "email").toLowerCase();
-  if (EMAIL_RE.test(email) && (await mayMail("verify", email))) {
-    const user = findUserByEmail(email);
-    if (user && !user.email_verified_at && !user.disabled_at && emailEnabled())
-      void sendVerifyMail(user.id, user.email, user.full_name);
+  if (EMAIL_RE.test(email) && emailEnabled() && mailAllowed("verify", email, await clientIp())) {
+    const base = await appUrl();
+    // Opslag og afsendelse efter svaret, så svartiden ikke afslører noget.
+    after(() => {
+      const user = findUserByEmail(email);
+      if (user && !user.email_verified_at && !user.disabled_at)
+        return sendVerifyMail(base, createToken(user.id, "verify"), user.email, user.full_name);
+    });
   }
   return { notice: "Hvis brugeren mangler at blive bekræftet, har vi sendt et nyt link. Tjek også spam." };
 }
 
 /**
  * Glemt adgangskode. Svaret er altid det samme og kommer lige hurtigt, uanset
- * om mailen findes — mailen sendes uden at vente på den.
+ * om mailen findes — opslag og afsendelse sker først efter svaret.
  */
 export async function requestPasswordReset(_: FormState, form: FormData): Promise<FormState> {
   const email = str(form, "email").toLowerCase();
   const values = { email: str(form, "email") };
+  if (!emailEnabled())
+    return { error: "Nulstilling via e-mail er ikke slået til endnu. Kontakt Klasse-appen.", values };
   if (!EMAIL_RE.test(email) || email.length > 254)
     return { error: "E-mailadressen ser ikke rigtig ud.", values };
 
-  if (await mayMail("reset", email)) {
-    const user = findUserByEmail(email);
-    if (user && !user.disabled_at) {
-      const link = `${await appUrl()}/nulstil?token=${createToken(user.id, "reset")}`;
-      void sendMail(
+  if (mailAllowed("reset", email, await clientIp())) {
+    const base = await appUrl();
+    after(() => {
+      const user = findUserByEmail(email);
+      if (!user || user.disabled_at) return;
+      return sendMail(
         user.email,
         "Nulstil din adgangskode til Klasse-appen",
         linkMail({
           greeting: `Hej ${user.full_name}`,
           lines: ["Vi har fået en anmodning om at nulstille adgangskoden til din bruger på Klasse-appen."],
           button: "Vælg ny adgangskode",
-          link,
+          link: `${base}/nulstil?token=${createToken(user.id, "reset")}`,
           footer:
             "Linket virker i 1 time og kan kun bruges én gang. Har du ikke bedt om det, kan du se bort fra mailen — din adgangskode er uændret.",
         }),
       );
-    }
+    });
   }
   return {
     notice: `Hvis der findes en bruger med ${email}, har vi sendt en mail med et link til at nulstille adgangskoden. Linket virker i 1 time. Tjek også spam.`,
   };
 }
 
-/** Knappen på /bekraeft. (Et klik — ikke selve linket — bekræfter, så mail-scannere ikke bruger det op.) */
+/**
+ * /bekraeft: linket + den adgangskode, man valgte ved oprettelsen. Koden gør,
+ * at kun den, der oprettede kontoen, kan bekræfte den — ellers kunne en
+ * fremmed oprette en konto med lærerens mail og få læreren til at godkende
+ * den. (Et klik — ikke selve linket — bekræfter, så mail-scannere ikke bruger det op.)
+ */
 export async function confirmEmail(_: FormState, form: FormData): Promise<FormState> {
-  const userId = consumeToken(form.get("token"), "verify");
+  const token = form.get("token");
+  const password = String(form.get("password") ?? "");
+  const userId = peekToken(token, "verify");
   if (!userId) return { error: "Linket er udløbet eller allerede brugt. Prøv at logge ind." };
+  if (mailLimiter.limited(`confirm:${userId}`, 10, QUARTER))
+    return { error: "For mange forsøg. Vent et kvarter og prøv igen." };
+  const user = findUserById(userId);
+  if (!user || password.length > MAX_PASSWORD || !(await verifyPassword(password, user.password_hash)))
+    return { error: "Forkert adgangskode. Brug den, du valgte, da du oprettede brugeren." };
+  if (consumeToken(token, "verify") !== userId)
+    return { error: "Linket er udløbet eller allerede brugt. Prøv at logge ind." };
   markEmailVerified(userId);
   await startSession(userId);
   await rememberDevice(userId);
   redirect("/apps");
 }
-
 /** Ny adgangskode fra linket på /nulstil. Logger alle andre steder ud. */
 export async function resetPassword(_: FormState, form: FormData): Promise<FormState> {
   const token = form.get("token");

@@ -1,21 +1,30 @@
 import { headers } from "next/headers";
 
-/**
- * Mails sendes via Resend, når RESEND_API_KEY og EMAIL_FROM er sat (fx på
- * Render). Uden dem sendes intet: linket skrives i serverloggen, og
- * e-mailbekræftelse ved oprettelse er slået fra.
- */
-export const emailEnabled = () => Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+const isProduction = () => process.env.NODE_ENV === "production";
+
+/** Sitets offentlige adresse fra miljøet: APP_URL, ellers RENDER_EXTERNAL_URL (sættes af Render). */
+const configuredUrl = () =>
+  (process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || "").replace(/\/+$/, "") || null;
 
 /**
- * Sitets offentlige adresse til links i mails. APP_URL vinder; ellers
- * RENDER_EXTERNAL_URL (sættes af Render), og lokalt Host-headeren.
+ * Mails sendes via Resend, når RESEND_API_KEY og EMAIL_FROM er sat (fx på
+ * Render). Uden dem sendes intet, og e-mailbekræftelse og "glemt
+ * adgangskode" er slået fra. I produktion kræves også en fast adresse til
+ * links (se appUrl).
+ */
+export const emailEnabled = () =>
+  Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && (configuredUrl() || !isProduction()));
+
+/**
+ * Adressen i links i mails. I produktion KUN fra miljøet — aldrig fra
+ * Host-headeren, som en angriber selv kan sætte (så ville nulstil-linket pege
+ * på hans server). Lokalt bruges Host-headeren som nødløsning.
  */
 export async function appUrl() {
-  const fromEnv = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL;
-  if (fromEnv) return fromEnv.replace(/\/+$/, "");
-  const host = (await headers()).get("host") ?? "localhost:3000";
-  return `http://${host}`;
+  const fromEnv = configuredUrl();
+  if (fromEnv) return fromEnv;
+  if (isProduction()) throw new Error("APP_URL mangler — kan ikke lave links i mails.");
+  return `http://${(await headers()).get("host") ?? "localhost:3000"}`;
 }
 
 const escapeHtml = (s: string) =>
@@ -49,7 +58,12 @@ ${p(greeting)}${lines.map(p).join("")}
  */
 export async function sendMail(to: string, subject: string, body: { html: string; text: string }) {
   if (!emailEnabled()) {
-    console.info(`[mail] Ikke sendt (RESEND_API_KEY/EMAIL_FROM mangler) — til ${to}: ${subject}\n${body.text}`);
+    // Links må aldrig havne i produktionens log — de giver adgang til kontoen.
+    console.info(
+      isProduction()
+        ? `[mail] Ikke sendt (mail er ikke sat op): ${subject}`
+        : `[mail] Ikke sendt (mail er ikke sat op) — til ${to}: ${subject}\n${body.text}`,
+    );
     return;
   }
   try {

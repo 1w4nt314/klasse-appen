@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { AuthCard } from "@/app/(auth)/AuthCard";
 import { confirmEmail } from "@/app/actions";
-import { TextLink } from "@/components/ui";
+import { Field, TextLink } from "@/components/ui";
 import { peekToken } from "@/lib/auth-tokens";
 import { TokenForm } from "../TokenForm";
 
@@ -24,13 +24,20 @@ export default async function ConfirmPage({ searchParams }: PageProps<"/bekraeft
     );
 
   return (
-    <AuthCard title="Bekræft din e-mail" intro="Ét klik, så er din bruger klar.">
-      <TokenForm
-        token={token}
-        action={confirmEmail}
-        submit="Bekræft min e-mail"
-        pendingText="Bekræfter …"
-      />
+    <AuthCard
+      title="Bekræft din e-mail"
+      intro="Skriv den adgangskode, du valgte, da du oprettede brugeren. Har du ikke selv oprettet en bruger, kan du bare lukke siden."
+    >
+      <TokenForm token={token} action={confirmEmail} submit="Bekræft min e-mail" pendingText="Bekræfter …">
+        <Field
+          label="Adgangskode"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          maxLength={200}
+          required
+        />
+      </TokenForm>
     </AuthCard>
   );
 }
