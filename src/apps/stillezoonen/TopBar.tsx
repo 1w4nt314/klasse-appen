@@ -44,11 +44,14 @@ const subscribeSeconds = (cb: () => void) => {
   const id = window.setInterval(cb, 250);
   return () => window.clearInterval(id);
 };
+const noSubscribe = () => () => {};
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 /** "2:41" til automatisk genaktivering. */
 function useCountdown(until: number | null) {
-  const now = useSyncExternalStore(subscribeSeconds, nowSeconds, () => 0) * 1000;
+  // Tikker kun mens der er en nedtælling (ellers ingen gen-rendering hvert sekund).
+  const now =
+    useSyncExternalStore(until === null ? noSubscribe : subscribeSeconds, nowSeconds, () => 0) * 1000;
   if (until === null) return "";
   // Uret er rundet ned til hele sekunder, så værdien kappes ved mute-varigheden.
   const s = Math.max(0, Math.min(MUTE_MS / 1000, Math.ceil((until - now) / 1000)));
