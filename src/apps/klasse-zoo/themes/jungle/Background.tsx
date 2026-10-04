@@ -57,7 +57,7 @@ const monstera = (x: number, y: number, s: number, r: number, color: string, vei
   </g>
 );
 
-export function JungleBackground({ className, animated = true }: Props) {
+export function Background({ className, animated = true }: Props) {
   return (
     <svg
       viewBox="0 0 1600 900"
@@ -67,23 +67,23 @@ export function JungleBackground({ className, animated = true }: Props) {
       data-animated={animated || undefined}
     >
       <defs>
-        <linearGradient id="zoo-sky" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id="jungle-sky" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#bfe3d0" />
           <stop offset="0.55" stopColor="#e8f2c8" />
           <stop offset="1" stopColor="#f5eebd" />
         </linearGradient>
-        <linearGradient id="zoo-ground" x1="0" x2="0" y1="0" y2="1">
+        <linearGradient id="jungle-ground" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#8cbf5a" />
           <stop offset="1" stopColor="#5f9a3c" />
         </linearGradient>
-        <radialGradient id="zoo-sun" cx="0.72" cy="0.18" r="0.35">
+        <radialGradient id="jungle-sun" cx="0.72" cy="0.18" r="0.35">
           <stop offset="0" stopColor="#fff7d1" stopOpacity="0.95" />
           <stop offset="1" stopColor="#fff7d1" stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      <rect width="1600" height="900" fill="url(#zoo-sky)" />
-      <rect width="1600" height="900" fill="url(#zoo-sun)" />
+      <rect width="1600" height="900" fill="url(#jungle-sky)" />
+      <rect width="1600" height="900" fill="url(#jungle-sun)" />
 
       {/* Fjerne bjerge og trækroner i dis */}
       <path
@@ -118,7 +118,7 @@ export function JungleBackground({ className, animated = true }: Props) {
       {/* Jorden */}
       <path
         d="M0 610 C 260 590, 520 600, 800 596 C 1080 592, 1340 600, 1600 606 L 1600 900 L 0 900 Z"
-        fill="url(#zoo-ground)"
+        fill="url(#jungle-ground)"
       />
       <path
         d="M-40 760 C 300 720, 640 790, 980 750 C 1240 720, 1440 760, 1660 740 L 1660 800 C 1400 820, 1200 790, 960 810 C 640 840, 300 780, -40 820 Z"
@@ -197,7 +197,7 @@ export function JungleBackground({ className, animated = true }: Props) {
 }
 
 /** Forgrundsblade der ligger foran dyrene i hjørnerne. */
-export function JungleForeground({ className }: { className?: string }) {
+export function Foreground({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 1600 900"
