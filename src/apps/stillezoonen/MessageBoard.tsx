@@ -6,7 +6,7 @@ import { useFloatingWindow } from "../shared/useFloatingWindow";
 
 const MESSAGE_KEY = "stillezoonen:message";
 const MAX_LENGTH = 500;
-const MIN_FONT = 12;
+const MIN_FONT = 8;
 const MAX_FONT = 320;
 
 function loadMessage() {
@@ -65,6 +65,15 @@ export function MessageBoard({
     saveMessage(next);
     setEditing(!next);
   };
+  /** Luk (✕): noget halvskrevet gemmes, så det ikke går tabt. */
+  const close = () => {
+    if (editing && draft.trim()) {
+      const next = draft.trim();
+      setText(next);
+      saveMessage(next);
+    }
+    onClose();
+  };
   const remove = () => {
     setText("");
     setDraft("");
@@ -107,7 +116,7 @@ export function MessageBoard({
             <TrashIcon />
           </ConfirmButton>
         )}
-        <button type="button" className="ft-icon mb-icon" onClick={onClose} aria-label="Luk beskedtavlen">
+        <button type="button" className="ft-icon mb-icon" onClick={close} aria-label="Luk beskedtavlen">
           ✕
         </button>
       </header>
@@ -141,9 +150,10 @@ export function MessageBoard({
 }
 
 /**
- * Tekst, der fylder sin boks: største skriftstørrelse hvor alt kan være uden
- * at ord brydes midt i. Kun hvis selv den mindste størrelse ikke kan rumme et
- * meget langt ord, brydes ordet.
+ * Tekst, der fylder sin boks: største skriftstørrelse hvor alt kan være.
+ * Ord brydes helst ikke midt i — men tvinger ét meget langt ord (fx en
+ * adresse) teksten langt ned, brydes det i stedet. Kan teksten slet ikke være
+ * der, kan man scrolle, så intet forsvinder uden varsel.
  */
 function FitText({ text }: { text: string }) {
   const box = useRef<HTMLDivElement>(null);
@@ -153,26 +163,42 @@ function FitText({ text }: { text: string }) {
     const outer = box.current;
     const el = inner.current;
     if (!outer || !el) return;
-    const fit = () => {
-      const fits = () =>
-        el.offsetHeight <= outer.clientHeight + 0.5 && el.scrollWidth <= outer.clientWidth + 0.5;
-      el.style.overflowWrap = "normal";
+    const fits = () =>
+      el.offsetHeight <= outer.clientHeight + 0.5 && el.scrollWidth <= outer.clientWidth + 0.5;
+    /** Største skriftstørrelse der passer med den givne ombrydning (binær søgning på hele px). */
+    const largest = (wrap: "normal" | "anywhere") => {
+      el.style.overflowWrap = wrap;
       let lo = MIN_FONT;
-      let hi = Math.max(MIN_FONT, Math.min(MAX_FONT, outer.clientHeight));
-      // Binær søgning på hele pixel.
+      let hi = Math.max(MIN_FONT + 1, Math.min(MAX_FONT, outer.clientHeight));
       while (hi - lo > 1) {
         const mid = Math.floor((lo + hi) / 2);
         el.style.fontSize = `${mid}px`;
         if (fits()) lo = mid;
         else hi = mid;
       }
-      el.style.fontSize = `${lo}px`;
-      if (!fits()) el.style.overflowWrap = "anywhere";
+      return lo;
+    };
+    const fit = () => {
+      const whole = largest("normal");
+      const broken = largest("anywhere");
+      // Hele ord, medmindre det koster mere end en tredjedel af størrelsen.
+      const wrap = whole >= broken * 0.67 ? "normal" : "anywhere";
+      el.style.overflowWrap = wrap;
+      el.style.fontSize = `${wrap === "normal" ? whole : broken}px`;
+      outer.dataset.overflow = String(!fits());
     };
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(outer);
-    return () => ro.disconnect();
+    // Webfonten kan komme efter første måling — så regnes der om.
+    let alive = true;
+    document.fonts?.ready.then(() => alive && fit());
+    document.fonts?.addEventListener?.("loadingdone", fit);
+    return () => {
+      alive = false;
+      ro.disconnect();
+      document.fonts?.removeEventListener?.("loadingdone", fit);
+    };
   }, [text]);
 
   return (

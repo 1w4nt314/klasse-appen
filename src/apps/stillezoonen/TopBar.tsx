@@ -195,10 +195,24 @@ function Popover({
   const close = useCallback(() => setOpen(false), []);
   const refocus = useCallback(() => button.current?.focus(), []);
   useDismiss(open, close, ref, refocus);
-  // Flyt fokus ind i panelet, når det åbnes med tastaturet.
+  // Flyt fokus ind i panelet, når det åbnes — til det første synlige felt
+  // (dele af menuen er kun synlige på smalle skærme).
   useEffect(() => {
-    if (open) panel.current?.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+    if (!open) return;
+    const first = [...(panel.current?.querySelectorAll<HTMLElement>("button, input") ?? [])].find(
+      (el) => el.offsetParent !== null,
+    );
+    first?.focus({ preventScroll: true });
   }, [open]);
+  // Luk og giv fokus tilbage til knappen (fx efter et valg i panelet).
+  const [focusRequest, setFocusRequest] = useState(0);
+  useEffect(() => {
+    if (focusRequest) button.current?.focus({ preventScroll: true });
+  }, [focusRequest]);
+  const closeAndRefocus = useCallback(() => {
+    setOpen(false);
+    setFocusRequest((n) => n + 1);
+  }, []);
 
   return (
     <div
@@ -224,7 +238,7 @@ function Popover({
       </button>
       {open && (
         <section ref={panel} id={id} role="dialog" className="zoo-menu" aria-label={panelLabel}>
-          {children(close)}
+          {children(closeAndRefocus)}
         </section>
       )}
     </div>

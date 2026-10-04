@@ -27,6 +27,8 @@ export default function Stillezoonen() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
   const [isLoud, setIsLoud] = useState(false);
+  /** Timer og beskedtavle: det sidst brugte vindue ligger øverst. */
+  const [front, setFront] = useState<"timer" | "board">("board");
 
   const sceneRef = useRef<HTMLDivElement>(null);
   const sizeRef = useRef<SceneSize>({ width: 0, height: 0 });
@@ -279,16 +281,22 @@ export default function Stillezoonen() {
               </span>
             </div>
             <ToggleButton
-              label={settings.board ? "Skjul beskedtavle" : "Vis beskedtavle"}
+              label="Beskedtavle"
               pressed={settings.board}
-              onToggle={() => setSettings((s) => ({ ...s, board: !s.board }))}
+              onToggle={() => {
+                setFront("board");
+                setSettings((s) => ({ ...s, board: !s.board }));
+              }}
             >
               <MessageIcon />
             </ToggleButton>
             <ToggleButton
-              label={settings.timer ? "Skjul timer" : "Vis timer"}
+              label="Timer"
               pressed={settings.timer}
-              onToggle={() => setSettings((s) => ({ ...s, timer: !s.timer }))}
+              onToggle={() => {
+                setFront("timer");
+                setSettings((s) => ({ ...s, timer: !s.timer }));
+              }}
             >
               <TimerIcon />
             </ToggleButton>
@@ -317,23 +325,31 @@ export default function Stillezoonen() {
         </div>
       )}
 
-      {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start. */}
-      <FloatingTimer
-        storageKey="stillezoonen:timer"
-        hidden={!settings.timer}
-        // Over startskærmens overlay (400), men under menuen mens zoo'en kører.
-        zIndex={running ? 310 : 410}
-        onClose={() => setSettings((s) => ({ ...s, timer: false }))}
-        onDone={() => setSettings((s) => ({ ...s, timer: true }))}
-      />
+      {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start.
+          Det vindue, man sidst rørte (timer eller tavle), ligger øverst. Over
+          startskærmens overlay (400), men under menuerne mens zoo'en kører. */}
+      <div onPointerDownCapture={() => setFront("timer")}>
+        <FloatingTimer
+          storageKey="stillezoonen:timer"
+          hidden={!settings.timer}
+          zIndex={(running ? 310 : 410) + (front === "timer" ? 1 : 0)}
+          onClose={() => setSettings((s) => ({ ...s, timer: false }))}
+          onDone={() => {
+            setFront("timer");
+            setSettings((s) => ({ ...s, timer: true }));
+          }}
+        />
+      </div>
 
       {/* Tekst og placering huskes i browseren, så tavlen kan monteres efter behov. */}
       {settings.board && (
-        <MessageBoard
-          theme={theme.id}
-          zIndex={running ? 311 : 411}
-          onClose={() => setSettings((s) => ({ ...s, board: false }))}
-        />
+        <div onPointerDownCapture={() => setFront("board")}>
+          <MessageBoard
+            theme={theme.id}
+            zIndex={(running ? 310 : 410) + (front === "board" ? 1 : 0)}
+            onClose={() => setSettings((s) => ({ ...s, board: false }))}
+          />
+        </div>
       )}
 
       {running ? null : (

@@ -1082,6 +1082,14 @@
   place-items: center;
   overflow: hidden;
 }
+/* Kan teksten ikke være der selv ved mindste størrelse: scroll i stedet for at klippe. */
+.mb-fit[data-overflow="true"] {
+  place-items: start center;
+  overflow-y: auto;
+}
+.ft-bar dialog {
+  cursor: auto;
+}
 .mb-text {
   margin: 0;
   max-width: 100%;
