@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import "./floating-timer.css";
 
 /**
@@ -13,7 +13,10 @@ type Phase = "setup" | "running" | "paused" | "done";
 
 const MIN_W = 220;
 const MIN_H = 150;
-const PRESETS = [1, 3, 5, 10];
+const PRESETS = [3, 5, 10, 15];
+/** Opsætningen (pile, felter, genveje) skal altid kunne ses helt. */
+const SETUP_MIN_W = 260;
+const SETUP_MIN_H = 250;
 
 const clampRect = (r: Rect): Rect => {
   const vw = window.innerWidth;
@@ -30,7 +33,7 @@ const clampRect = (r: Rect): Rect => {
 
 function loadRect(key: string): Rect {
   // Øverst til venstre under "Alle apps" — fri himmel, ikke oven på menuen.
-  const fallback = { x: 16, y: 72, w: 300, h: 200 };
+  const fallback = { x: 16, y: 72, w: 320, h: 270 };
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
@@ -129,6 +132,30 @@ export function FloatingTimer({
   };
   const digits = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
+  // Seneste værdi i en ref, så gentagelsen når en pil holdes nede ikke læser en
+  // forældet tid fra det øjeblik, knappen blev trykket.
+  const totalRef = useRef(minutes * 60 + seconds);
+  useEffect(() => {
+    totalRef.current = minutes * 60 + seconds;
+  });
+
+  /** Pil op/ned. Sekunder ruller over i minutterne (0:59 → 1:00 og 1:00 → 0:59). */
+  const nudge = (unit: "m" | "s", delta: 1 | -1) => {
+    const total = Math.min(
+      99 * 60 + 59,
+      Math.max(0, totalRef.current + (unit === "m" ? delta * 60 : delta)),
+    );
+    totalRef.current = total;
+    setMinutesText(String(Math.floor(total / 60)));
+    setSecondsText(String(total % 60).padStart(2, "0"));
+  };
+  function onArrowKey(e: React.KeyboardEvent<HTMLInputElement>, unit: "m" | "s") {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      nudge(unit, e.key === "ArrowUp" ? 1 : -1);
+    }
+  }
+
   const start = () => {
     if (left <= 0) return;
     const t = Date.now();
@@ -146,27 +173,41 @@ export function FloatingTimer({
     setPhase("setup");
   };
 
+  // Under opsætningen gøres vinduet mindst SETUP_MIN stort — og flyttes ind,
+  // hvis det så ville stikke ud over skærmkanten. (`rect` skifter også ved resize.)
+  const shown = useMemo(
+    () =>
+      phase === "setup"
+        ? clampRect({ ...rect, w: Math.max(rect.w, SETUP_MIN_W), h: Math.max(rect.h, SETUP_MIN_H) })
+        : rect,
+    [rect, phase],
+  );
+
   const onPointerDown = useCallback(
     (mode: "move" | "resize") => (e: ReactPointerEvent<HTMLElement>) => {
       if (mode === "move" && (e.target as HTMLElement).closest("button, input")) return;
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { mode, sx: e.clientX, sy: e.clientY, start: rect };
+      // Træk fra det, der faktisk ses, så vinduet ikke hopper ved første bevægelse.
+      drag.current = { mode, sx: e.clientX, sy: e.clientY, start: shown };
     },
-    [rect],
+    [shown],
   );
   const onPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
     const d = drag.current;
     if (!d) return;
     const dx = e.clientX - d.sx;
     const dy = e.clientY - d.sy;
-    setRect(
-      clampRect(
-        d.mode === "move"
-          ? { ...d.start, x: d.start.x + dx, y: d.start.y + dy }
-          : { ...d.start, w: d.start.w + dx, h: d.start.h + dy },
-      ),
-    );
+    if (d.mode === "move") {
+      // Kun positionen flyttes — lærerens egen størrelse bevares, også når
+      // vinduet midlertidigt er forstørret under opsætningen.
+      setRect((r) => {
+        const moved = clampRect({ ...d.start, x: d.start.x + dx, y: d.start.y + dy });
+        return { ...r, x: moved.x, y: moved.y };
+      });
+    } else {
+      setRect(clampRect({ ...d.start, w: d.start.w + dx, h: d.start.h + dy }));
+    }
   };
   const onPointerUp = () => {
     if (drag.current) saveRect();
@@ -178,7 +219,14 @@ export function FloatingTimer({
       className="ft-window"
       data-phase={phase}
       hidden={hidden}
-      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, zIndex }}
+      style={{
+        left: shown.x,
+        top: shown.y,
+        width: shown.w,
+        height: shown.h,
+        maxHeight: "calc(100dvh - 16px)",
+        zIndex,
+      }}
       aria-label="Timer"
     >
       <header
@@ -206,29 +254,35 @@ export function FloatingTimer({
           >
             <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
             <div className="ft-inputs">
-              <label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={minutesText}
-                  onChange={(e) => setMinutesText(digits(e.target.value))}
-                  onBlur={() => setMinutesText(String(minutes))}
-                  aria-label="Minutter"
-                />
+              <div className="ft-unit">
+                <Stepper label="minut" onUp={() => nudge("m", 1)} onDown={() => nudge("m", -1)}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={minutesText}
+                    onChange={(e) => setMinutesText(digits(e.target.value))}
+                    onBlur={() => setMinutesText(String(minutes))}
+                    onKeyDown={(e) => onArrowKey(e, "m")}
+                    aria-label="Minutter"
+                  />
+                </Stepper>
                 <span>min</span>
-              </label>
+              </div>
               <span className="ft-colon">:</span>
-              <label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={secondsText}
-                  onChange={(e) => setSecondsText(digits(e.target.value))}
-                  onBlur={() => setSecondsText(String(seconds).padStart(2, "0"))}
-                  aria-label="Sekunder"
-                />
+              <div className="ft-unit">
+                <Stepper label="sekund" onUp={() => nudge("s", 1)} onDown={() => nudge("s", -1)}>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={secondsText}
+                    onChange={(e) => setSecondsText(digits(e.target.value))}
+                    onBlur={() => setSecondsText(String(seconds).padStart(2, "0"))}
+                    onKeyDown={(e) => onArrowKey(e, "s")}
+                    aria-label="Sekunder"
+                  />
+                </Stepper>
                 <span>sek</span>
-              </label>
+              </div>
             </div>
             <div className="ft-presets">
               {PRESETS.map((m) => (
@@ -281,5 +335,78 @@ export function FloatingTimer({
         aria-hidden="true"
       />
     </section>
+  );
+}
+
+/**
+ * Pil op/ned om et talfelt. Holdes knappen nede, gentages trinnet
+ * (først efter 400 ms, så hurtigere), så man hurtigt kan rulle til fx 45 sek.
+ */
+function Stepper({
+  label,
+  onUp,
+  onDown,
+  children,
+}: {
+  label: string;
+  onUp: () => void;
+  onDown: () => void;
+  children: React.ReactNode;
+}) {
+  const repeat = useRef<number | null>(null);
+  const stop = () => {
+    if (repeat.current) window.clearTimeout(repeat.current);
+    repeat.current = null;
+  };
+  useEffect(() => {
+    // Stop også, hvis vinduet mister fokus midt i et hold (fx alt-tab).
+    window.addEventListener("blur", stop);
+    return () => {
+      window.removeEventListener("blur", stop);
+      stop();
+    };
+  }, []);
+  function startRepeat(e: React.PointerEvent<HTMLButtonElement>, fn: () => void) {
+    e.preventDefault();
+    stop();
+    fn();
+    let delay = 400;
+    const tick = () => {
+      fn();
+      delay = Math.max(60, delay * 0.8);
+      repeat.current = window.setTimeout(tick, delay);
+    };
+    repeat.current = window.setTimeout(tick, delay);
+  }
+  return (
+    <div className="ft-stepper">
+      <button
+        type="button"
+        className="ft-arrow"
+        aria-label={`Et ${label} mere`}
+        onPointerDown={(e) => startRepeat(e, onUp)}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={(e) => e.detail === 0 && onUp()}
+      >
+        ▲
+      </button>
+      {children}
+      <button
+        type="button"
+        className="ft-arrow"
+        aria-label={`Et ${label} mindre`}
+        onPointerDown={(e) => startRepeat(e, onDown)}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={(e) => e.detail === 0 && onDown()}
+      >
+        ▼
+      </button>
+    </div>
   );
 }

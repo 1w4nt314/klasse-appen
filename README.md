@@ -64,6 +64,27 @@ tilfældige tokens i en httpOnly-cookie (30 dage), og loginforsøg begrænses pr
 IP/e-mail. Der er ingen mailudsendelse, så der er hverken e-mailbekræftelse eller
 "glemt adgangskode" i V1.
 
+## Platform-admin
+
+Admin-rettigheder kan **kun** gives fra serverens shell (på Render: servicen →
+*Shell*). Brugeren skal have oprettet sig på sitet først.
+
+```bash
+npm run admin -- list                  # vis alle admins
+npm run admin -- grant lærer@skole.dk  # gør en bruger til admin
+npm run admin -- revoke lærer@skole.dk # fjern admin igen
+```
+
+En admin har alt det samme som en lærer plus menupunktet **Brugere**, hvor alle
+brugere vises (mail, navn, skole) og kan deaktiveres eller genaktiveres efter en
+bekræftelse. Deaktiverede brugere logges ud med det samme; intet slettes.
+
+## Ønsker
+
+Under **Ønsker** kan alle lærere foreslå nye apps og forbedringer og give
+hjerter til hinandens forslag. Listen kan sorteres efter mest efterspurgte.
+Admin kan sætte status (Planlagt, I gang, Lavet) og fjerne opslag.
+
 ## Deploy på Render
 
 `render.yaml` er et Blueprint: *New → Blueprint* og vælg repoet. Det opretter en

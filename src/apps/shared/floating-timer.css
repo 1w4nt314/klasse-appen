@@ -104,12 +104,40 @@
   align-items: flex-start;
   gap: 0.3rem;
 }
-.ft-inputs label {
+/* Pilene skal kunne nås, også når vinduet er lille. */
+.ft-body {
+  overflow: auto;
+}
+.ft-unit {
   display: grid;
   justify-items: center;
   font-size: 0.7rem;
   font-weight: 700;
   color: var(--muted);
+}
+.ft-stepper {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+}
+.ft-arrow {
+  width: 100%;
+  min-height: 1.6rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  touch-action: manipulation;
+  user-select: none;
+}
+.ft-arrow:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.ft-arrow:active {
+  background: var(--brand-soft);
 }
 .ft-inputs input {
   width: 4.2rem;
@@ -125,6 +153,8 @@
   background: #fff;
 }
 .ft-colon {
+  align-self: center;
+  margin-bottom: 0.9rem;
   font-family: var(--font-display);
   font-size: 2rem;
   font-weight: 700;

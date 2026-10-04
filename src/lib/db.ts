@@ -42,12 +42,46 @@ const MIGRATIONS = [
   update or ignore favorites set app_slug = 'stillezoonen' where app_slug = 'klasse-zoo';
   delete from favorites where app_slug = 'klasse-zoo';
   `,
+  // Platform-admin (gives kun via scripts/admin.mjs i serverens shell),
+  // deaktivering af brugere og ønskelisten.
+  `
+  alter table users add column role text not null default 'teacher';
+  alter table users add column disabled_at integer;
+
+  create table wishes (
+    id text primary key,
+    user_id text references users (id) on delete set null,
+    title text not null,
+    body text not null default '',
+    category text not null,
+    status text not null default 'open',
+    created_at integer not null
+  );
+  create index wishes_created_at on wishes (created_at);
+
+  create table wish_likes (
+    wish_id text not null references wishes (id) on delete cascade,
+    user_id text not null references users (id) on delete cascade,
+    created_at integer not null,
+    primary key (wish_id, user_id)
+  );
+  `,
+  // Serverens egne hemmeligheder (fx nøglen til "kendt enhed"-cookien).
+  `
+  create table app_secrets (
+    name text primary key,
+    value text not null
+  );
+  `,
 ];
+
+/** Hvor databasen ligger. scripts/admin.mjs finder den på samme måde (DATA_DIR → /var/data → ./data). */
+export const DATABASE_FILE = () => path.join(DATA_DIR, "klasse-appen.db");
 
 function open() {
   mkdirSync(DATA_DIR, { recursive: true });
   console.info(`[db] SQLite i ${DATA_DIR}`);
-  const db = new DatabaseSync(path.join(DATA_DIR, "klasse-appen.db"));
+  const db = new DatabaseSync(DATABASE_FILE());
   db.exec("pragma journal_mode = wal; pragma foreign_keys = on; pragma busy_timeout = 5000;");
 
   const { user_version: version } = db.prepare("pragma user_version").get() as {
