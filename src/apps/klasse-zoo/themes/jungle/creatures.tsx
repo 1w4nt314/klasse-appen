@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import type { CSSProperties } from "react";
+import { EYE } from "../shared";
+import type { CreatureSpec } from "../types";
 
 /**
  * Jungledyrene i Klasse Zoo. Hvert dyr er tegnet i profil, vendt mod højre,
@@ -6,43 +8,7 @@ import type { ReactNode } from "react";
  * (diagonal gangart) så CSS kan svinge dem når dyret går.
  */
 
-export type AnimalKind =
-  | "elephant"
-  | "tiger"
-  | "monkey"
-  | "gorilla"
-  | "toucan"
-  | "frog"
-  | "crocodile"
-  | "parrot"
-  | "panther"
-  | "sloth"
-  | "tapir"
-  | "snake";
-
-export type Gait = "walk" | "hop" | "slither";
-
-export type AnimalSpec = {
-  name: string;
-  /** Højde i procent af scenens højde når dyret står forrest. */
-  height: number;
-  /** viewBox-bredde / -højde. */
-  aspect: number;
-  gait: Gait;
-  /** Relativ ganghastighed (1 = normal). */
-  pace: number;
-  viewBox: string;
-  art: ReactNode;
-};
-
-const EYE = (cx: number, cy: number, r = 3.6) => (
-  <g className="zoo-eye">
-    <circle cx={cx} cy={cy} r={r} fill="#1d1a17" />
-    <circle cx={cx + r * 0.35} cy={cy - r * 0.35} r={r * 0.35} fill="#fff" />
-  </g>
-);
-
-const elephant: AnimalSpec = {
+const elephant: CreatureSpec = {
   name: "Elefant",
   height: 30,
   aspect: 210 / 160,
@@ -74,7 +40,7 @@ const elephant: AnimalSpec = {
   ),
 };
 
-const tiger: AnimalSpec = {
+const tiger: CreatureSpec = {
   name: "Tiger",
   height: 18,
   aspect: 210 / 124,
@@ -113,7 +79,7 @@ const tiger: AnimalSpec = {
   ),
 };
 
-const monkey: AnimalSpec = {
+const monkey: CreatureSpec = {
   name: "Abe",
   height: 17,
   aspect: 130 / 150,
@@ -140,7 +106,7 @@ const monkey: AnimalSpec = {
   ),
 };
 
-const gorilla: AnimalSpec = {
+const gorilla: CreatureSpec = {
   name: "Gorilla",
   height: 24,
   aspect: 170 / 150,
@@ -168,7 +134,7 @@ const gorilla: AnimalSpec = {
   ),
 };
 
-const toucan: AnimalSpec = {
+const toucan: CreatureSpec = {
   name: "Tukan",
   height: 12,
   aspect: 150 / 120,
@@ -198,7 +164,7 @@ const toucan: AnimalSpec = {
   ),
 };
 
-const frog: AnimalSpec = {
+const frog: CreatureSpec = {
   name: "Frø",
   height: 8,
   aspect: 110 / 76,
@@ -226,7 +192,7 @@ const frog: AnimalSpec = {
   ),
 };
 
-const crocodile: AnimalSpec = {
+const crocodile: CreatureSpec = {
   name: "Krokodille",
   height: 10,
   aspect: 260 / 80,
@@ -258,7 +224,7 @@ const crocodile: AnimalSpec = {
   ),
 };
 
-const parrot: AnimalSpec = {
+const parrot: CreatureSpec = {
   name: "Papegøje",
   height: 13,
   aspect: 120 / 140,
@@ -289,7 +255,7 @@ const parrot: AnimalSpec = {
   ),
 };
 
-const panther: AnimalSpec = {
+const panther: CreatureSpec = {
   name: "Sort panter",
   height: 17,
   aspect: 210 / 124,
@@ -320,7 +286,7 @@ const panther: AnimalSpec = {
   ),
 };
 
-const sloth: AnimalSpec = {
+const sloth: CreatureSpec = {
   name: "Dovendyr",
   height: 14,
   aspect: 160 / 110,
@@ -352,7 +318,7 @@ const sloth: AnimalSpec = {
   ),
 };
 
-const tapir: AnimalSpec = {
+const tapir: CreatureSpec = {
   name: "Tapir",
   height: 17,
   aspect: 210 / 130,
@@ -392,7 +358,7 @@ const SNAKE_SEGMENTS = [
   [166, 40, 10.5],
 ] as const;
 
-const snake: AnimalSpec = {
+const snake: CreatureSpec = {
   name: "Slange",
   height: 8,
   aspect: 220 / 56,
@@ -405,14 +371,14 @@ const snake: AnimalSpec = {
         <g
           key={i}
           className="zoo-seg"
-          style={{ "--i": i } as React.CSSProperties}
+          style={{ "--i": i } as CSSProperties}
         >
           <circle cx={x} cy={y} r={r} fill="#3e9b4f" />
           <ellipse cx={x} cy={y + r * 0.45} rx={r * 0.85} ry={r * 0.45} fill="#e8d36a" />
           {i % 2 === 1 && <circle cx={x} cy={y - r * 0.4} r={r * 0.35} fill="#2c7a3b" />}
         </g>
       ))}
-      <g className="zoo-seg zoo-head" style={{ "--i": 9 } as React.CSSProperties}>
+      <g className="zoo-seg zoo-head" style={{ "--i": 9 } as CSSProperties}>
         <path d="M200 46 l 12 -2 l 4 -4 M212 44 l 5 2" stroke="#d6453a" strokeWidth="2" fill="none" strokeLinecap="round" />
         <ellipse cx="186" cy="38" rx="17" ry="12" fill="#3e9b4f" />
         <ellipse cx="190" cy="43" rx="12" ry="5" fill="#e8d36a" />
@@ -423,7 +389,7 @@ const snake: AnimalSpec = {
   ),
 };
 
-export const ANIMALS: Record<AnimalKind, AnimalSpec> = {
+export const creatures: Record<string, CreatureSpec> = {
   elephant,
   tiger,
   monkey,
@@ -437,29 +403,3 @@ export const ANIMALS: Record<AnimalKind, AnimalSpec> = {
   tapir,
   snake,
 };
-
-export const ANIMAL_KINDS = Object.keys(ANIMALS) as AnimalKind[];
-
-export function AnimalArt({
-  kind,
-  className,
-  style,
-}: {
-  kind: AnimalKind;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
-  const spec = ANIMALS[kind];
-  return (
-    <svg
-      viewBox={spec.viewBox}
-      className={className}
-      style={style}
-      role="img"
-      aria-label={spec.name}
-      overflow="visible"
-    >
-      {spec.art}
-    </svg>
-  );
-}

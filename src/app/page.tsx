@@ -12,7 +12,7 @@ const STEPS = [
   {
     n: "2",
     title: "Ro lokker dyrene frem",
-    text: "Så længe klassen er under grænsen, går elefanter, aber, tigre og frøer stille og roligt ind i junglen.",
+    text: "Så længe klassen er under grænsen, kommer dyrene stille og roligt frem. Vælg mellem jungle, bondegård, akvarium og en planet fuld af søde rumvæsner.",
   },
   {
     n: "3",

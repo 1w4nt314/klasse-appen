@@ -57,7 +57,7 @@ const monstera = (x: number, y: number, s: number, r: number, color: string, vei
   </g>
 );
 
-export function JungleBackground({ className, animated = true }: Props) {
+export function Background({ className, animated = true }: Props) {
   return (
     <svg
       viewBox="0 0 1600 900"
@@ -197,7 +197,7 @@ export function JungleBackground({ className, animated = true }: Props) {
 }
 
 /** Forgrundsblade der ligger foran dyrene i hjørnerne. */
-export function JungleForeground({ className }: { className?: string }) {
+export function Foreground({ className }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 1600 900"

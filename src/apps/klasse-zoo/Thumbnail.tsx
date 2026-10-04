@@ -1,7 +1,7 @@
-import { AnimalArt, type AnimalKind } from "./animals";
-import { JungleBackground } from "./JungleBackground";
+import { jungle } from "./themes/jungle";
+import { CreatureArt } from "./themes/shared";
 
-const CAST: { kind: AnimalKind; left: number; bottom: number; height: number; flip?: boolean }[] = [
+const CAST: { kind: string; left: number; bottom: number; height: number; flip?: boolean }[] = [
   { kind: "elephant", left: 8, bottom: 16, height: 44 },
   { kind: "monkey", left: 52, bottom: 22, height: 26, flip: true },
   { kind: "tiger", left: 60, bottom: 6, height: 30, flip: true },
@@ -10,13 +10,14 @@ const CAST: { kind: AnimalKind; left: number; bottom: number; height: number; fl
 ];
 
 export function Thumbnail() {
+  const { Background } = jungle;
   return (
     <div className="relative h-full w-full overflow-hidden">
-      <JungleBackground className="absolute inset-0 h-full w-full" animated={false} />
+      <Background className="absolute inset-0 h-full w-full" animated={false} />
       {CAST.map((a) => (
-        <AnimalArt
+        <CreatureArt
           key={a.kind}
-          kind={a.kind}
+          spec={jungle.creatures[a.kind]}
           className="absolute w-auto"
           style={{
             left: `${a.left}%`,

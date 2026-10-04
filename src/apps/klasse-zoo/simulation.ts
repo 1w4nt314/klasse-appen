@@ -1,24 +1,26 @@
-import { ANIMALS, ANIMAL_KINDS, type AnimalKind } from "./animals";
+import type { CreatureSpec, Theme } from "./themes/types";
 
 /**
- * Dyrenes adfærd. Ren logik uden DOM: KlasseZoo kalder `step` hver frame og
+ * Figurernes adfærd. Ren logik uden DOM: KlasseZoo kalder `step` hver frame og
  * skriver positionerne ud på elementerne.
  *
- *   walk   → går mod sit mål (ind fra kanten, eller en lille tur rundt)
- *   idle   → står stille og kigger sig omkring
+ *   walk   → bevæger sig mod sit mål (ind fra kanten, eller en lille tur rundt)
+ *   idle   → står stille / svæver på stedet og kigger sig omkring
  *   startle→ et kort hop af forskrækkelse når det bliver for larmende
- *   flee   → løber hurtigt ud af den nærmeste kant og forsvinder
+ *   flee   → løber/svømmer hurtigt ud af den nærmeste kant og forsvinder
  */
 
 export type Mode = "walk" | "idle" | "startle" | "flee";
 
 export type Animal = {
   id: number;
-  kind: AnimalKind;
+  kind: string;
   /** Midtpunkt, 0 = venstre kant, 1 = højre kant. */
   x: number;
-  /** Dybde, 0 = bagerst, 1 = forrest. */
+  /** Dybde, 0 = bagerst, 1 = forrest. Styrer skala og stablingsrækkefølge. */
   depth: number;
+  /** Afstand fra bunden af scenen i procent. */
+  bottom: number;
   target: number;
   dir: 1 | -1;
   mode: Mode;
@@ -30,8 +32,11 @@ export type Animal = {
 
 export type SceneSize = { width: number; height: number };
 
-/** Lodret placering og skala ud fra dybde. */
-export const depthBottom = (d: number) => 24 - d * 20; // % fra bunden
+/** Jorden: dybde 0 står bagerst (24 % oppe), dybde 1 forrest (4 %). */
+const groundBottom = (d: number) => 24 - d * 20;
+/** Frit vand/luft: figurerne fordeles i højden over hele scenen. */
+const OPEN_MIN = 10;
+const OPEN_MAX = 66;
 export const depthScale = (d: number) => 0.62 + d * 0.38;
 
 const WALK_SPEED = 0.11; // scenehøjder pr. sekund
@@ -40,53 +45,61 @@ const STARTLE_MS = 260;
 
 const rand = (min: number, max: number) => min + Math.random() * (max - min);
 
-/** Dyrets bredde som andel af scenens bredde. */
-export function widthFraction(a: Pick<Animal, "kind" | "depth">, s: SceneSize) {
-  const spec = ANIMALS[a.kind];
-  const h = (spec.height / 100) * s.height * depthScale(a.depth);
+const zoneOf = (spec: CreatureSpec, theme: Theme) => spec.zone ?? theme.zone;
+/** Svømmende og svævende figurer står ikke stille ret længe. */
+const isRestless = (spec: CreatureSpec) => spec.gait === "swim" || spec.gait === "float";
+
+/** Figurens bredde som andel af scenens bredde. */
+export function widthFraction(spec: CreatureSpec, depth: number, s: SceneSize) {
+  const h = (spec.height / 100) * s.height * depthScale(depth);
   return s.width > 0 ? (h * spec.aspect) / s.width : 0.1;
 }
 
-function pickKind(animals: Animal[]): AnimalKind {
-  const counts = new Map<AnimalKind, number>();
+function pickKind(animals: Animal[], theme: Theme) {
+  const kinds = Object.keys(theme.creatures);
+  const counts = new Map<string, number>();
   for (const a of animals) counts.set(a.kind, (counts.get(a.kind) ?? 0) + 1);
-  const min = Math.min(...ANIMAL_KINDS.map((k) => counts.get(k) ?? 0));
-  const pool = ANIMAL_KINDS.filter((k) => (counts.get(k) ?? 0) === min);
+  const min = Math.min(...kinds.map((k) => counts.get(k) ?? 0));
+  const pool = kinds.filter((k) => (counts.get(k) ?? 0) === min);
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
 /** Find en ledig plads: det bedste af nogle tilfældige bud. */
-function pickSpot(animals: Animal[], s: SceneSize) {
+function pickSpot(animals: Animal[], s: SceneSize, open: boolean) {
   const ratio = s.height > 0 ? s.width / s.height : 16 / 9;
-  let best = { x: rand(0.1, 0.9), depth: Math.random(), score: -1 };
+  let best = { x: 0.5, depth: 0.5, bottom: 10, score: -1 };
   for (let i = 0; i < 14; i++) {
     const x = rand(0.08, 0.92);
     const depth = Math.random();
+    const bottom = open ? rand(OPEN_MIN, OPEN_MAX) : groundBottom(depth);
     let score = Infinity;
     for (const a of animals) {
       if (a.mode === "flee") continue;
       const dx = (x - a.target) * ratio;
-      const dd = (depth - a.depth) * 1.2;
-      score = Math.min(score, Math.hypot(dx, dd));
+      const dy = open ? (bottom - a.bottom) / 40 : (depth - a.depth) * 1.2;
+      score = Math.min(score, Math.hypot(dx, dy));
     }
-    if (score > best.score) best = { x, depth, score };
+    if (score > best.score) best = { x, depth, bottom, score };
   }
   return best;
 }
 
 let nextId = 1;
 
-export function spawn(animals: Animal[], s: SceneSize): Animal {
-  const kind = pickKind(animals);
-  const { x: target, depth } = pickSpot(animals, s);
+export function spawn(animals: Animal[], s: SceneSize, theme: Theme): Animal {
+  const kind = pickKind(animals, theme);
+  const spec = theme.creatures[kind];
+  const open = zoneOf(spec, theme) === "open";
+  const { x: target, depth, bottom } = pickSpot(animals, s, open);
   // Oftest ind fra den side der er tættest på målet.
   const fromLeft = Math.random() < (target < 0.5 ? 0.75 : 0.25);
-  const half = widthFraction({ kind, depth }, s) / 2;
+  const half = widthFraction(spec, depth, s) / 2;
   return {
     id: nextId++,
     kind,
     x: fromLeft ? -half - 0.01 : 1 + half + 0.01,
     depth,
+    bottom,
     target,
     dir: fromLeft ? 1 : -1,
     mode: "walk",
@@ -105,16 +118,28 @@ export function scare(animals: Animal[], now: number) {
 }
 
 /**
- * Flyt alle dyr ét tidsskridt. Returnerer id'er på dyr der er løbet helt ud
- * af scenen og kan fjernes.
+ * Flyt alle figurer ét tidsskridt. Returnerer id'er på figurer der er løbet
+ * helt ud af scenen og kan fjernes.
  */
-export function step(animals: Animal[], s: SceneSize, now: number, dt: number) {
+export function step(
+  animals: Animal[],
+  s: SceneSize,
+  theme: Theme,
+  now: number,
+  dt: number,
+) {
   const gone: number[] = [];
   const pxPerFraction = s.width > 0 ? s.height / s.width : 0.5;
 
   for (const a of animals) {
-    const pace = ANIMALS[a.kind].pace * a.jitter;
-    const half = widthFraction(a, s) / 2;
+    const spec = theme.creatures[a.kind];
+    if (!spec) {
+      gone.push(a.id);
+      continue;
+    }
+    const pace = spec.pace * a.jitter;
+    const half = widthFraction(spec, a.depth, s) / 2;
+    const restless = isRestless(spec);
 
     switch (a.mode) {
       case "walk": {
@@ -123,7 +148,7 @@ export function step(animals: Animal[], s: SceneSize, now: number, dt: number) {
         if (Math.abs(d) <= v) {
           a.x = a.target;
           a.mode = "idle";
-          a.until = now + rand(4000, 12000);
+          a.until = now + (restless ? rand(1500, 4500) : rand(4000, 12000));
         } else {
           a.dir = d > 0 ? 1 : -1;
           a.x += a.dir * v;
@@ -132,8 +157,9 @@ export function step(animals: Animal[], s: SceneSize, now: number, dt: number) {
       }
       case "idle": {
         if (now < a.until) break;
-        if (Math.random() < 0.6) {
-          const t = a.x + rand(-0.22, 0.22);
+        if (Math.random() < (restless ? 0.85 : 0.6)) {
+          const range = restless ? 0.3 : 0.22;
+          const t = a.x + rand(-range, range);
           a.target = Math.min(0.94 - half, Math.max(0.06 + half, t));
           a.mode = "walk";
         } else {

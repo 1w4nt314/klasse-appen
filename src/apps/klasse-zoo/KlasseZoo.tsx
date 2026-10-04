@@ -2,17 +2,10 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ANIMALS, AnimalArt } from "./animals";
-import { JungleBackground, JungleForeground } from "./JungleBackground";
-import {
-  depthBottom,
-  depthScale,
-  scare,
-  spawn,
-  step,
-  type Animal,
-  type SceneSize,
-} from "./simulation";
+import { depthScale, scare, spawn, step, type Animal, type SceneSize } from "./simulation";
+import { getTheme, THEMES } from "./themes";
+import { CreatureArt } from "./themes/shared";
+import type { Theme } from "./themes/types";
 import { useMicrophone, type MicStatus } from "./useMicrophone";
 import "./zoo.css";
 
@@ -22,8 +15,8 @@ const TEMPOS = [
   { label: "Hurtigt", seconds: 5 },
 ] as const;
 
-type Settings = { threshold: number; tempo: number; maxAnimals: number };
-const DEFAULTS: Settings = { threshold: 55, tempo: 10, maxAnimals: 12 };
+type Settings = { threshold: number; tempo: number; maxAnimals: number; theme: string };
+const DEFAULTS: Settings = { threshold: 55, tempo: 10, maxAnimals: 12, theme: "jungle" };
 const STORAGE_KEY = "klasse-zoo:settings";
 
 /** Hvor længe lyden skal være over grænsen før dyrene bliver bange. */
@@ -54,12 +47,17 @@ export default function KlasseZoo() {
   const elementsRef = useRef(new Map<number, HTMLDivElement>());
   const meterRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef(settings);
+  const theme = getTheme(settings.theme);
+  const themeRef = useRef(theme);
 
   // Indstillinger huskes i browseren (pr. lærer-computer).
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage findes først i browseren
     setSettings(loadSettings());
   }, []);
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
   useEffect(() => {
     settingsRef.current = settings;
     try {
@@ -86,6 +84,15 @@ export default function KlasseZoo() {
     simRef.current = [];
     syncAnimals();
   }, [syncAnimals]);
+
+  /** Skift tema: figurerne fra det gamle tema forsvinder med det samme. */
+  const changeTheme = (id: string) => {
+    if (id === settings.theme) return;
+    simRef.current = [];
+    themeRef.current = getTheme(id);
+    syncAnimals();
+    setSettings((s) => ({ ...s, theme: id }));
+  };
 
   // Hovedløkken: mål lyd, opdatér stemning, flyt dyr.
   const running = mic.status === "running";
@@ -143,12 +150,12 @@ export default function KlasseZoo() {
         sim.filter((a) => a.mode !== "flee").length < maxAnimals &&
         size.width > 0
       ) {
-        sim.push(spawn(sim, size));
+        sim.push(spawn(sim, size, themeRef.current));
         lastSpawn = now;
         changed = true;
       }
 
-      const gone = step(sim, size, now, dt);
+      const gone = step(sim, size, themeRef.current, now, dt);
       if (gone.length) {
         simRef.current = sim.filter((a) => !gone.includes(a.id));
         changed = true;
@@ -196,12 +203,18 @@ export default function KlasseZoo() {
   const visibleCount = animals.filter((a) => a.mode !== "flee").length;
 
   return (
-    <div className="zoo-root" data-loud={isLoud || undefined}>
+    <div
+      className="zoo-root"
+      data-theme={theme.id}
+      data-loud={isLoud || undefined}
+      style={{ background: theme.backdrop }}
+    >
       <div ref={sceneRef} className="zoo-scene">
-        <JungleBackground className="zoo-layer" />
+        <theme.Background className="zoo-layer" />
 
         {animals.map((a) => {
-          const spec = ANIMALS[a.kind];
+          const spec = theme.creatures[a.kind];
+          if (!spec) return null;
           const h = spec.height * depthScale(a.depth);
           return (
             <div
@@ -220,9 +233,10 @@ export default function KlasseZoo() {
               data-mode={a.mode}
               data-dir={a.dir}
               data-gait={spec.gait}
+              data-zone={spec.zone ?? theme.zone}
               style={
                 {
-                  bottom: `${depthBottom(a.depth)}%`,
+                  bottom: `${a.bottom}%`,
                   height: `${h}%`,
                   aspectRatio: spec.aspect,
                   zIndex: 10 + Math.round(a.depth * 100),
@@ -233,7 +247,7 @@ export default function KlasseZoo() {
               <div className="zoo-shadow" />
               <div className="zoo-flip">
                 <div className="zoo-body">
-                  <AnimalArt kind={a.kind} className="zoo-art" />
+                  <CreatureArt spec={spec} className="zoo-art" />
                 </div>
                 <span className="zoo-alarm" aria-hidden="true">
                   !
@@ -243,7 +257,7 @@ export default function KlasseZoo() {
           );
         })}
 
-        <JungleForeground className="zoo-layer zoo-foreground" />
+        <theme.Foreground className="zoo-layer zoo-foreground" />
       </div>
 
       <Link href="/apps" className="zoo-chip zoo-back">
@@ -264,7 +278,7 @@ export default function KlasseZoo() {
         <div className="zoo-chip zoo-count" aria-live="polite">
           <PawIcon />
           <span className="tabular-nums">{visibleCount}</span>
-          dyr i junglen
+          {theme.noun} {theme.place}
         </div>
       )}
 
@@ -272,8 +286,8 @@ export default function KlasseZoo() {
         <div className="zoo-banner" role="status" aria-live="assertive">
           {isLoud ? (
             <>
-              <strong>Shhh …</strong> dyrene blev bange. Når der er ro igen, kommer
-              de tilbage.
+              <strong>Shhh …</strong> {theme.nounDefinite} blev bange. Når der er ro
+              igen, kommer de tilbage.
             </>
           ) : null}
         </div>
@@ -330,6 +344,11 @@ export default function KlasseZoo() {
           {panelOpen && (
             <div className="zoo-panel-body">
               <fieldset>
+                <legend>Tema</legend>
+                <ThemePicker current={theme.id} onChange={changeTheme} compact />
+              </fieldset>
+
+              <fieldset>
                 <legend>Hvor ofte kommer et nyt dyr?</legend>
                 <div className="zoo-segment">
                   {TEMPOS.map((t) => (
@@ -379,7 +398,12 @@ export default function KlasseZoo() {
           )}
         </section>
       ) : (
-        <StartScreen status={mic.status} onStart={mic.start} />
+        <StartScreen
+          status={mic.status}
+          onStart={mic.start}
+          theme={theme}
+          onTheme={changeTheme}
+        />
       )}
     </div>
   );
@@ -396,32 +420,40 @@ const MIC_MESSAGES: Partial<Record<MicStatus, string>> = {
 function StartScreen({
   status,
   onStart,
+  theme,
+  onTheme,
 }: {
   status: MicStatus;
   onStart: () => void;
+  theme: Theme;
+  onTheme: (id: string) => void;
 }) {
   const message = MIC_MESSAGES[status];
   return (
     <div className="zoo-start">
       <div className="zoo-start-card">
         <div className="zoo-start-animals" aria-hidden="true">
-          <AnimalArt kind="monkey" className="zoo-start-animal" />
-          <AnimalArt kind="toucan" className="zoo-start-animal" />
-          <AnimalArt kind="frog" className="zoo-start-animal" />
+          {theme.showcase.map((k) => (
+            <CreatureArt key={k} spec={theme.creatures[k]} className="zoo-start-animal" />
+          ))}
         </div>
         <h1>Klasse Zoo</h1>
         <p>
-          Når klassen arbejder roligt, kommer junglens dyr langsomt frem på
-          skærmen. Bliver der for larmende, løber de hurtigt væk – og kommer
+          Når klassen arbejder roligt, kommer {theme.nounDefinite} langsomt frem på
+          skærmen. Bliver der for larmende, stikker de hurtigt af – og kommer
           først tilbage når der er ro igen.
         </p>
+        <div className="zoo-start-themes">
+          <p className="zoo-start-label">Vælg tema</p>
+          <ThemePicker current={theme.id} onChange={onTheme} />
+        </div>
         <button
           type="button"
           className="zoo-start-btn"
           onClick={onStart}
           disabled={status === "requesting"}
         >
-          {status === "requesting" ? "Venter på mikrofon …" : "Start junglen"}
+          {status === "requesting" ? "Venter på mikrofon …" : "Start Klasse Zoo"}
         </button>
         {message ? (
           <p className="zoo-start-error" role="alert">
@@ -434,6 +466,39 @@ function StartScreen({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function ThemePicker({
+  current,
+  onChange,
+  compact,
+}: {
+  current: string;
+  onChange: (id: string) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className="zoo-themes" data-compact={compact || undefined}>
+      {THEMES.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          aria-pressed={t.id === current}
+          onClick={() => onChange(t.id)}
+          className="zoo-theme"
+        >
+          {!compact && (
+            <span className="zoo-theme-preview" aria-hidden="true">
+              <t.Background className="zoo-theme-bg" animated={false} />
+              <CreatureArt spec={t.creatures[t.showcase[0]]} className="zoo-theme-creature" />
+            </span>
+          )}
+          <span className="zoo-theme-name">{t.name}</span>
+          {!compact && <span className="zoo-theme-blurb">{t.blurb}</span>}
+        </button>
+      ))}
     </div>
   );
 }
