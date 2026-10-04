@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/*
+ * Semantiske tokens — komponenter siger hvad en farve betyder, temaet
+ * bestemmer hvordan den ser ud. Lyst tema er default (se dev-konventioner).
+ */
+:root {
+  --surface: #ffffff;
+  --canvas: #f6f7f4;
+  --ink: #16212e;
+  --muted: #566372;
+  --line: #dde2e6;
+  --line-strong: #c3cbd2;
+  --brand: #1a4f8b;
+  --brand-strong: #133b69;
+  --brand-soft: #e8eff7;
+  --accent: #0f6b7a;
+  --accent-soft: #e4f1f2;
+  --star: #e3a008;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --ok: #217a45;
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-canvas: var(--canvas);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-star: var(--star);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+
+  --font-sans: var(--font-nunito), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+
+  --radius-control: 6px;
+  --radius-card: 8px;
+
+  --shadow-float: 0 8px 24px -8px rgb(22 33 46 / 0.25);
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}

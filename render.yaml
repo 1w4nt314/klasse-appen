@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: klasse-appen
+    runtime: node
+    region: frankfurt
+    # Persistent disk kræver en betalt instans. På "free" mistes alle
+    # brugere og favoritter ved hvert deploy/genstart.
+    plan: starter
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATA_DIR
+        value: /var/data
