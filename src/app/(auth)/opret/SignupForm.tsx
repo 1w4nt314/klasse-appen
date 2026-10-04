@@ -2,10 +2,26 @@
 
 import { useActionState } from "react";
 import { signup } from "@/app/actions";
-import { Field, FormMessage, SubmitButton } from "@/components/ui";
+import { NewPasswordFields } from "@/components/NewPasswordFields";
+import { Field, FormMessage, SubmitButton, TextLink } from "@/components/ui";
 
 export function SignupForm() {
   const [state, action] = useActionState(signup, undefined);
+
+  if (state?.sent)
+    return (
+      <div role="status" className="space-y-3">
+        <p className="rounded-control bg-brand-soft px-4 py-3 text-ink">
+          Vi har sendt en mail til <strong>{state.sent}</strong>. Klik på linket i mailen og skriv
+          din adgangskode — så er din bruger oprettet.
+        </p>
+        <p className="text-sm text-muted">
+          Ingen mail efter et par minutter? Tjek spam, eller{" "}
+          <TextLink href="/opret">opret dig igen</TextLink> for at få et nyt link.
+        </p>
+      </div>
+    );
+
   return (
     <form action={action} className="space-y-4">
       <Field
@@ -31,15 +47,7 @@ export function SignupForm() {
         defaultValue={state?.values?.email}
         required
       />
-      <Field
-        label="Adgangskode"
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={8}
-        hint="Mindst 8 tegn."
-        required
-      />
+      <NewPasswordFields />
       <FormMessage state={state} />
       <SubmitButton pendingText="Opretter …">Opret bruger</SubmitButton>
     </form>

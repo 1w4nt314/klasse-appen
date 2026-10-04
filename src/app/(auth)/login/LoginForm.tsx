@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { login } from "@/app/actions";
-import { Field, FormMessage, SubmitButton } from "@/components/ui";
+import { Field, FormMessage, SubmitButton, TextLink } from "@/components/ui";
 
 export function LoginForm({ next }: { next: string }) {
   const [state, action] = useActionState(login, undefined);
@@ -24,6 +24,9 @@ export function LoginForm({ next }: { next: string }) {
         autoComplete="current-password"
         required
       />
+      <div className="-mt-2 text-right text-sm">
+        <TextLink href="/glemt">Glemt adgangskode?</TextLink>
+      </div>
       <FormMessage state={state} />
       <SubmitButton pendingText="Logger ind …">Log ind</SubmitButton>
     </form>

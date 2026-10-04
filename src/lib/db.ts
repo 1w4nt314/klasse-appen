@@ -73,6 +73,35 @@ const MIGRATIONS = [
     value text not null
   );
   `,
+  // Bekræftelse af e-mail og nulstilling af adgangskode. Eksisterende
+  // brugere regnes som bekræftede.
+  `
+  alter table users add column email_verified_at integer;
+  update users set email_verified_at = created_at;
+
+  create table auth_tokens (
+    token_hash text primary key,
+    user_id text not null references users (id) on delete cascade,
+    purpose text not null check (purpose in ('verify', 'reset')),
+    expires_at integer not null,
+    created_at integer not null
+  );
+  create index auth_tokens_user on auth_tokens (user_id, purpose);
+  `,
+  // Ventende oprettelser: brugeren oprettes først, når e-mailen er bekræftet.
+  // Hver oprettelse har sit eget link, så ingen kan overskrive en andens.
+  `
+  create table pending_signups (
+    token_hash text primary key,
+    email text not null,
+    full_name text not null,
+    school text not null,
+    password_hash text not null,
+    expires_at integer not null,
+    created_at integer not null
+  );
+  create index pending_signups_email on pending_signups (email);
+  `,
 ];
 
 /** Hvor databasen ligger. scripts/admin.mjs finder den på samme måde (DATA_DIR → /var/data → ./data). */

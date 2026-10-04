@@ -44,20 +44,55 @@ export function createUser(input: {
   fullName: string;
   school: string;
   passwordHash: string;
+  /** False = skal bekræfte sin e-mail, før der kan logges ind. */
+  verified: boolean;
 }) {
   const id = randomUUID();
+  const now = Date.now();
   db()
     .prepare(
-      "insert into users (id, email, full_name, school, password_hash, created_at) values (?, ?, ?, ?, ?, ?)",
+      `insert into users (id, email, full_name, school, password_hash, created_at, email_verified_at)
+       values (?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(id, input.email, input.fullName, input.school, input.passwordHash, Date.now());
+    .run(id, input.email, input.fullName, input.school, input.passwordHash, now, input.verified ? now : null);
   return id;
 }
 
+export type UserRow = {
+  id: string;
+  email: string;
+  full_name: string;
+  password_hash: string;
+  disabled_at: number | null;
+  email_verified_at: number | null;
+};
+
+const USER_COLUMNS = "id, email, full_name, password_hash, disabled_at, email_verified_at";
+
 export function findUserByEmail(email: string) {
-  return db()
-    .prepare("select id, password_hash, disabled_at from users where email = ?")
-    .get(email) as { id: string; password_hash: string; disabled_at: number | null } | undefined;
+  return db().prepare(`select ${USER_COLUMNS} from users where email = ?`).get(email) as
+    | UserRow
+    | undefined;
+}
+
+export function findUserById(id: string) {
+  return db().prepare(`select ${USER_COLUMNS} from users where id = ?`).get(id) as
+    | UserRow
+    | undefined;
+}
+
+export function markEmailVerified(userId: string) {
+  db()
+    .prepare("update users set email_verified_at = coalesce(email_verified_at, ?) where id = ?")
+    .run(Date.now(), userId);
+}
+
+/** Ny adgangskode: alle sessioner og nulstil-links for brugeren ugyldiggøres. */
+export function setPassword(userId: string, passwordHash: string) {
+  const conn = db();
+  conn.prepare("update users set password_hash = ? where id = ?").run(passwordHash, userId);
+  conn.prepare("delete from sessions where user_id = ?").run(userId);
+  conn.prepare("delete from auth_tokens where user_id = ? and purpose = 'reset'").run(userId);
 }
 
 /** Opret en session og sæt cookien. Kun i Server Actions/Route Handlers. */
