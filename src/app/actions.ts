@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { isKnownDevice, rememberDevice } from "@/lib/known-device";
+import { isIPv6 } from "node:net";
+import { knownDeviceId, rememberDevice } from "@/lib/known-device";
 import { loginLimiter, signupLimiter } from "@/lib/rate-limit";
 import {
   createUser,
@@ -35,7 +36,18 @@ function safeNext(next: string) {
 async function clientIp() {
   const h = await headers();
   const parts = h.get("x-forwarded-for")?.split(",").map((p) => p.trim()).filter(Boolean);
-  return parts?.at(-1) ?? "ukendt";
+  const ip = parts?.at(-1) ?? "ukendt";
+  // En IPv6-forbindelse råder typisk over et helt /64 — tæl det som én adresse.
+  return isIPv6(ip) ? `${ipv6Prefix64(ip)}::/64` : ip;
+}
+
+/** De første fire grupper af en IPv6-adresse (udfolder "::"). */
+function ipv6Prefix64(ip: string) {
+  const [head, tail = ""] = ip.split("%")[0].split("::");
+  const a = head ? head.split(":") : [];
+  const b = ip.includes("::") ? (tail ? tail.split(":") : []) : [];
+  const groups = ip.includes("::") ? [...a, ...Array(8 - a.length - b.length).fill("0"), ...b] : a;
+  return groups.slice(0, 4).map((g) => (parseInt(g, 16) || 0).toString(16)).join(":");
 }
 
 const LOGIN_WINDOW = 15 * 60 * 1000;
@@ -47,21 +59,23 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
 
   const ip = await clientIp();
   const user = email ? findUserByEmail(email) : undefined;
-  // Fra en kendt enhed (har logget ind som denne lærer før) gælder en grænse,
-  // som andre på samme IP ikke kan bruge op. Ellers: pr. IP+mail og pr. IP.
-  const limits: [key: string, limit: number][] =
-    user && (await isKnownDevice(user.id))
-      ? [[`device:${user.id}:${ip}`, 10]]
-      : [
-          [`ip-mail:${ip}:${email}`, 10],
-          [`ip:${ip}`, 50],
-        ];
+  // Fra en kendt enhed gælder kun enhedens egen grænse, som andre ikke kan
+  // bruge op. Ukendte enheder: pr. IP+mail, pr. IP og en blød grænse pr. konto
+  // (rammer kun nye enheder — lærerens egne kendte enheder kommer stadig ind).
+  const deviceId = user ? await knownDeviceId(user.id) : null;
+  const limits: [key: string, limit: number][] = deviceId
+    ? [[`device:${deviceId}`, 10]]
+    : [
+        [`ip-mail:${ip}:${email}`, 10],
+        [`ip:${ip}`, 50],
+        [`account:${email}`, 100],
+      ];
   const blocked = { error: "For mange forsøg. Vent et kvarter og prøv igen.", values };
   // Spærrede forsøg tælles ikke og opretter ingen nye nøgler.
   if (limits.some(([key, limit]) => loginLimiter.isOver(key, limit))) return blocked;
   // Forsøget tælles MED DET SAMME (før den langsomme kode-tjek), så samtidige
   // forespørgsler ikke kan smutte forbi grænsen. Et vellykket login gives tilbage.
-  if (!limits.every(([key]) => loginLimiter.hit(key, LOGIN_WINDOW))) return blocked;
+  for (const [key] of limits) loginLimiter.hit(key, LOGIN_WINDOW);
 
   // Tjek adgangskoden selv når brugeren ikke findes, så svartiden ikke afslører det.
   const ok = await verifyPassword(

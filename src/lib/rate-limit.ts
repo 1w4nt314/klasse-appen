@@ -7,7 +7,20 @@ type Entry = { count: number; resetAt: number };
 
 export function createLimiter(maxKeys = 100_000) {
   const buckets = new Map<string, Entry>();
-  let lastSweep = 0;
+
+  // Trimmer ned til 90 %, så en fuld gennemgang højst sker for hver 10 % nye nøgler.
+  const evict = (now: number) => {
+    const target = Math.floor(maxKeys * 0.9);
+    for (const [k, v] of buckets) if (v.resetAt <= now) buckets.delete(k);
+    for (const [k, v] of buckets) {
+      if (buckets.size <= target) return;
+      if (v.count <= 1) buckets.delete(k);
+    }
+    for (const k of buckets.keys()) {
+      if (buckets.size <= target) return;
+      buckets.delete(k);
+    }
+  };
 
   const live = (key: string, now: number) => {
     const entry = buckets.get(key);
@@ -20,32 +33,33 @@ export function createLimiter(maxKeys = 100_000) {
       return (live(key, Date.now())?.count ?? 0) >= limit;
     },
     /**
-     * Tæl et forsøg. Er kortet fuldt (kun udløbne nøgler ryddes — aktive
-     * grænser slettes aldrig), afvises forsøget i stedet: returnerer false.
+     * Tæl et forsøg. Er kortet fuldt, ryddes først udløbne nøgler, så nøgler
+     * med højst ét forsøg (de mindst værdifulde — fx et angrebs engangs-nøgler),
+     * og til sidst de ældste. Nye forsøg afvises aldrig af pladshensyn, så en
+     * oversvømmelse ikke kan lukke login for alle.
      */
     hit(key: string, windowMs: number) {
       const now = Date.now();
       let entry = live(key, now);
       if (!entry) {
-        if (buckets.size >= maxKeys && now - lastSweep > 1000) {
-          lastSweep = now;
-          for (const [k, v] of buckets) if (v.resetAt <= now) buckets.delete(k);
-        }
-        if (buckets.size >= maxKeys) return false;
+        if (buckets.size >= maxKeys) evict(now);
         entry = { count: 0, resetAt: now + windowMs };
         buckets.set(key, entry);
       }
       entry.count++;
-      return true;
     },
     /** Giv et forsøg tilbage — fx når et login lykkedes, så kun fejl tæller. */
     refund(key: string) {
       const entry = live(key, Date.now());
-      if (entry && entry.count > 0) entry.count--;
+      if (!entry) return;
+      if (entry.count <= 1) buckets.delete(key);
+      else entry.count--;
     },
     /** Tjek og tæl i ét. True = afvis. Afviste forsøg tælles ikke. */
     limited(key: string, limit: number, windowMs: number) {
-      return this.isOver(key, limit) || !this.hit(key, windowMs);
+      if (this.isOver(key, limit)) return true;
+      this.hit(key, windowMs);
+      return false;
     },
   };
 }
