@@ -28,6 +28,7 @@ export function ConfirmButton({
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const d = dialog.current;
@@ -43,7 +44,15 @@ export function ConfirmButton({
 
   return (
     <>
-      <button type="button" className={className} disabled={disabled} onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className={className}
+        disabled={disabled}
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+      >
         {children}
       </button>
       <dialog
@@ -54,6 +63,11 @@ export function ConfirmButton({
         <div className="p-5">
           <h2 className="text-lg font-extrabold">{title}</h2>
           <div className="mt-2 text-sm leading-relaxed text-muted">{message}</div>
+          {error && (
+            <p role="alert" className="mt-3 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">
+              {error}
+            </p>
+          )}
           <div className="mt-5 flex justify-end gap-2">
             {/* Annullér har fokus som standard, så Enter ikke bekræfter ved et uheld. */}
             <button
@@ -69,8 +83,19 @@ export function ConfirmButton({
               disabled={pending}
               onClick={() =>
                 start(async () => {
-                  await onConfirm();
-                  setOpen(false);
+                  setError(null);
+                  try {
+                    const result = await onConfirm();
+                    // Server-handlinger svarer { ok: false, error? } når de afviser.
+                    if (result && typeof result === "object" && "ok" in result && result.ok === false) {
+                      const msg = "error" in result && typeof result.error === "string" ? result.error : null;
+                      setError(msg ?? "Det lykkedes ikke. Prøv igen.");
+                      return;
+                    }
+                    setOpen(false);
+                  } catch {
+                    setError("Der skete en fejl. Tjek forbindelsen og prøv igen.");
+                  }
                 })
               }
               className={`rounded-control px-4 py-2 text-sm font-bold disabled:opacity-60 ${confirmClass}`}

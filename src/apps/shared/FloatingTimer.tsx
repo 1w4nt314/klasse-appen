@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import "./floating-timer.css";
 
 /**
@@ -173,14 +173,25 @@ export function FloatingTimer({
     setPhase("setup");
   };
 
+  // Under opsætningen gøres vinduet mindst SETUP_MIN stort — og flyttes ind,
+  // hvis det så ville stikke ud over skærmkanten. (`rect` skifter også ved resize.)
+  const shown = useMemo(
+    () =>
+      phase === "setup"
+        ? clampRect({ ...rect, w: Math.max(rect.w, SETUP_MIN_W), h: Math.max(rect.h, SETUP_MIN_H) })
+        : rect,
+    [rect, phase],
+  );
+
   const onPointerDown = useCallback(
     (mode: "move" | "resize") => (e: ReactPointerEvent<HTMLElement>) => {
       if (mode === "move" && (e.target as HTMLElement).closest("button, input")) return;
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
-      drag.current = { mode, sx: e.clientX, sy: e.clientY, start: rect };
+      // Træk fra det, der faktisk ses, så vinduet ikke hopper ved første bevægelse.
+      drag.current = { mode, sx: e.clientX, sy: e.clientY, start: shown };
     },
-    [rect],
+    [shown],
   );
   const onPointerMove = (e: ReactPointerEvent<HTMLElement>) => {
     const d = drag.current;
@@ -206,10 +217,10 @@ export function FloatingTimer({
       data-phase={phase}
       hidden={hidden}
       style={{
-        left: rect.x,
-        top: rect.y,
-        width: phase === "setup" ? Math.max(rect.w, SETUP_MIN_W) : rect.w,
-        height: phase === "setup" ? Math.max(rect.h, SETUP_MIN_H) : rect.h,
+        left: shown.x,
+        top: shown.y,
+        width: shown.w,
+        height: shown.h,
         maxHeight: "calc(100dvh - 16px)",
         zIndex,
       }}
@@ -344,7 +355,14 @@ function Stepper({
     if (repeat.current) window.clearTimeout(repeat.current);
     repeat.current = null;
   };
-  useEffect(() => stop, []);
+  useEffect(() => {
+    // Stop også, hvis vinduet mister fokus midt i et hold (fx alt-tab).
+    window.addEventListener("blur", stop);
+    return () => {
+      window.removeEventListener("blur", stop);
+      stop();
+    };
+  }, []);
   function startRepeat(e: React.PointerEvent<HTMLButtonElement>, fn: () => void) {
     e.preventDefault();
     stop();
@@ -367,6 +385,7 @@ function Stepper({
         onPointerUp={stop}
         onPointerLeave={stop}
         onPointerCancel={stop}
+        onContextMenu={(e) => e.preventDefault()}
         onClick={(e) => e.detail === 0 && onUp()}
       >
         ▲
@@ -380,6 +399,7 @@ function Stepper({
         onPointerUp={stop}
         onPointerLeave={stop}
         onPointerCancel={stop}
+        onContextMenu={(e) => e.preventDefault()}
         onClick={(e) => e.detail === 0 && onDown()}
       >
         ▼

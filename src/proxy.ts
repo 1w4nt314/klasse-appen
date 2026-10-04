@@ -2,7 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // Holdes i sync med SESSION_COOKIE i lib/session.ts (proxy må ikke importere databasen).
 const COOKIE = "klasse_session";
-const PROTECTED = ["/apps", "/onsker", "/admin"];
+// /admin er bevidst ikke med: ikke-admins skal have en 404, ikke en login-side.
+const PROTECTED = ["/apps", "/onsker"];
 
 /**
  * Optimistisk tjek: uden session-cookie sendes man direkte til login.
@@ -23,5 +24,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/apps/:path*", "/onsker/:path*", "/admin/:path*"],
+  matcher: ["/apps/:path*", "/onsker/:path*"],
 };

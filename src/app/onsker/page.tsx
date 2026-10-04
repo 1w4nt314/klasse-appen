@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SiteHeader } from "@/components/SiteHeader";
 import { db } from "@/lib/db";
 import { requireTeacher } from "@/lib/session";
-import type { WishCategory, WishStatus } from "@/lib/wishes";
+import { isCategory, isStatus } from "@/lib/wishes";
 import { WishBoard, type Wish } from "./WishBoard";
 
 export const metadata: Metadata = { title: "Ønsker" };
@@ -15,8 +15,10 @@ export default async function WishesPage({ searchParams }: PageProps<"/onsker">)
   const rows = db()
     .prepare(
       `select w.id, w.title, w.body, w.category, w.status, w.created_at, w.user_id,
-              u.full_name as author, u.school as school,
-              (select count(*) from wish_likes l where l.wish_id = w.id) as likes,
+              case when u.disabled_at is null then u.full_name end as author,
+              case when u.disabled_at is null then u.school end as school,
+              (select count(*) from wish_likes l join users lu on lu.id = l.user_id
+                where l.wish_id = w.id and lu.disabled_at is null) as likes,
               exists(select 1 from wish_likes l where l.wish_id = w.id and l.user_id = ?) as liked
          from wishes w left join users u on u.id = w.user_id
         order by ${newest ? "w.created_at desc" : "likes desc, w.created_at desc"}
@@ -26,8 +28,8 @@ export default async function WishesPage({ searchParams }: PageProps<"/onsker">)
     id: string;
     title: string;
     body: string;
-    category: WishCategory;
-    status: WishStatus;
+    category: string;
+    status: string;
     created_at: number;
     user_id: string | null;
     author: string | null;
@@ -40,8 +42,9 @@ export default async function WishesPage({ searchParams }: PageProps<"/onsker">)
     id: r.id,
     title: r.title,
     body: r.body,
-    category: r.category,
-    status: r.status,
+    // Tåler gamle eller ugyldige værdier i databasen.
+    category: isCategory(r.category) ? r.category : "other",
+    status: isStatus(r.status) ? r.status : "open",
     createdAt: r.created_at,
     author: r.author ?? "Tidligere bruger",
     school: r.school ?? "",

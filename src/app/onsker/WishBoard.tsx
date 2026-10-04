@@ -8,6 +8,8 @@ import {
   MAX_TITLE,
   WISH_CATEGORIES,
   WISH_STATUSES,
+  isCategory,
+  isStatus,
   type WishCategory,
   type WishStatus,
 } from "@/lib/wishes";
@@ -101,6 +103,9 @@ function NewWishForm() {
     undefined,
   );
 
+  const prevCategory = state?.values?.category;
+  const checkedCategory: WishCategory = isCategory(prevCategory) ? prevCategory : "app";
+
   if (!open)
     return (
       <button
@@ -119,12 +124,18 @@ function NewWishForm() {
       <fieldset>
         <legend className="mb-1.5 text-sm font-bold">Hvad handler det om?</legend>
         <div className="flex flex-wrap gap-2">
-          {(Object.entries(WISH_CATEGORIES) as [WishCategory, string][]).map(([key, label], i) => (
+          {(Object.entries(WISH_CATEGORIES) as [WishCategory, string][]).map(([key, label]) => (
             <label
               key={key}
               className="cursor-pointer rounded-control border border-line-strong px-3 py-1.5 text-sm font-bold has-checked:border-brand has-checked:bg-brand has-checked:text-white"
             >
-              <input type="radio" name="category" value={key} defaultChecked={i === 0} className="sr-only" />
+              <input
+                type="radio"
+                name="category"
+                value={key}
+                defaultChecked={key === checkedCategory}
+                className="sr-only"
+              />
               {label}
             </label>
           ))}
@@ -134,6 +145,7 @@ function NewWishForm() {
         <span className="mb-1.5 block text-sm font-bold">Overskrift</span>
         <input
           name="title"
+          defaultValue={state?.values?.title}
           required
           minLength={3}
           maxLength={MAX_TITLE}
@@ -147,6 +159,7 @@ function NewWishForm() {
         </span>
         <textarea
           name="body"
+          defaultValue={state?.values?.body}
           rows={4}
           maxLength={MAX_BODY}
           placeholder="Hvordan skal det virke, og hvordan vil du bruge det i klassen?"
@@ -182,6 +195,8 @@ function NewWishForm() {
 function WishCard({ wish, rank, isAdmin }: { wish: Wish; rank: number | null; isAdmin: boolean }) {
   const [, start] = useTransition();
   const [like, setOptimistic] = useOptimistic({ liked: wish.liked, likes: wish.likes });
+  const status: WishStatus = isStatus(wish.status) ? wish.status : "open";
+  const [shownStatus, setShownStatus] = useOptimistic(status);
 
   const toggle = () =>
     start(async () => {
@@ -218,10 +233,10 @@ function WishCard({ wish, rank, isAdmin }: { wish: Wish; rank: number | null; is
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="rounded-control bg-brand-soft px-1.5 py-0.5 font-bold text-brand">
-            {WISH_CATEGORIES[wish.category] ?? wish.category}
+            {WISH_CATEGORIES[isCategory(wish.category) ? wish.category : "other"]}
           </span>
-          <span className={`rounded-control px-1.5 py-0.5 font-bold ${STATUS_STYLE[wish.status] ?? ""}`}>
-            {WISH_STATUSES[wish.status] ?? wish.status}
+          <span className={`rounded-control px-1.5 py-0.5 font-bold ${STATUS_STYLE[status]}`}>
+            {WISH_STATUSES[status]}
           </span>
           <span className="text-muted">
             {wish.author}
@@ -236,8 +251,14 @@ function WishCard({ wish, rank, isAdmin }: { wish: Wish; rank: number | null; is
               <label className="flex items-center gap-1.5 text-xs font-bold text-muted">
                 Status
                 <select
-                  defaultValue={wish.status}
-                  onChange={(e) => start(() => setWishStatus(wish.id, e.target.value as WishStatus).then(() => {}))}
+                  value={shownStatus}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    start(async () => {
+                      if (isStatus(next)) setShownStatus(next);
+                      await setWishStatus(wish.id, next);
+                    });
+                  }}
                   className="rounded-control border border-line-strong bg-surface px-2 py-1 text-xs font-bold text-ink"
                 >
                   {(Object.entries(WISH_STATUSES) as [WishStatus, string][]).map(([key, label]) => (

@@ -42,9 +42,19 @@ switch (command) {
   case "grant":
   case "revoke": {
     if (!email) fail(`Skriv en e-mail: npm run admin -- ${command} lærer@skole.dk`);
-    const user = db.prepare("select id, full_name, role from users where email = ?").get(email);
+    const user = db.prepare("select id, full_name, role, disabled_at from users where email = ?").get(email);
     if (!user) fail(`Ingen bruger med e-mailen ${email}. Brugeren skal oprette sig på sitet først.`);
     const role = command === "grant" ? "admin" : "teacher";
+    if (user.role === role) {
+      console.log(
+        role === "admin"
+          ? `• ${user.full_name} (${email}) er allerede platform-admin. Intet ændret.`
+          : `• ${user.full_name} (${email}) er ikke admin. Intet ændret.`,
+      );
+      break;
+    }
+    if (role === "admin" && user.disabled_at)
+      console.warn(`! ${email} er deaktiveret og kan ikke logge ind, før en anden admin genaktiverer brugeren.`);
     db.prepare("update users set role = ? where id = ?").run(role, user.id);
     console.log(
       command === "grant"

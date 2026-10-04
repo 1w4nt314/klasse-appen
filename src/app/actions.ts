@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { rateLimited } from "@/lib/rate-limit";
+import { hit, isLimited, rateLimited } from "@/lib/rate-limit";
 import {
   createUser,
   findUserByEmail,
@@ -26,17 +26,27 @@ function safeNext(next: string) {
   return next.startsWith("/") && !next.startsWith("//") ? next : "/apps";
 }
 
+/**
+ * Klientens IP. Render (og de fleste proxyer) tilføjer den rigtige adresse
+ * SIDST i X-Forwarded-For; de første led kan klienten selv have sat.
+ */
 async function clientIp() {
   const h = await headers();
-  return h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "ukendt";
+  const parts = h.get("x-forwarded-for")?.split(",").map((p) => p.trim()).filter(Boolean);
+  return parts?.at(-1) ?? "ukendt";
 }
+
+const LOGIN_WINDOW = 15 * 60 * 1000;
 
 export async function login(_: FormState, form: FormData): Promise<FormState> {
   const email = str(form, "email").toLowerCase();
   const password = String(form.get("password") ?? "");
   const values = { email: str(form, "email") };
 
-  if (rateLimited(`login:${await clientIp()}:${email}`))
+  // Kun mislykkede forsøg tæller — pr. IP+mail og pr. mail (mod gæt fra mange IP'er).
+  const ipKey = `login:${await clientIp()}:${email}`;
+  const mailKey = `login-mail:${email}`;
+  if (isLimited(ipKey, 10, LOGIN_WINDOW) || isLimited(mailKey, 30, LOGIN_WINDOW))
     return { error: "For mange forsøg. Vent et kvarter og prøv igen.", values };
 
   const user = email ? findUserByEmail(email) : undefined;
@@ -46,7 +56,11 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     user?.password_hash ??
       "scrypt$00000000000000000000000000000000$" + "0".repeat(128),
   );
-  if (!user || !ok) return { error: "Forkert e-mail eller adgangskode.", values };
+  if (!user || !ok) {
+    hit(ipKey, LOGIN_WINDOW);
+    hit(mailKey, LOGIN_WINDOW);
+    return { error: "Forkert e-mail eller adgangskode.", values };
+  }
   if (user.disabled_at)
     return { error: "Din bruger er deaktiveret. Kontakt Klasse-appen, hvis det er en fejl.", values };
 

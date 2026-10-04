@@ -116,10 +116,13 @@ export async function requireTeacher(next: string) {
   return teacher;
 }
 
-/** Kun for platform-admins; andre får en 404, så siden ikke afslører sig selv. */
-export async function requireAdmin(next: string) {
-  const teacher = await requireTeacher(next);
-  if (!teacher.isAdmin) notFound();
+/**
+ * Kun for platform-admins. Alle andre — også ikke-indloggede — får en 404,
+ * så siden ikke afslører, at den findes.
+ */
+export async function requireAdmin() {
+  const teacher = await getTeacher();
+  if (!teacher?.isAdmin) notFound();
   return teacher;
 }
 

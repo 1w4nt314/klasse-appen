@@ -68,7 +68,7 @@ const MIGRATIONS = [
   `,
 ];
 
-/** Hvor databasen ligger — bruges også af scripts/admin.mjs. */
+/** Hvor databasen ligger. scripts/admin.mjs finder den på samme måde (DATA_DIR → /var/data → ./data). */
 export const DATABASE_FILE = () => path.join(DATA_DIR, "klasse-appen.db");
 
 function open() {

@@ -7,7 +7,7 @@ import { UserTable, type UserRow } from "./UserTable";
 export const metadata: Metadata = { title: "Brugere" };
 
 export default async function AdminPage() {
-  const admin = await requireAdmin("/admin");
+  const admin = await requireAdmin();
   // Kun mail, navn og skole (+ status) — ikke mere end der er brug for.
   const users = (
     db()

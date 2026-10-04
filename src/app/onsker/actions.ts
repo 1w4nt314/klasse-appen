@@ -3,18 +3,20 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { rateLimited } from "@/lib/rate-limit";
 import { getTeacher } from "@/lib/session";
-import {
-  MAX_BODY,
-  MAX_PER_DAY,
-  MAX_TITLE,
-  WISH_CATEGORIES,
-  WISH_STATUSES,
-  type WishCategory,
-  type WishStatus,
-} from "@/lib/wishes";
+import { isCategory, isStatus, MAX_BODY, MAX_PER_DAY, MAX_TITLE } from "@/lib/wishes";
 
-export type WishFormState = { error?: string; ok?: boolean } | undefined;
+export type WishFormState =
+  | {
+      error?: string;
+      ok?: boolean;
+      /** Det udfyldte, så formularen ikke tømmes ved en fejl. */
+      values?: { title: string; body: string; category: string };
+    }
+  | undefined;
+
+const DAY = 24 * 60 * 60 * 1000;
 
 const clean = (v: FormDataEntryValue | null, max: number) =>
   String(v ?? "")
@@ -26,18 +28,27 @@ export async function createWish(_: WishFormState, form: FormData): Promise<Wish
   const teacher = await getTeacher();
   if (!teacher) return { error: "Du skal være logget ind." };
 
-  const title = clean(form.get("title"), MAX_TITLE).replace(/\s+/g, " ");
-  const body = clean(form.get("body"), MAX_BODY);
-  const category = String(form.get("category") ?? "") as WishCategory;
-  if (title.length < 3) return { error: "Skriv en kort overskrift (mindst 3 tegn)." };
-  if (!(category in WISH_CATEGORIES)) return { error: "Vælg hvad ønsket handler om." };
+  const rawTitle = String(form.get("title") ?? "");
+  const rawBody = String(form.get("body") ?? "");
+  const category = form.get("category");
+  const values = { title: rawTitle, body: rawBody, category: String(category ?? "") };
+  if (rawTitle.trim().length > MAX_TITLE || rawBody.trim().length > MAX_BODY)
+    return { error: "Teksten er for lang.", values };
+  const title = clean(rawTitle, MAX_TITLE).replace(/\s+/g, " ");
+  const body = clean(rawBody, MAX_BODY);
+  if (title.length < 3) return { error: "Skriv en kort overskrift (mindst 3 tegn).", values };
+  if (!isCategory(category)) return { error: "Vælg hvad ønsket handler om.", values };
 
   const conn = db();
   const { n } = conn
     .prepare("select count(*) as n from wishes where user_id = ? and created_at > ?")
-    .get(teacher.id, Date.now() - 24 * 60 * 60 * 1000) as { n: number };
-  if (n >= MAX_PER_DAY)
-    return { error: `Du kan højst skrive ${MAX_PER_DAY} ønsker pr. døgn. Prøv igen i morgen.` };
+    .get(teacher.id, Date.now() - DAY) as { n: number };
+  // Tælleren i hukommelsen fanger også ønsker, der er oprettet og slettet igen.
+  if (n >= MAX_PER_DAY || rateLimited(`wish:${teacher.id}`, MAX_PER_DAY, DAY))
+    return {
+      error: `Du kan højst skrive ${MAX_PER_DAY} ønsker pr. døgn. Prøv igen i morgen.`,
+      values,
+    };
 
   const id = randomUUID();
   conn
@@ -54,9 +65,10 @@ export async function createWish(_: WishFormState, form: FormData): Promise<Wish
   return { ok: true };
 }
 
-export async function setLike(wishId: string, liked: boolean) {
+export async function setLike(wishId: unknown, liked: unknown) {
   const teacher = await getTeacher();
-  if (!teacher) return { ok: false };
+  if (!teacher || typeof wishId !== "string" || typeof liked !== "boolean") return { ok: false };
+  if (rateLimited(`like:${teacher.id}`, 300, 10 * 60 * 1000)) return { ok: false };
   const conn = db();
   const exists = conn.prepare("select 1 from wishes where id = ?").get(wishId);
   if (!exists) return { ok: false };
@@ -72,9 +84,9 @@ export async function setLike(wishId: string, liked: boolean) {
 }
 
 /** Egne ønsker kan slettes af forfatteren; alle ønsker af platform-admin. */
-export async function deleteWish(wishId: string) {
+export async function deleteWish(wishId: unknown) {
   const teacher = await getTeacher();
-  if (!teacher) return { ok: false };
+  if (!teacher || typeof wishId !== "string") return { ok: false };
   const result = teacher.isAdmin
     ? db().prepare("delete from wishes where id = ?").run(wishId)
     : db().prepare("delete from wishes where id = ? and user_id = ?").run(wishId, teacher.id);
@@ -82,9 +94,9 @@ export async function deleteWish(wishId: string) {
   return { ok: result.changes > 0 };
 }
 
-export async function setWishStatus(wishId: string, status: WishStatus) {
+export async function setWishStatus(wishId: unknown, status: unknown) {
   const teacher = await getTeacher();
-  if (!teacher?.isAdmin || !(status in WISH_STATUSES)) return { ok: false };
+  if (!teacher?.isAdmin || typeof wishId !== "string" || !isStatus(status)) return { ok: false };
   db().prepare("update wishes set status = ? where id = ?").run(status, wishId);
   revalidatePath("/onsker");
   return { ok: true };
