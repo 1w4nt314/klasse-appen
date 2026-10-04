@@ -198,13 +198,16 @@ export function FloatingTimer({
     if (!d) return;
     const dx = e.clientX - d.sx;
     const dy = e.clientY - d.sy;
-    setRect(
-      clampRect(
-        d.mode === "move"
-          ? { ...d.start, x: d.start.x + dx, y: d.start.y + dy }
-          : { ...d.start, w: d.start.w + dx, h: d.start.h + dy },
-      ),
-    );
+    if (d.mode === "move") {
+      // Kun positionen flyttes — lærerens egen størrelse bevares, også når
+      // vinduet midlertidigt er forstørret under opsætningen.
+      setRect((r) => {
+        const moved = clampRect({ ...d.start, x: d.start.x + dx, y: d.start.y + dy });
+        return { ...r, x: moved.x, y: moved.y };
+      });
+    } else {
+      setRect(clampRect({ ...d.start, w: d.start.w + dx, h: d.start.h + dy }));
+    }
   };
   const onPointerUp = () => {
     if (drag.current) saveRect();

@@ -89,6 +89,10 @@ export function UserTable({ users }: { users: UserRow[] }) {
                 <td className="px-4 py-3 text-right">
                   {u.isSelf ? (
                     <span className="text-xs text-muted">Dig</span>
+                  ) : u.isAdmin && !u.disabled ? (
+                    <span className="text-xs text-muted" title="Admin-rollen fjernes i serverens shell">
+                      Admin
+                    </span>
                   ) : u.disabled ? (
                     <ConfirmButton
                       title={`Genaktivér ${u.name}?`}

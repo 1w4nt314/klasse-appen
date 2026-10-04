@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { hit, isLimited, rateLimited } from "@/lib/rate-limit";
+import { rateLimited, refund } from "@/lib/rate-limit";
 import {
   createUser,
   findUserByEmail,
@@ -27,8 +27,9 @@ function safeNext(next: string) {
 }
 
 /**
- * Klientens IP. Render (og de fleste proxyer) tilføjer den rigtige adresse
- * SIDST i X-Forwarded-For; de første led kan klienten selv have sat.
+ * Klientens IP. Render tilføjer den rigtige adresse SIDST i X-Forwarded-For;
+ * de første led kan klienten selv have sat. Antager præcis én betroet proxy
+ * (Render). Kommer der fx Cloudflare foran, skal det næstsidste led bruges.
  */
 async function clientIp() {
   const h = await headers();
@@ -43,11 +44,15 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
   const password = String(form.get("password") ?? "");
   const values = { email: str(form, "email") };
 
-  // Kun mislykkede forsøg tæller — pr. IP+mail og pr. mail (mod gæt fra mange IP'er).
-  const ipKey = `login:${await clientIp()}:${email}`;
-  const mailKey = `login-mail:${email}`;
-  if (isLimited(ipKey, 10, LOGIN_WINDOW) || isLimited(mailKey, 30, LOGIN_WINDOW))
-    return { error: "For mange forsøg. Vent et kvarter og prøv igen.", values };
+  // Forsøget tælles MED DET SAMME (før den langsomme kode-tjek), så samtidige
+  // forespørgsler ikke kan smutte forbi grænsen; et vellykket login gives tilbage.
+  // Grænsen er pr. IP+mail og pr. IP — ikke pr. mail alene, for så kunne enhver
+  // låse en lærer ude ved at gætte forkert 30 gange.
+  const ip = await clientIp();
+  const keys = [`login:${ip}:${email}`, `login-ip:${ip}`];
+  const overIpMail = rateLimited(keys[0], 10, LOGIN_WINDOW);
+  const overIp = rateLimited(keys[1], 50, LOGIN_WINDOW);
+  if (overIpMail || overIp) return { error: "For mange forsøg. Vent et kvarter og prøv igen.", values };
 
   const user = email ? findUserByEmail(email) : undefined;
   // Tjek adgangskoden selv når brugeren ikke findes, så svartiden ikke afslører det.
@@ -56,11 +61,8 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
     user?.password_hash ??
       "scrypt$00000000000000000000000000000000$" + "0".repeat(128),
   );
-  if (!user || !ok) {
-    hit(ipKey, LOGIN_WINDOW);
-    hit(mailKey, LOGIN_WINDOW);
-    return { error: "Forkert e-mail eller adgangskode.", values };
-  }
+  if (!user || !ok) return { error: "Forkert e-mail eller adgangskode.", values };
+  keys.forEach(refund);
   if (user.disabled_at)
     return { error: "Din bruger er deaktiveret. Kontakt Klasse-appen, hvis det er en fejl.", values };
 

@@ -28,8 +28,9 @@ export async function createWish(_: WishFormState, form: FormData): Promise<Wish
   const teacher = await getTeacher();
   if (!teacher) return { error: "Du skal være logget ind." };
 
-  const rawTitle = String(form.get("title") ?? "");
-  const rawBody = String(form.get("body") ?? "");
+  // Browseren sender linjeskift som \r\n, men tæller dem som ét tegn i maxLength.
+  const rawTitle = String(form.get("title") ?? "").replace(/\r\n?/g, "\n");
+  const rawBody = String(form.get("body") ?? "").replace(/\r\n?/g, "\n");
   const category = form.get("category");
   const values = { title: rawTitle, body: rawBody, category: String(category ?? "") };
   if (rawTitle.trim().length > MAX_TITLE || rawBody.trim().length > MAX_BODY)

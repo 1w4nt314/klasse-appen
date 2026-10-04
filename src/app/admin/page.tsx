@@ -4,7 +4,11 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
 import { UserTable, type UserRow } from "./UserTable";
 
-export const metadata: Metadata = { title: "Brugere" };
+// Ikke-admins må ikke kunne se, at siden findes — heller ikke på titlen.
+export async function generateMetadata(): Promise<Metadata> {
+  await requireAdmin();
+  return { title: "Brugere" };
+}
 
 export default async function AdminPage() {
   const admin = await requireAdmin();
