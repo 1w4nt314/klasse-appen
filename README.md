@@ -59,10 +59,29 @@ oprettes/migreres af [`src/lib/db.ts`](src/lib/db.ts).
 
 ## Login
 
-Egen login uden eksterne tjenester: adgangskoder hashes med scrypt, sessioner er
-tilfældige tokens i en httpOnly-cookie (30 dage), og loginforsøg begrænses pr.
-IP/e-mail. Der er ingen mailudsendelse, så der er hverken e-mailbekræftelse eller
-"glemt adgangskode" i V1.
+Egen login: adgangskoder hashes med scrypt, sessioner er tilfældige tokens i en
+httpOnly-cookie (30 dage), og loginforsøg begrænses pr. IP, IP+e-mail og konto
+(med "kendt enhed"-cookie, så en elev på skolens net ikke låser lærerne ude).
+
+Ved oprettelse skrives adgangskoden to gange. **E-mailbekræftelse** og **glemt
+adgangskode** sender mails via [Resend](https://resend.com), når disse
+miljøvariabler er sat (fx på Render → Environment):
+
+| Variabel | Eksempel | |
+|---|---|---|
+| `RESEND_API_KEY` | `re_…` | API-nøgle fra Resend |
+| `EMAIL_FROM` | `Klasse-appen <noreply@klasse-appen.dk>` | Afsender på et domæne, der er verificeret i Resend |
+| `APP_URL` | `https://klasse-appen.dk` | Valgfri. Adressen i links; ellers bruges Renders `RENDER_EXTERNAL_URL` |
+
+- **Uden** `RESEND_API_KEY`/`EMAIL_FROM` oprettes nye brugere som før (straks
+  aktive), og links fra "glemt adgangskode" skrives kun i serverloggen.
+- **Med** dem skal nye brugere klikke på linket i mailen (gælder 24 timer), før
+  de kan logge ind. Linket åbner en side med en knap, så mail-scannere ikke
+  bruger linket op. Uafsluttede oprettelser frigives efter en uge.
+- "Glemt adgangskode" svarer altid det samme, uanset om mailen findes. Linket
+  virker i 1 time og én gang; en ny adgangskode logger brugeren ud alle andre
+  steder.
+- Brugere, der fandtes før bekræftelsen kom til, regnes som bekræftede.
 
 ## Platform-admin
 

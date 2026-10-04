@@ -16,7 +16,7 @@ export default async function AdminPage() {
   const users = (
     db()
       .prepare(
-        `select id, email, full_name, school, role, disabled_at
+        `select id, email, full_name, school, role, disabled_at, email_verified_at
            from users order by created_at desc`,
       )
       .all() as {
@@ -26,6 +26,7 @@ export default async function AdminPage() {
       school: string;
       role: string;
       disabled_at: number | null;
+      email_verified_at: number | null;
     }[]
   ).map(
     (u): UserRow => ({
@@ -35,6 +36,7 @@ export default async function AdminPage() {
       school: u.school,
       isAdmin: u.role === "admin",
       disabled: u.disabled_at !== null,
+      unverified: u.email_verified_at === null,
       isSelf: u.id === admin.id,
     }),
   );

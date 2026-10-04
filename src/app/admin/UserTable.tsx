@@ -11,6 +11,8 @@ export type UserRow = {
   school: string;
   isAdmin: boolean;
   disabled: boolean;
+  /** Har ikke klikket på bekræftelseslinket endnu. */
+  unverified: boolean;
   isSelf: boolean;
 };
 
@@ -79,6 +81,10 @@ export function UserTable({ users }: { users: UserRow[] }) {
                   {u.disabled ? (
                     <span className="rounded-control bg-danger-soft px-2 py-0.5 text-xs font-bold text-danger">
                       Deaktiveret
+                    </span>
+                  ) : u.unverified ? (
+                    <span className="rounded-control bg-canvas px-2 py-0.5 text-xs font-bold text-muted">
+                      Ikke bekræftet
                     </span>
                   ) : (
                     <span className="rounded-control bg-accent-soft px-2 py-0.5 text-xs font-bold text-accent">
