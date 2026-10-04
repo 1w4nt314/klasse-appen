@@ -5,14 +5,14 @@ import { creatures } from "./creatures";
 export const ocean: Theme = {
   id: "ocean",
   name: "Akvarium",
-  blurb: "PLADSHOLDER",
+  blurb: "Fisk, skildpadder og vandmænd",
   creatures,
-  zone: "ground",
+  zone: "open",
   noun: "dyr",
   nounDefinite: "dyrene",
   place: "i akvariet",
-  backdrop: "#1d6f9a",
-  showcase: ["placeholder", "placeholder", "placeholder"],
+  backdrop: "#2a93c6",
+  showcase: ["clownfish", "pufferfish", "crab"],
   Background,
   Foreground,
 };
