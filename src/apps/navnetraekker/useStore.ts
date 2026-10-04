@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import {
   emptyStore,
+  MAX_CLASSES,
   sanitizeStore,
   STORAGE_KEY,
   uniqueName,
@@ -73,6 +74,15 @@ function commit(key: string, store: Store) {
 
 function subscribe(key: string, listener: () => void) {
   const e = entry(key);
+  // Første abonnent efter en pause (fx efter navigation væk og tilbage): læs
+  // forfra, så ændringer fra andre faner i mellemtiden ikke overskrives.
+  if (e.listeners.size === 0 && !e.snap.saveFailed) {
+    const fresh = read(key);
+    const activeId = fresh.store.classes.some((c) => c.id === e.snap.store.activeId)
+      ? e.snap.store.activeId
+      : fresh.store.activeId;
+    e.snap = { ...fresh, store: { ...fresh.store, activeId } };
+  }
   e.listeners.add(listener);
   // En anden fane har ændret listerne: hent dem, men behold den klasse der er valgt her.
   const onStorage = (ev: StorageEvent) => {
@@ -119,7 +129,11 @@ export function useStore(userKey: string) {
           taken.push(name);
           return { ...c, name };
         });
-        commit(key, { ...s, classes: [...s.classes, ...named], activeId: named[0].id });
+        // Grænsen håndhæves også her, så intet forsvinder ved næste indlæsning.
+        const room = Math.max(0, MAX_CLASSES - s.classes.length);
+        if (room === 0) return;
+        const kept = named.slice(0, room);
+        commit(key, { ...s, classes: [...s.classes, ...kept], activeId: kept[0].id });
       },
       removeClass(id: string) {
         const s = current();

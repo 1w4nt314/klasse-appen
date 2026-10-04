@@ -66,12 +66,16 @@ export const today = (d = new Date()) =>
  * Én elev pr. linje. Kun hvis alt står på én linje, deles der på komma/semikolon,
  * så "Hansen, Ida" fra et regneark forbliver én elev.
  */
-export function parseNames(text: string): string[] {
+export function splitNames(text: string): string[] {
   return text
     .split(/\r?\n/.test(text) ? /\r?\n/ : /[,;]/)
     .map((n) => n.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH))
-    .filter(Boolean)
-    .slice(0, MAX_STUDENTS);
+    .filter(Boolean);
+}
+
+/** Som splitNames, men højst MAX_STUDENTS. */
+export function parseNames(text: string): string[] {
+  return splitNames(text).slice(0, MAX_STUDENTS);
 }
 
 /** Navne der forekommer mere end én gang (uanset store/små bogstaver). */
@@ -92,50 +96,37 @@ export function createClass(name: string, names: string[]): ClassList {
   };
 }
 
+/** En række i redigeringen: eksisterende elever har deres id med. */
+export type StudentRow = { id?: string; name: string };
+
 /**
- * Opdatér elevlisten. Elever beholder id, plads i runden og fravær — også når
- * de omdøbes (fx "Markus" → "Markus M."). Nye elever kommer med i runden.
- *
- * Matching: 1) samme navn, 2) det nye navn starter med det gamle eller omvendt,
- * 3) samme linje, hvis antallet af elever er uændret. Ellers er det en ny elev.
+ * Opdatér elevlisten ud fra redigerings-rækker. Identitet følger id'et — ikke
+ * navnet — så omdøbning, dublet-navne og ny rækkefølge aldrig flytter en elevs
+ * plads i runden eller fravær over på en anden. Nye elever kommer med i runden.
  */
-export function updateStudents(cls: ClassList, names: string[]): ClassList {
-  const old = cls.students;
-  const taken = new Set<number>();
-  const result: (Student | null)[] = names.map((name) => {
-    const i = old.findIndex((s, j) => !taken.has(j) && s.name === name);
-    if (i < 0) return null;
-    taken.add(i);
-    return old[i];
-  });
-  const free = (k: number) => !taken.has(k) && !names.includes(old[k].name);
-  names.forEach((name, i) => {
-    if (result[i]) return;
-    const lower = name.toLocaleLowerCase("da");
-    let j = old.findIndex((s, k) => {
-      if (!free(k)) return false;
-      const o = s.name.toLocaleLowerCase("da");
-      return lower.startsWith(o) || o.startsWith(lower);
+export function updateStudents(cls: ClassList, rows: StudentRow[]): ClassList {
+  const known = new Set(cls.students.map((s) => s.id));
+  const used = new Set<string>();
+  const students = rows
+    .map((r) => ({ id: r.id, name: r.name.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH) }))
+    .filter((r) => r.name)
+    .slice(0, MAX_STUDENTS)
+    .map((r) => {
+      const id = r.id && known.has(r.id) && !used.has(r.id) ? r.id : newId();
+      used.add(id);
+      return { id, name: r.name };
     });
-    // Samme linje tæller kun som omdøbning, når antallet af elever er uændret.
-    if (j < 0 && old.length === names.length && i < old.length && free(i)) j = i;
-    if (j >= 0) {
-      taken.add(j);
-      result[i] = { id: old[j].id, name };
-    }
-  });
-  const students = result.map((s, i) => s ?? { id: newId(), name: names[i] });
   const ids = new Set(students.map((s) => s.id));
-  const oldIds = new Set(cls.students.map((s) => s.id));
   const pool = [
     ...cls.pool.filter((id) => ids.has(id)),
-    ...students.filter((s) => !oldIds.has(s.id)).map((s) => s.id),
+    ...students.filter((s) => !known.has(s.id)).map((s) => s.id),
   ];
   return {
     ...cls,
     students,
     pool,
     absent: { ...cls.absent, ids: cls.absent.ids.filter((id) => ids.has(id)) },
+    ...(cls.last && !ids.has(cls.last) ? { last: undefined } : {}),
   };
 }
 

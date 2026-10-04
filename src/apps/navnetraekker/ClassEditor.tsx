@@ -5,12 +5,16 @@ import {
   createClass,
   duplicateNames,
   exportStore,
+  MAX_CLASSES,
+  MAX_NAME_LENGTH,
   MAX_STUDENTS,
   parseImport,
   parseNames,
+  splitNames,
   updateStudents,
   type ClassList,
   type Store,
+  type StudentRow,
 } from "./store";
 
 export function ClassEditor({
@@ -32,19 +36,32 @@ export function ClassEditor({
   onClearAll: () => void;
 }) {
   const [name, setName] = useState(cls?.name ?? "");
-  const [text, setText] = useState(cls ? cls.students.map((s) => s.name).join("\n") : "");
+  // Ny klasse: ét tekstfelt. Eksisterende klasse: én række pr. elev, så hver
+  // elev beholder sin plads i runden og sit fravær, uanset omdøbning og dubletter.
+  const [rows, setRows] = useState<StudentRow[]>(
+    () => cls?.students.map((s) => ({ id: s.id, name: s.name })) ?? [],
+  );
+  const [text, setText] = useState("");
   const [importError, setImportError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const names = parseNames(text);
+  const pasted = splitNames(text);
+  const names = cls
+    ? [...rows.map((r) => r.name.trim()).filter(Boolean), ...pasted]
+    : pasted;
   const dupes = duplicateNames(names);
-  const tooMany = text.split(/[\n,;]+/).filter((n) => n.trim()).length > MAX_STUDENTS;
+  const tooMany = names.length > MAX_STUDENTS;
+  const atClassLimit = !cls && store.classes.length >= MAX_CLASSES;
 
   const save = () => {
-    if (names.length === 0) return;
-    if (cls) onSave({ ...updateStudents(cls, names), name: name.trim() || cls.name }, false);
-    else onSave(createClass(name, names), true);
+    if (names.length === 0 || atClassLimit) return;
+    if (cls) {
+      const all = [...rows, ...pasted.map((n) => ({ name: n }))];
+      onSave({ ...updateStudents(cls, all), name: name.trim() || cls.name }, false);
+    } else onSave(createClass(name, parseNames(text)), true);
   };
+
+  const importDisabled = store.classes.length >= MAX_CLASSES;
 
   const download = () => {
     const blob = new Blob([exportStore(store)], { type: "application/json" });
@@ -59,7 +76,14 @@ export function ClassEditor({
   const readFile = async (file: File) => {
     setImportError(null);
     try {
-      onImport(parseImport(await file.text()));
+      if (file.size > 1_000_000) throw new Error("Filen er for stor til at være en klasseliste.");
+      const room = MAX_CLASSES - store.classes.length;
+      const classes = parseImport(await file.text());
+      if (classes.length > room)
+        throw new Error(
+          `Filen har ${classes.length} klasser, men der er kun plads til ${Math.max(room, 0)} mere (højst ${MAX_CLASSES}). Slet nogle klasser først.`,
+        );
+      onImport(classes);
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Filen kunne ikke læses.");
     }
@@ -83,22 +107,63 @@ export function ClassEditor({
           />
         </label>
 
+        {cls && (
+          <div className="mt-4">
+            <p className="mb-1.5 flex items-baseline justify-between text-sm font-bold">
+              Elever
+              <span className="font-normal text-muted tabular-nums">{names.length} elever</span>
+            </p>
+            {rows.length === 0 ? (
+              <p className="text-sm text-muted">Ingen elever endnu.</p>
+            ) : (
+              <ul className="grid gap-1.5 sm:grid-cols-2">
+                {rows.map((r, i) => (
+                  <li key={r.id ?? i} className="flex gap-1.5">
+                    <input
+                      value={r.name}
+                      maxLength={MAX_NAME_LENGTH}
+                      aria-label={`Elev ${i + 1}`}
+                      onChange={(e) =>
+                        setRows((rs) => rs.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                      }
+                      className="min-w-0 flex-1 rounded-control border border-line-strong bg-surface px-2.5 py-1.5 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
+                      aria-label={`Fjern ${r.name || `elev ${i + 1}`}`}
+                      className="rounded-control px-2 text-sm font-bold text-muted hover:bg-danger-soft hover:text-danger"
+                    >
+                      Fjern
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         <label className="mt-4 block">
           <span className="mb-1.5 flex items-baseline justify-between text-sm font-bold">
-            Elever – én pr. linje
-            <span className="font-normal text-muted tabular-nums">{names.length} elever</span>
+            {cls ? "Tilføj nye elever – én pr. linje" : "Elever – én pr. linje"}
+            {!cls && <span className="font-normal text-muted tabular-nums">{names.length} elever</span>}
           </span>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            rows={12}
-            placeholder={"Ida\nNoah\nFreja\nMarkus M.\nMarkus L."}
+            rows={cls ? 4 : 12}
+            placeholder={cls ? "Nye elever …" : "Ida\nNoah\nFreja\nMarkus M.\nMarkus L."}
             className="block w-full rounded-control border border-line-strong bg-surface px-3 py-2.5 font-mono text-sm leading-relaxed outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </label>
         <p className="mt-1.5 text-xs text-muted">
           Du kan indsætte direkte fra et regneark eller Aula. Brug gerne kun fornavn og evt. forbogstav.
         </p>
+        {atClassLimit && (
+          <p className="mt-3 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">
+            Du har {MAX_CLASSES} klasser, som er det højeste antal. Slet en klasse for at oprette en ny.
+          </p>
+        )}
 
         {dupes.length > 0 && (
           <p className="mt-3 rounded-control bg-accent-soft px-3 py-2 text-sm text-accent">
@@ -116,7 +181,7 @@ export function ClassEditor({
           <button
             type="button"
             onClick={save}
-            disabled={names.length === 0}
+            disabled={names.length === 0 || atClassLimit}
             className="rounded-control bg-brand px-5 py-2.5 font-bold text-white hover:bg-brand-strong disabled:opacity-60"
           >
             {cls ? "Gem ændringer" : "Opret klasse"}
@@ -163,7 +228,8 @@ export function ClassEditor({
             <button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="rounded-control border border-line-strong px-4 py-2 text-sm font-bold hover:border-brand hover:text-brand"
+              disabled={importDisabled}
+              className="rounded-control border border-line-strong px-4 py-2 text-sm font-bold hover:border-brand hover:text-brand disabled:opacity-50"
             >
               Hent klasselister fra fil
             </button>

@@ -152,7 +152,8 @@ export function DrawView({
     );
   }
 
-  const longest = Math.max(...(phase === "idle" ? [1] : reel.map((n) => n.length)));
+  // Størrelsen følger det trukne navn (ikke rullens fyldnavne), så korte navne står stort.
+  const longest = phase === "idle" || !drawn ? 1 : drawn.name.length;
 
   return (
     <div className="flex flex-1 flex-col gap-5">

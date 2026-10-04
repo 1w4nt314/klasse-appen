@@ -65,6 +65,8 @@ export default function Navnetraekker({ userKey }: AppProps) {
                 onChange={(e) => {
                   setCreating(false);
                   selectClass(e.target.value);
+                  // Giv fokus fra sig, så mellemrum bagefter trækker.
+                  e.target.blur();
                 }}
                 className="rounded-control border border-line-strong bg-surface px-2.5 py-1.5 font-bold"
               >
@@ -83,7 +85,8 @@ export default function Navnetraekker({ userKey }: AppProps) {
                 <button
                   key={v.id}
                   type="button"
-                  onClick={() => {
+                  onClick={(e) => {
+                    if (e.detail > 0) e.currentTarget.blur();
                     setCreating(false);
                     setView(v.id);
                   }}
