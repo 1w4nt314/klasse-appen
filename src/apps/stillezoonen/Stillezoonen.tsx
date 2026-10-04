@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { depthScale, scare, spawn, step, type Animal, type SceneSize } from "./simulation";
+import type { AppProps } from "../runtime";
+import { CollectionOverlay, CollectionPicker, PawMark } from "./collection/CollectionOverlay";
+import { SPOT_MS } from "./collection/rarity";
+import { useCollection, type Collection } from "./collection/useCollection";
+import { depthScale, scare, spawn, spotted, step, type Animal, type SceneSize } from "./simulation";
 import { getTheme } from "./themes";
 import { CreatureArt } from "./themes/shared";
 import type { Theme } from "./themes/types";
@@ -21,12 +25,21 @@ const CALM_AFTER_MS = 2000;
 /** Første dyr efter start eller efter ro. */
 const FIRST_SPAWN_MS = 1500;
 
-export default function Stillezoonen() {
+export default function Stillezoonen({ userKey }: AppProps) {
   const mic = useMicrophone();
+  const collection = useCollection(userKey);
+  const [showCollection, setShowCollection] = useState(false);
+  const [toast, setToast] = useState<{
+    id: number;
+    name: string;
+    found: number;
+    total: number;
+    noun: string;
+    collection: string;
+  } | null>(null);
   // Komponenten kører kun i browseren (ssr: false), så localStorage kan læses med det samme.
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
-  const [isLoud, setIsLoud] = useState(false);
   /** Timer og beskedtavle: det sidst brugte vindue ligger øverst. */
   const [front, setFront] = useState<"timer" | "board">("board");
 
@@ -38,6 +51,40 @@ export default function Stillezoonen() {
   const settingsRef = useRef(settings);
   const theme = getTheme(settings.theme);
   const themeRef = useRef(theme);
+
+  // Hvad den valgte samling har spottet i det aktuelle tema.
+  const spots = collection.forTheme(collection.active, theme.id);
+  const total = Object.keys(theme.creatures).length;
+  const found = Object.keys(theme.creatures).filter((k) => spots.has(k)).length;
+  const spottedRef = useRef<ReadonlySet<string>>(new Set());
+  // Kaldes fra animationsløkken, når en figur har været fremme længe nok.
+  const onSpotRef = useRef<(kind: string) => void>(() => {});
+  const { record, activeName } = collection;
+  useEffect(() => {
+    spottedRef.current = new Set(spots.keys());
+    onSpotRef.current = (kind) => {
+      const t = themeRef.current;
+      if (!record(t.id, kind)) return;
+      const name = t.creatures[kind]?.name ?? kind;
+      const now = Object.keys(t.creatures).filter((k) => spottedRef.current.has(k) || k === kind).length;
+      spottedRef.current = new Set([...spottedRef.current, kind]);
+      // Tema og samling huskes fra spot-øjeblikket (de kan skifte, mens toasten vises).
+      setToast({
+        id: Date.now(),
+        name,
+        found: now,
+        total: Object.keys(t.creatures).length,
+        noun: t.noun === "dyr" ? "dyr" : "væsen",
+        collection: activeName,
+      });
+    };
+  });
+  // "Nyt dyr!" forsvinder af sig selv.
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(null), 4500);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   // Indstillinger huskes i browseren (pr. lærer-computer).
   useEffect(() => {
@@ -106,7 +153,6 @@ export default function Stillezoonen() {
         loudSince ??= now;
         if (!loud && now - loudSince >= LOUD_AFTER_MS) {
           loud = true;
-          setIsLoud(true);
           scare(simRef.current, now);
         }
       } else {
@@ -115,7 +161,6 @@ export default function Stillezoonen() {
           calmSince ??= now;
           if (now - calmSince >= CALM_AFTER_MS) {
             loud = false;
-            setIsLoud(false);
             lastSpawn = now - tempo * 1000 + FIRST_SPAWN_MS;
           }
         }
@@ -133,12 +178,13 @@ export default function Stillezoonen() {
         sim.filter((a) => a.mode !== "flee").length < maxAnimals &&
         size.width > 0
       ) {
-        sim.push(spawn(sim, size, themeRef.current));
+        sim.push(spawn(sim, size, themeRef.current, spottedRef.current));
         lastSpawn = now;
         changed = true;
       }
 
       const gone = step(sim, size, themeRef.current, now, dt);
+      for (const a of spotted(sim, size, themeRef.current, dt, SPOT_MS)) onSpotRef.current(a.kind);
       if (gone.length) {
         simRef.current = sim.filter((a) => !gone.includes(a.id));
         changed = true;
@@ -185,13 +231,11 @@ export default function Stillezoonen() {
     else document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
-  const visibleCount = animals.filter((a) => a.mode !== "flee").length;
 
   return (
     <div
       className="zoo-root"
       data-theme={theme.id}
-      data-loud={isLoud || undefined}
       style={{ background: theme.backdrop }}
     >
       <div ref={sceneRef} className="zoo-scene">
@@ -273,13 +317,19 @@ export default function Stillezoonen() {
 
         {running && (
           <div className="zoo-top-right">
-            <div className="zoo-chip zoo-count" aria-live="polite">
-              <PawIcon />
-              <span className="tabular-nums">{visibleCount}</span>
-              <span className="zoo-count-label">
-                {theme.noun} {theme.place}
+            <button
+              type="button"
+              className="zoo-chip zoo-paw"
+              onClick={() => setShowCollection(true)}
+              aria-label={`Samling (${collection.activeName}): ${found} af ${total} ${theme.noun} spottet`}
+              title={`${collection.activeName} · ${found} af ${total} spottet`}
+            >
+              <PawMark />
+              <span className="tabular-nums">
+                {found}
+                <span className="zoo-paw-total">/{total}</span>
               </span>
-            </div>
+            </button>
             <ToggleButton
               label="Beskedtavle"
               pressed={settings.board}
@@ -319,17 +369,6 @@ export default function Stillezoonen() {
         )}
       </div>
 
-      {running && (
-        <div className="zoo-banner" role="status" aria-live="assertive">
-          {isLoud ? (
-            <>
-              <strong>Shhh …</strong> {theme.nounDefinite} blev bange. Når der er ro
-              igen, kommer de tilbage.
-            </>
-          ) : null}
-        </div>
-      )}
-
       {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start.
           Det vindue, man sidst rørte (timer eller tavle), ligger øverst. Over
           startskærmens overlay (400), men under menuerne mens zoo'en kører. */}
@@ -357,8 +396,32 @@ export default function Stillezoonen() {
         </div>
       )}
 
+      {running && toast && (
+        <div key={toast.id} className="zoo-toast" role="status">
+          <PawMark size={22} />
+          <span>
+            <strong>Nyt {toast.noun} spottet!</strong> {toast.name}
+            <small className="tabular-nums">
+              {toast.found} af {toast.total} · {toast.collection}
+            </small>
+          </span>
+        </div>
+      )}
+
+      {showCollection && (
+        <CollectionOverlay
+          collection={collection}
+          theme={theme.id}
+          onClose={() => {
+            setShowCollection(false);
+            document.querySelector<HTMLElement>(".zoo-paw")?.focus({ preventScroll: true });
+          }}
+        />
+      )}
+
       {running ? null : (
         <StartScreen
+          collection={collection}
           status={mic.status}
           onStart={mic.start}
           theme={theme}
@@ -378,11 +441,13 @@ const MIC_MESSAGES: Partial<Record<MicStatus, string>> = {
 };
 
 function StartScreen({
+  collection,
   status,
   onStart,
   theme,
   onTheme,
 }: {
+  collection: Collection;
   status: MicStatus;
   onStart: () => void;
   theme: Theme;
@@ -407,6 +472,12 @@ function StartScreen({
           <p className="zoo-start-label">Vælg tema</p>
           <ThemePicker current={theme.id} onChange={onTheme} />
         </div>
+        <div className="zoo-start-themes">
+          <p className="zoo-start-label">
+            Hvem samler? <span className="zoo-start-optional">(valgfrit)</span>
+          </p>
+          <CollectionPicker collection={collection} />
+        </div>
         <button
           type="button"
           className="zoo-start-btn"
@@ -427,17 +498,5 @@ function StartScreen({
         )}
       </div>
     </div>
-  );
-}
-
-function PawIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor">
-      <ellipse cx="12" cy="16" rx="5" ry="4.2" />
-      <ellipse cx="6" cy="10.5" rx="2.2" ry="2.8" />
-      <ellipse cx="18" cy="10.5" rx="2.2" ry="2.8" />
-      <ellipse cx="9.3" cy="6.3" rx="2.1" ry="2.7" />
-      <ellipse cx="14.7" cy="6.3" rx="2.1" ry="2.7" />
-    </svg>
   );
 }

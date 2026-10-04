@@ -1,3 +1,4 @@
+import { RARITY, SPOTTED_BONUS } from "./collection/rarity";
 import type { CreatureSpec, Theme } from "./themes/types";
 
 /**
@@ -30,6 +31,10 @@ export type Animal = {
   until: number;
   /** Lille personlig variation i tempo. */
   jitter: number;
+  /** Ms figuren har været helt fremme på skærmen i ro (se SPOT_MS). */
+  seen: number;
+  /** Talt med som spottet (højst én gang pr. figur). */
+  spotted: boolean;
 };
 
 export type SceneSize = { width: number; height: number };
@@ -54,13 +59,27 @@ export function widthFraction(spec: CreatureSpec, depth: number, s: SceneSize) {
   return s.width > 0 ? (h * spec.aspect) / s.width : 0.1;
 }
 
-function pickKind(animals: Animal[], theme: Theme) {
+/**
+ * Vælg næste figur. Vægt efter sjældenhed, et lille plus til figurer
+ * samlingen allerede har spottet, og meget mindre chance for en figur, der
+ * allerede er på skærmen (så der bliver variation).
+ */
+function pickKind(animals: Animal[], theme: Theme, spotted: ReadonlySet<string>) {
   const kinds = Object.keys(theme.creatures);
   const counts = new Map<string, number>();
-  for (const a of animals) counts.set(a.kind, (counts.get(a.kind) ?? 0) + 1);
-  const min = Math.min(...kinds.map((k) => counts.get(k) ?? 0));
-  const pool = kinds.filter((k) => (counts.get(k) ?? 0) === min);
-  return pool[Math.floor(Math.random() * pool.length)];
+  for (const a of animals) if (a.mode !== "flee") counts.set(a.kind, (counts.get(a.kind) ?? 0) + 1);
+  const weights = kinds.map(
+    (k) =>
+      RARITY[theme.creatures[k].rarity ?? "common"].weight *
+      (spotted.has(k) ? SPOTTED_BONUS : 1) *
+      0.15 ** (counts.get(k) ?? 0),
+  );
+  let r = Math.random() * weights.reduce((sum, w) => sum + w, 0);
+  for (let i = 0; i < kinds.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return kinds[i];
+  }
+  return kinds[kinds.length - 1];
 }
 
 /** Find en ledig plads: det bedste af nogle tilfældige bud. */
@@ -92,8 +111,13 @@ const clampX = (x: number, half: number) =>
 
 let nextId = 1;
 
-export function spawn(animals: Animal[], s: SceneSize, theme: Theme): Animal {
-  const kind = pickKind(animals, theme);
+export function spawn(
+  animals: Animal[],
+  s: SceneSize,
+  theme: Theme,
+  spotted: ReadonlySet<string> = new Set(),
+): Animal {
+  const kind = pickKind(animals, theme, spotted);
   const spec = theme.creatures[kind];
   const open = zoneOf(spec, theme) === "open" ? theme.openRange : null;
   const spot = pickSpot(animals, s, open);
@@ -115,7 +139,31 @@ export function spawn(animals: Animal[], s: SceneSize, theme: Theme): Animal {
     mode: "walk",
     until: 0,
     jitter: rand(0.85, 1.15),
+    seen: 0,
+    spotted: false,
   };
+}
+
+/**
+ * Tæl tid for figurer, der er helt fremme på skærmen og i ro (går eller står).
+ * Returnerer de figurer, der lige nu har været fremme længe nok til at tælle
+ * som spottet — hver figur højst én gang.
+ */
+export function spotted(animals: Animal[], s: SceneSize, theme: Theme, dt: number, spotMs: number) {
+  const found: Animal[] = [];
+  for (const a of animals) {
+    if (a.spotted || (a.mode !== "walk" && a.mode !== "idle")) continue;
+    const spec = theme.creatures[a.kind];
+    if (!spec) continue;
+    const half = widthFraction(spec, a.depth, s) / 2;
+    if (a.x - half < 0 || a.x + half > 1) continue;
+    a.seen += dt * 1000;
+    if (a.seen >= spotMs) {
+      a.spotted = true;
+      found.push(a);
+    }
+  }
+  return found;
 }
 
 export function scare(animals: Animal[], now: number) {
