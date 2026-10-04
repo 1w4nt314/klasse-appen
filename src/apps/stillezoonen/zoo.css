@@ -308,6 +308,20 @@
 .zoo-animal[data-gait="float"][data-mode="flee"] .zoo-body {
   animation-duration: 260ms;
 }
+/* Vinger (kolibri, sommerfugl): slår hele tiden. --flap = varighed pr. slag. */
+.zoo-wing {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: zoo-flap var(--flap, 0.3s) ease-in-out infinite alternate;
+}
+@keyframes zoo-flap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.25);
+  }
+}
 
 /* Figurer der svæver frit, kaster ingen skygge på jorden. */
 .zoo-animal[data-zone="open"] .zoo-shadow {
