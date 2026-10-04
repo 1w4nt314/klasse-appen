@@ -320,21 +320,6 @@
   }
 }
 
-/* Når det er for larmende, bliver junglen en anelse mørkere. */
-.zoo-scene::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 150;
-  pointer-events: none;
-  background: rgb(20 30 40 / 0.18);
-  opacity: 0;
-  transition: opacity 400ms ease;
-}
-.zoo-root[data-loud] .zoo-scene::after {
-  opacity: 1;
-}
-
 /* ---------- Overlays ---------- */
 
 .zoo-chip {
@@ -680,32 +665,6 @@
   outline-offset: 2px;
 }
 
-.zoo-banner {
-  position: absolute;
-  z-index: 300;
-  top: max(24%, 15rem);
-  left: 50%;
-  translate: -50% 0;
-  max-width: min(90vw, 40rem);
-  text-align: center;
-  font-size: clamp(1.1rem, 2.6vh, 2rem);
-  line-height: 1.35;
-  pointer-events: none;
-}
-.zoo-banner:not(:empty) {
-  padding: 0.9rem 1.4rem;
-  border-radius: var(--radius-card);
-  background: rgb(255 255 255 / 0.94);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-float);
-  animation: zoo-pop 220ms ease-out;
-}
-.zoo-banner strong {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.6em;
-  color: var(--danger);
-}
 @keyframes zoo-pop {
   from {
     opacity: 0;
@@ -1166,4 +1125,361 @@
 }
 .mb-window[data-theme="alien"] .mb-text {
   text-shadow: 0 0 6px rgb(111 245 210 / 0.7), 0 0 18px rgb(111 245 210 / 0.35);
+}
+
+/* ---------- Samling (pote-knap, "Nyt dyr!", oversigt) ---------- */
+.zoo-paw {
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 1rem;
+  color: var(--accent);
+  padding: 0.45rem 0.75rem;
+  min-height: 2.4rem;
+}
+.zoo-paw:hover {
+  background: #fff;
+  color: var(--brand);
+}
+/* Lille skærm: kun antallet, så knappen ikke rammer lydmåleren. */
+@media (max-width: 480px) {
+  .zoo-paw-total {
+    display: none;
+  }
+  .zoo-paw {
+    padding-inline: 0.6rem;
+  }
+}
+
+.zoo-toast {
+  position: absolute;
+  z-index: 330;
+  top: 4.25rem;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 1.1rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: rgb(255 255 255 / 0.96);
+  box-shadow: var(--shadow-float);
+  color: var(--accent);
+  pointer-events: none;
+  animation: zoo-toast 4.5s ease-in-out both;
+}
+.zoo-toast > span {
+  display: grid;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+.zoo-toast strong {
+  font-family: var(--font-display);
+  color: var(--accent);
+}
+.zoo-toast small {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+@keyframes zoo-toast {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  8%,
+  85% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.zc-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  padding: clamp(0.5rem, 2vw, 1.25rem);
+  background: rgb(15 25 35 / 0.45);
+}
+.zc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(0.9rem, 2vw, 1.4rem);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+  animation: zoo-pop 160ms ease-out;
+}
+.zc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+.zc-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 auto 0 0;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--brand-strong);
+}
+.zc-who select {
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-weight: 700;
+}
+.zc-btn {
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.zc-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.zc-btn[aria-expanded="true"],
+.zc-primary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.zc-primary:hover {
+  color: #fff;
+  background: var(--brand-strong);
+}
+.zc-btn:disabled {
+  opacity: 0.5;
+}
+.zc-danger {
+  color: var(--danger);
+}
+.zc-close {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 1rem;
+}
+.zc-close:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.zc-classes {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.8rem;
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+}
+.zc-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.zc-add input {
+  flex: 1 1 10rem;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+.zc-class-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.zc-class-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.zc-class-name {
+  flex: 1;
+  font-weight: 800;
+}
+.zc-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+.zc-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.zc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.zc-tabs button {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.zc-tabs button[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.zc-progress {
+  display: grid;
+  gap: 0.35rem;
+}
+.zc-bar {
+  display: block;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--canvas);
+  overflow: hidden;
+}
+.zc-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 300ms ease;
+}
+
+.zc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.zc-card {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  padding: 0.6rem 0.5rem 0.7rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: center;
+}
+.zc-card[data-spotted="false"] {
+  background: var(--canvas);
+}
+.zc-art-box {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 6.5rem;
+  /* Haler o.l. kan stikke ud af figurens viewBox — hold dem inde i feltet. */
+  overflow: hidden;
+}
+.zc-art {
+  max-width: 78%;
+  max-height: 72%;
+  width: auto;
+  height: 72%;
+}
+/* Ikke spottet: kun silhuetten. */
+.zc-card[data-spotted="false"] .zc-art {
+  filter: brightness(0);
+  opacity: 0.22;
+}
+.zc-name {
+  font-weight: 800;
+}
+.zc-card[data-spotted="false"] .zc-name {
+  color: var(--muted);
+  letter-spacing: 0.1em;
+}
+.zc-rarity {
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.zc-card[data-rarity="rare"] .zc-rarity {
+  background: #ede4ff;
+  color: #5a33b5;
+}
+.zc-card[data-rarity="legendary"] .zc-rarity {
+  background: #fff1c7;
+  color: #8a5a00;
+}
+.zc-meta {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.zc-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* Startskærmen: hvem samler? */
+.zc-picker {
+  display: grid;
+  gap: 0.5rem;
+}
+.zc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.zc-chips button {
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.zc-chips button[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.zc-chips .zc-chip-add {
+  border-style: dashed;
+  color: var(--brand);
+}
+.zoo-start-optional {
+  font-weight: 400;
+  color: var(--muted);
+}
+/* Mobil: luk-knappen på linje med titlen, vælgerne under. */
+@media (max-width: 520px) {
+  .zc-title {
+    flex: 1 1 calc(100% - 3.5rem);
+  }
+  .zc-close {
+    order: 1;
+  }
+  .zc-who,
+  .zc-head > .zc-btn {
+    order: 2;
+  }
 }

@@ -69,3 +69,4 @@ export const signupLimiter = createLimiter();
 export const wishLimiter = createLimiter();
 export const likeLimiter = createLimiter();
 export const mailLimiter = createLimiter();
+export const zooLimiter = createLimiter();

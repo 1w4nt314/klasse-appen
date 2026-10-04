@@ -13,8 +13,13 @@ export type Gait = "walk" | "hop" | "slither" | "swim" | "float";
 /** Hvor en figur opholder sig: på jorden (dybde-bånd) eller frit i vandet/luften. */
 export type Zone = "ground" | "open";
 
+/** Hvor sjælden en figur er. Styrer, hvor ofte den dukker op (se collection/rarity.ts). */
+export type Rarity = "common" | "uncommon" | "rare" | "legendary";
+
 export type CreatureSpec = {
   name: string;
+  /** Standard: almindelig. */
+  rarity?: Rarity;
   /** Højde i procent af scenens højde når figuren er forrest. */
   height: number;
   /** viewBox-bredde / -højde. */

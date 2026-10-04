@@ -102,6 +102,28 @@ const MIGRATIONS = [
   );
   create index pending_signups_email on pending_signups (email);
   `,
+  // Stillezoonen: lærerens klasser og hvilke dyr hver samling har spottet.
+  // collection = 'mine' (lærerens egen samling) eller et klasse-id.
+  `
+  create table zoo_classes (
+    id text primary key,
+    user_id text not null references users (id) on delete cascade,
+    name text not null,
+    created_at integer not null,
+    unique (user_id, name)
+  );
+
+  create table zoo_sightings (
+    user_id text not null references users (id) on delete cascade,
+    collection text not null,
+    theme text not null,
+    creature text not null,
+    first_seen integer not null,
+    last_seen integer not null,
+    count integer not null default 1,
+    primary key (user_id, collection, theme, creature)
+  );
+  `,
 ];
 
 /** Hvor databasen ligger. scripts/admin.mjs finder den på samme måde (DATA_DIR → /var/data → ./data). */
