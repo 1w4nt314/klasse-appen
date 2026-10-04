@@ -13,9 +13,14 @@ export type AnimalKind =
   | "gorilla"
   | "toucan"
   | "frog"
-  | "crocodile";
+  | "crocodile"
+  | "parrot"
+  | "panther"
+  | "sloth"
+  | "tapir"
+  | "snake";
 
-export type Gait = "walk" | "hop";
+export type Gait = "walk" | "hop" | "slither";
 
 export type AnimalSpec = {
   name: string;
@@ -118,7 +123,7 @@ const monkey: AnimalSpec = {
   art: (
     <>
       <path d="M38 98 C 8 100, 6 64, 26 62 C 40 60, 40 80, 28 80" stroke="#7a4a2a" strokeWidth="6" fill="none" strokeLinecap="round" />
-      <g className="zoo-leg zoo-leg-a"><path d="M74 112 v 30" stroke="#6a3f23" strokeWidth="11" strokeLinecap="round" /></g>
+      <g className="zoo-leg zoo-leg-a"><path d="M74 112 v 30" stroke="#6a3f23" strokeWidth="11" strokeLinecap="round" /><ellipse cx="78" cy="145" rx="9" ry="4" fill="#c49a70" /></g>
       <g className="zoo-leg zoo-leg-b"><path d="M76 74 l 18 24" stroke="#6a3f23" strokeWidth="9" strokeLinecap="round" /></g>
       <g className="zoo-torso"><ellipse cx="66" cy="94" rx="28" ry="30" fill="#8a5632" /><ellipse cx="72" cy="98" rx="16" ry="20" fill="#d9ab7f" /></g>
       <g className="zoo-leg zoo-leg-b"><path d="M58 112 v 32" stroke="#8a5632" strokeWidth="12" strokeLinecap="round" /><ellipse cx="62" cy="145" rx="9" ry="4" fill="#d9ab7f" /></g>
@@ -253,6 +258,171 @@ const crocodile: AnimalSpec = {
   ),
 };
 
+const parrot: AnimalSpec = {
+  name: "Papegøje",
+  height: 13,
+  aspect: 120 / 140,
+  gait: "hop",
+  pace: 1.05,
+  viewBox: "0 0 120 140",
+  art: (
+    <>
+      <path d="M44 100 L 14 136 L 24 138 L 52 108 Z" fill="#2f6fd6" />
+      <path d="M46 102 L 22 138 L 30 138 L 54 110 Z" fill="#e0352b" />
+      <g className="zoo-leg zoo-leg-a"><path d="M56 118 v 16 M51 136 h 10" stroke="#6b6b6b" strokeWidth="4.5" strokeLinecap="round" /></g>
+      <g className="zoo-leg zoo-leg-b"><path d="M67 118 v 16 M62 136 h 10" stroke="#7d7d7d" strokeWidth="4.5" strokeLinecap="round" /></g>
+      <g className="zoo-torso">
+        <ellipse cx="60" cy="90" rx="24" ry="33" fill="#e0352b" />
+        <path d="M40 74 C 54 70, 64 82, 62 102 C 58 116, 44 118, 36 108 C 32 96, 32 82, 40 74 Z" fill="#2f6fd6" />
+        <path d="M40 76 C 52 74, 58 82, 58 90 C 50 88, 42 86, 37 84 Z" fill="#f4c430" />
+        <path d="M40 96 h 18 M40 104 h 16" stroke="#2559ad" strokeWidth="3" strokeLinecap="round" />
+      </g>
+      <g className="zoo-head">
+        <circle cx="72" cy="46" r="21" fill="#e0352b" />
+        <ellipse cx="81" cy="47" rx="10" ry="12" fill="#fff" />
+        <path d="M76 52 q 4 1 8 0 M77 56 q 4 1 7 0" stroke="#e6b3a8" strokeWidth="1.5" fill="none" />
+        <path d="M88 40 C 102 38, 108 50, 102 62 C 98 56, 94 54, 89 54 Z" fill="#2b2b2b" />
+        <path d="M88 52 C 94 54, 98 58, 100 64 C 94 64, 90 60, 88 56 Z" fill="#efe6d2" />
+        {EYE(81, 43, 3.4)}
+      </g>
+    </>
+  ),
+};
+
+const panther: AnimalSpec = {
+  name: "Sort panter",
+  height: 17,
+  aspect: 210 / 124,
+  gait: "walk",
+  pace: 1.2,
+  viewBox: "0 0 210 124",
+  art: (
+    <>
+      <path d="M42 64 C 22 66, 10 52, 14 30" stroke="#2a2b31" strokeWidth="9" fill="none" strokeLinecap="round" />
+      <g className="zoo-leg zoo-leg-a"><rect x="138" y="70" width="15" height="52" rx="7" fill="#1f2025" /></g>
+      <g className="zoo-leg zoo-leg-b"><rect x="54" y="70" width="15" height="52" rx="7" fill="#1f2025" /></g>
+      <g className="zoo-torso">
+        <ellipse cx="100" cy="68" rx="64" ry="25" fill="#2f3138" />
+        <path d="M58 52 C 86 42, 126 42, 150 54" stroke="#4a4d57" strokeWidth="6" fill="none" strokeLinecap="round" />
+      </g>
+      <g className="zoo-leg zoo-leg-b"><rect x="150" y="72" width="16" height="50" rx="7" fill="#2f3138" /><ellipse cx="160" cy="120" rx="10" ry="4" fill="#3b3e46" /></g>
+      <g className="zoo-leg zoo-leg-a"><rect x="64" y="72" width="16" height="50" rx="7" fill="#2f3138" /><ellipse cx="74" cy="120" rx="10" ry="4" fill="#3b3e46" /></g>
+      <g className="zoo-head">
+        <circle cx="160" cy="36" r="7" fill="#2f3138" />
+        <circle cx="184" cy="36" r="7" fill="#2f3138" />
+        <circle cx="172" cy="54" r="23" fill="#2f3138" />
+        <ellipse cx="184" cy="64" rx="14" ry="10" fill="#3d4049" />
+        <path d="M188 57 l 7 0 l -3.5 4.5 z" fill="#15161a" />
+        <circle cx="179" cy="48" r="5" fill="#d9c34a" />
+        {EYE(180, 48, 2.8)}
+      </g>
+    </>
+  ),
+};
+
+const sloth: AnimalSpec = {
+  name: "Dovendyr",
+  height: 14,
+  aspect: 160 / 110,
+  gait: "walk",
+  pace: 0.4,
+  viewBox: "0 0 160 110",
+  art: (
+    <>
+      <g className="zoo-leg zoo-leg-a"><path d="M112 62 C 118 80, 120 94, 118 106 M112 106 l 4 -6 M118 106 l 3 -6" stroke="#8a6a4c" strokeWidth="9" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-leg zoo-leg-b"><path d="M46 64 C 42 80, 42 94, 44 106" stroke="#8a6a4c" strokeWidth="10" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-torso">
+        <ellipse cx="80" cy="60" rx="52" ry="30" fill="#a8845f" />
+        <path d="M40 50 C 58 40, 98 38, 120 48" stroke="#bf9c75" strokeWidth="8" fill="none" strokeLinecap="round" />
+        <path d="M44 74 q 4 4 8 0 q 4 4 8 0 M96 76 q 4 4 8 0 q 4 4 8 0" stroke="#8f6e50" strokeWidth="2.5" fill="none" />
+      </g>
+      <g className="zoo-leg zoo-leg-b"><path d="M120 64 C 128 80, 130 94, 128 106 M122 107 l 5 -7 M128 107 l 4 -7 M134 106 l 2 -6" stroke="#a8845f" strokeWidth="10" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-leg zoo-leg-a"><path d="M56 66 C 52 82, 52 94, 54 106 M50 107 l 4 -6 M56 107 l 3 -6" stroke="#a8845f" strokeWidth="11" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-head">
+        <circle cx="132" cy="42" r="22" fill="#a8845f" />
+        <ellipse cx="136" cy="44" rx="16" ry="13" fill="#e9d6b4" />
+        <path d="M124 40 C 126 34, 134 36, 134 42 C 132 48, 124 46, 124 40 Z" fill="#4a3424" />
+        <path d="M138 40 C 140 34, 148 36, 148 42 C 146 48, 138 46, 138 40 Z" fill="#4a3424" />
+        {EYE(130, 41, 2.6)}
+        {EYE(143, 41, 2.6)}
+        <ellipse cx="137" cy="49" rx="3" ry="2" fill="#3a2a1d" />
+        <path d="M131 53 q 6 5 12 0" stroke="#4a3424" strokeWidth="2" fill="none" strokeLinecap="round" />
+      </g>
+    </>
+  ),
+};
+
+const tapir: AnimalSpec = {
+  name: "Tapir",
+  height: 17,
+  aspect: 210 / 130,
+  gait: "walk",
+  pace: 0.85,
+  viewBox: "0 0 210 130",
+  art: (
+    <>
+      <g className="zoo-leg zoo-leg-a"><rect x="140" y="80" width="17" height="48" rx="7" fill="#1e2024" /></g>
+      <g className="zoo-leg zoo-leg-b"><rect x="50" y="80" width="17" height="48" rx="7" fill="#1e2024" /></g>
+      <g className="zoo-torso">
+        <ellipse cx="100" cy="70" rx="66" ry="36" fill="#2b2d33" />
+        <path d="M62 38 C 80 32, 116 32, 132 40 C 136 60, 134 86, 128 102 C 110 106, 84 106, 66 102 C 58 84, 56 58, 62 38 Z" fill="#eceae4" />
+      </g>
+      <g className="zoo-leg zoo-leg-b"><rect x="152" y="82" width="18" height="46" rx="7" fill="#2b2d33" /></g>
+      <g className="zoo-leg zoo-leg-a"><rect x="64" y="82" width="18" height="46" rx="7" fill="#2b2d33" /></g>
+      <g className="zoo-head">
+        <circle cx="158" cy="38" r="8" fill="#2b2d33" />
+        <circle cx="158" cy="38" r="4" fill="#eceae4" />
+        <ellipse cx="170" cy="60" rx="28" ry="24" fill="#2b2d33" />
+        <path d="M190 54 C 202 56, 208 64, 206 76 C 204 80, 198 78, 198 74 C 196 68, 192 66, 186 66 Z" fill="#2b2d33" />
+        {EYE(180, 52, 3.2)}
+      </g>
+    </>
+  ),
+};
+
+const SNAKE_SEGMENTS = [
+  [18, 44, 5],
+  [32, 42, 7],
+  [48, 40, 9],
+  [66, 40, 10],
+  [86, 42, 11],
+  [106, 44, 11],
+  [126, 42, 11],
+  [146, 40, 11],
+  [166, 40, 10.5],
+] as const;
+
+const snake: AnimalSpec = {
+  name: "Slange",
+  height: 8,
+  aspect: 220 / 56,
+  gait: "slither",
+  pace: 0.9,
+  viewBox: "0 0 220 56",
+  art: (
+    <>
+      {SNAKE_SEGMENTS.map(([x, y, r], i) => (
+        <g
+          key={i}
+          className="zoo-seg"
+          style={{ "--i": i } as React.CSSProperties}
+        >
+          <circle cx={x} cy={y} r={r} fill="#3e9b4f" />
+          <ellipse cx={x} cy={y + r * 0.45} rx={r * 0.85} ry={r * 0.45} fill="#e8d36a" />
+          {i % 2 === 1 && <circle cx={x} cy={y - r * 0.4} r={r * 0.35} fill="#2c7a3b" />}
+        </g>
+      ))}
+      <g className="zoo-seg zoo-head" style={{ "--i": 9 } as React.CSSProperties}>
+        <path d="M200 46 l 12 -2 l 4 -4 M212 44 l 5 2" stroke="#d6453a" strokeWidth="2" fill="none" strokeLinecap="round" />
+        <ellipse cx="186" cy="38" rx="17" ry="12" fill="#3e9b4f" />
+        <ellipse cx="190" cy="43" rx="12" ry="5" fill="#e8d36a" />
+        <circle cx="192" cy="32" r="6" fill="#fff" />
+        {EYE(193, 32, 3.4)}
+      </g>
+    </>
+  ),
+};
+
 export const ANIMALS: Record<AnimalKind, AnimalSpec> = {
   elephant,
   tiger,
@@ -261,6 +431,11 @@ export const ANIMALS: Record<AnimalKind, AnimalSpec> = {
   toucan,
   frog,
   crocodile,
+  parrot,
+  panther,
+  sloth,
+  tapir,
+  snake,
 };
 
 export const ANIMAL_KINDS = Object.keys(ANIMALS) as AnimalKind[];

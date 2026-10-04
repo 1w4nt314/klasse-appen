@@ -102,6 +102,20 @@
   animation: zoo-hop 260ms ease-in-out infinite;
 }
 
+/* Slange: segmenterne bølger i forskudt takt. */
+.zoo-animal[data-gait="slither"] .zoo-seg {
+  animation: zoo-slither calc(var(--step) * 1.6) ease-in-out infinite alternate;
+  animation-delay: calc(var(--i) * -0.14s);
+  animation-play-state: paused;
+}
+.zoo-animal[data-gait="slither"][data-mode="walk"] .zoo-seg,
+.zoo-animal[data-gait="slither"][data-mode="flee"] .zoo-seg {
+  animation-play-state: running;
+}
+.zoo-animal[data-gait="slither"][data-mode="flee"] .zoo-seg {
+  animation-duration: 180ms;
+}
+
 /* Flugt: alt går meget hurtigere. */
 .zoo-animal[data-mode="flee"] {
   --step: 140ms !important;
@@ -161,6 +175,14 @@
   }
   to {
     transform: rotate(-18deg);
+  }
+}
+@keyframes zoo-slither {
+  from {
+    transform: translateY(-5px);
+  }
+  to {
+    transform: translateY(5px);
   }
 }
 @keyframes zoo-bob {
