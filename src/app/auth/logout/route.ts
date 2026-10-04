@@ -1,10 +1,9 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { endSession } from "@/lib/session";
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   await endSession();
-  const url = request.nextUrl.clone();
-  url.pathname = "/";
-  url.search = "";
-  return NextResponse.redirect(url, { status: 303 });
+  // Relativ adresse: bag Render-proxyen kender serveren kun sin interne
+  // adresse (localhost:10000), så browseren må selv sætte domænet på.
+  return new NextResponse(null, { status: 303, headers: { Location: "/" } });
 }
