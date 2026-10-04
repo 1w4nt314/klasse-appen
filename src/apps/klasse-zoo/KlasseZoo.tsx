@@ -162,7 +162,8 @@ export default function KlasseZoo() {
         const el = elementsRef.current.get(a.id);
         if (!el) continue;
         el.style.transform = `translate3d(${a.x * size.width}px,0,0)`;
-        if (a.bottom !== a.targetBottom) el.style.bottom = `${a.bottom}%`;
+        const bottom = `${a.bottom}%`;
+        if (el.style.bottom !== bottom) el.style.bottom = bottom;
         if (el.dataset.mode !== a.mode) el.dataset.mode = a.mode;
         if (el.dataset.dir !== String(a.dir)) el.dataset.dir = String(a.dir);
       }
