@@ -4,8 +4,9 @@ Gratis apps som lærere kan bruge i klasseværelset. Lærere opretter en bruger
 (navn, skole, e-mail), og ser derefter en oversigt over alle apps, hvor de kan
 stjerne deres favoritter.
 
-**Stack:** Next.js 16 (App Router, TypeScript), Tailwind CSS v4, Supabase (Auth +
-Postgres), hosting på Render.
+**Stack:** Next.js 16 (App Router, TypeScript), Tailwind CSS v4, SQLite (Node's
+indbyggede `node:sqlite`) — alt kører på én web-instans på Render. Ingen eksterne
+tjenester.
 
 ## Apps
 
@@ -42,24 +43,26 @@ huskes i browseren.
 
 ```bash
 npm install
-cp .env.example .env.local   # udfyld Supabase-nøgler (valgfrit)
 npm run dev
 ```
 
-Uden Supabase-nøgler kører sitet i **demo-tilstand**: alle apps kan åbnes uden
-login, og favoritter gemmes kun i browseren.
+Databasen oprettes automatisk i `./data/klasse-appen.db` ved første request
+(skift mappe med `DATA_DIR`). Tabellerne (`users`, `sessions`, `favorites`)
+oprettes/migreres af [`src/lib/db.ts`](src/lib/db.ts).
 
-## Opsætning af Supabase
+## Login
 
-1. Opret et Supabase-projekt (region EU).
-2. Kør [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql)
-   i SQL-editoren (opretter `profiles`, `favorites`, RLS og trigger).
-3. **Authentication → URL Configuration:** sæt *Site URL* til sitets adresse og
-   tilføj `https://<dit-domæne>/auth/confirm` (og `http://localhost:3000/auth/confirm`)
-   under *Redirect URLs*.
-4. Sæt `NEXT_PUBLIC_SUPABASE_URL` og `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+Egen login uden eksterne tjenester: adgangskoder hashes med scrypt, sessioner er
+tilfældige tokens i en httpOnly-cookie (30 dage), og loginforsøg begrænses pr.
+IP/e-mail. Der er ingen mailudsendelse, så der er hverken e-mailbekræftelse eller
+"glemt adgangskode" i V1.
 
 ## Deploy på Render
 
-`render.yaml` er et Blueprint: *New → Blueprint* og vælg repoet. Udfyld de tre
-miljøvariabler (`NEXT_PUBLIC_*` bages ind ved build, så redeploy efter ændringer).
+`render.yaml` er et Blueprint: *New → Blueprint* og vælg repoet. Det opretter en
+web service med en 1 GB persistent disk monteret på `/var/data`, hvor databasen
+ligger.
+
+> Persistent disk kræver en betalt instans (Starter). På gratis-planen er
+> filsystemet midlertidigt, så alle brugere forsvinder ved hvert deploy.
+> Med disk kan der kun køre én instans ad gangen (det er fint her).

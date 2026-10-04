@@ -1,51 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useOptimistic, useState, useTransition, type ReactNode } from "react";
+import { useOptimistic, useState, useTransition, type ReactNode } from "react";
 import type { AppManifest } from "@/apps/types";
 import { setFavorite } from "./actions";
 
 export type AppCardData = Omit<AppManifest, "Thumbnail"> & { thumbnail: ReactNode };
 
-const LOCAL_KEY = "klasse-appen:favorites";
-
 export function AppGrid({
   apps,
   initialFavorites,
-  persist,
 }: {
   apps: AppCardData[];
   initialFavorites: string[];
-  /** false i demo-tilstand: favoritter gemmes kun i browseren. */
-  persist: boolean;
 }) {
   const [saved, setSaved] = useState(initialFavorites);
   const [favorites, setOptimistic] = useOptimistic(saved);
   const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (persist) return;
-    try {
-      const local = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? "[]");
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- localStorage findes først i browseren
-      if (Array.isArray(local)) setSaved(local);
-    } catch {}
-  }, [persist]);
 
   const toggle = (slug: string) => {
     const on = !favorites.includes(slug);
     const next = on ? [...favorites, slug] : favorites.filter((s) => s !== slug);
     startTransition(async () => {
       setOptimistic(next);
-      if (persist) {
-        const res = await setFavorite(slug, on);
-        if (!res.ok) return; // Optimistisk tilstand rulles tilbage af sig selv.
-      } else {
-        try {
-          localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
-        } catch {}
-      }
-      setSaved(next);
+      const res = await setFavorite(slug, on);
+      // Fejler det, rulles den optimistiske tilstand tilbage af sig selv.
+      if (res.ok) setSaved(next);
     });
   };
 

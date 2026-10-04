@@ -3,16 +3,17 @@ services:
     name: klasse-appen
     runtime: node
     region: frankfurt
-    plan: free
+    # Persistent disk kræver en betalt instans. På "free" mistes alle
+    # brugere og favoritter ved hvert deploy/genstart.
+    plan: starter
     buildCommand: npm ci && npm run build
     startCommand: npm start
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-        sync: false
-      # Fx https://klasse-appen.onrender.com — bruges i links i mails.
-      - key: NEXT_PUBLIC_SITE_URL
-        sync: false
+      - key: DATA_DIR
+        value: /var/data

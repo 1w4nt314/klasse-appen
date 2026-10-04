@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { apps, getApp } from "@/apps/registry";
+import { getApp } from "@/apps/registry";
 import { AppRuntime } from "@/apps/runtime";
-
-export function generateStaticParams() {
-  return apps.map((a) => ({ slug: a.slug }));
-}
+import { requireTeacher } from "@/lib/session";
 
 export async function generateMetadata({
   params,
@@ -17,5 +14,6 @@ export async function generateMetadata({
 export default async function AppPage({ params }: PageProps<"/apps/[slug]">) {
   const { slug } = await params;
   if (!getApp(slug)) notFound();
+  await requireTeacher(`/apps/${slug}`);
   return <AppRuntime slug={slug} />;
 }

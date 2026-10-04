@@ -6,7 +6,7 @@ import { LoginForm } from "./LoginForm";
 export const metadata: Metadata = { title: "Log ind" };
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
-  const { next, fejl } = await searchParams;
+  const { next } = await searchParams;
   return (
     <AuthCard
       title="Log ind"
@@ -17,10 +17,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </>
       }
     >
-      <LoginForm
-        next={typeof next === "string" ? next : "/apps"}
-        linkError={fejl === "link"}
-      />
+      <LoginForm next={typeof next === "string" ? next : "/apps"} />
     </AuthCard>
   );
 }

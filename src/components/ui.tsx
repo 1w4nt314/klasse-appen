@@ -45,20 +45,13 @@ export function Field({
   );
 }
 
-export function FormMessage({ state }: { state?: { error?: string; message?: string } }) {
-  if (state?.error)
-    return (
-      <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
-        {state.error}
-      </p>
-    );
-  if (state?.message)
-    return (
-      <p role="status" className="rounded-control bg-accent-soft px-3 py-2.5 text-sm text-accent">
-        {state.message}
-      </p>
-    );
-  return null;
+export function FormMessage({ state }: { state?: { error?: string } }) {
+  if (!state?.error) return null;
+  return (
+    <p role="alert" className="rounded-control bg-danger-soft px-3 py-2.5 text-sm text-danger">
+      {state.error}
+    </p>
+  );
 }
 
 export function TextLink(props: ComponentProps<typeof Link>) {

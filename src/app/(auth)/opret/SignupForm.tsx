@@ -6,18 +6,31 @@ import { Field, FormMessage, SubmitButton } from "@/components/ui";
 
 export function SignupForm() {
   const [state, action] = useActionState(signup, undefined);
-  if (state?.message) return <FormMessage state={state} />;
   return (
     <form action={action} className="space-y-4">
-      <Field label="Navn" name="full_name" autoComplete="name" required />
+      <Field
+        label="Navn"
+        name="full_name"
+        autoComplete="name"
+        defaultValue={state?.values?.full_name}
+        required
+      />
       <Field
         label="Skole"
         name="school"
         autoComplete="organization"
         placeholder="Fx Søndermarkskolen"
+        defaultValue={state?.values?.school}
         required
       />
-      <Field label="E-mail" name="email" type="email" autoComplete="email" required />
+      <Field
+        label="E-mail"
+        name="email"
+        type="email"
+        autoComplete="email"
+        defaultValue={state?.values?.email}
+        required
+      />
       <Field
         label="Adgangskode"
         name="password"
