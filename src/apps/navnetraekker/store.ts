@@ -14,6 +14,8 @@ export type ClassList = {
   pool: string[];
   /** Fraværende elever — gælder kun den dag de er markeret. */
   absent: { date: string; ids: string[] };
+  /** Senest trukne elev, så den ikke åbner den næste runde. */
+  last?: string;
 };
 
 export type Store = {
@@ -25,6 +27,8 @@ export type Store = {
 export const STORAGE_KEY = "navnetraekker:v1";
 export const MAX_STUDENTS = 60;
 export const MAX_NAME_LENGTH = 40;
+export const MAX_CLASSES = 50;
+export const MAX_IMPORT_BYTES = 1_000_000;
 
 export const emptyStore = (): Store => ({ version: 1, classes: [], activeId: null });
 
@@ -58,10 +62,13 @@ export const newId = () =>
 export const today = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-/** Én elev pr. linje (eller kommasepareret). Tomme linjer og ekstra mellemrum fjernes. */
+/**
+ * Én elev pr. linje. Kun hvis alt står på én linje, deles der på komma/semikolon,
+ * så "Hansen, Ida" fra et regneark forbliver én elev.
+ */
 export function parseNames(text: string): string[] {
   return text
-    .split(/[\n,;]+/)
+    .split(/\r?\n/.test(text) ? /\r?\n/ : /[,;]/)
     .map((n) => n.replace(/\s+/g, " ").trim().slice(0, MAX_NAME_LENGTH))
     .filter(Boolean)
     .slice(0, MAX_STUDENTS);
@@ -86,16 +93,38 @@ export function createClass(name: string, names: string[]): ClassList {
 }
 
 /**
- * Opdatér elevlisten. Elever der beholder deres navn, beholder også deres id
- * og plads i runden; nye elever kommer med i den igangværende runde.
+ * Opdatér elevlisten. Elever beholder id, plads i runden og fravær — også når
+ * de omdøbes (fx "Markus" → "Markus M."). Nye elever kommer med i runden.
+ *
+ * Matching: 1) samme navn, 2) det nye navn starter med det gamle eller omvendt,
+ * 3) samme linje, hvis antallet af elever er uændret. Ellers er det en ny elev.
  */
 export function updateStudents(cls: ClassList, names: string[]): ClassList {
-  const unused = [...cls.students];
-  const students = names.map((name) => {
-    const i = unused.findIndex((s) => s.name === name);
-    if (i >= 0) return unused.splice(i, 1)[0];
-    return { id: newId(), name };
+  const old = cls.students;
+  const taken = new Set<number>();
+  const result: (Student | null)[] = names.map((name) => {
+    const i = old.findIndex((s, j) => !taken.has(j) && s.name === name);
+    if (i < 0) return null;
+    taken.add(i);
+    return old[i];
   });
+  const free = (k: number) => !taken.has(k) && !names.includes(old[k].name);
+  names.forEach((name, i) => {
+    if (result[i]) return;
+    const lower = name.toLocaleLowerCase("da");
+    let j = old.findIndex((s, k) => {
+      if (!free(k)) return false;
+      const o = s.name.toLocaleLowerCase("da");
+      return lower.startsWith(o) || o.startsWith(lower);
+    });
+    // Samme linje tæller kun som omdøbning, når antallet af elever er uændret.
+    if (j < 0 && old.length === names.length && i < old.length && free(i)) j = i;
+    if (j >= 0) {
+      taken.add(j);
+      result[i] = { id: old[j].id, name };
+    }
+  });
+  const students = result.map((s, i) => s ?? { id: newId(), name: names[i] });
   const ids = new Set(students.map((s) => s.id));
   const oldIds = new Set(cls.students.map((s) => s.id));
   const pool = [
@@ -153,11 +182,13 @@ export function drawStudent(cls: ClassList, date = today()): DrawResult {
     pool = cls.students.map((s) => s.id);
     available = pool.filter((id) => presentIds.has(id));
     newRound = true;
+    // Den sidst trukne skal ikke straks op igen som den første i den nye runde.
+    if (available.length > 1 && cls.last) available = available.filter((id) => id !== cls.last);
   }
 
   const id = available[randomInt(available.length)];
   return {
-    cls: { ...cls, pool: pool.filter((p) => p !== id) },
+    cls: { ...cls, pool: pool.filter((p) => p !== id), last: id },
     student: cls.students.find((s) => s.id === id) ?? null,
     newRound,
   };
@@ -189,12 +220,10 @@ export function makeGroups(students: Student[], mode: GroupMode): Student[][] {
   const n = students.length;
   if (n === 0) return [];
   const value = Math.max(1, Math.floor(mode.value));
-  // Ved "size": aldrig en gruppe på under value-1 (og aldrig en elev alene),
-  // så 23 elever i par giver 10 par og én gruppe på 3 — ikke én der står alene.
-  const count =
-    mode.by === "count"
-      ? Math.min(value, n)
-      : Math.max(1, Math.min(Math.round(n / value), Math.floor(n / Math.max(2, value - 1))));
+  const wanted = mode.by === "count" ? value : Math.round(n / value);
+  // Aldrig en elev alene: højst n/2 grupper. 23 elever i par giver derfor
+  // 10 par og én gruppe på 3, og 7 elever i 4 grupper giver 3 grupper.
+  const count = Math.max(1, Math.min(wanted, Math.floor(n / 2)));
   const groups: Student[][] = Array.from({ length: count }, () => []);
   shuffle(students).forEach((s, i) => groups[i % count].push(s));
   return groups;
@@ -204,31 +233,46 @@ export function makeGroups(students: Student[], mode: GroupMode): Student[][] {
 export function sanitizeStore(raw: unknown): Store {
   if (!raw || typeof raw !== "object") return emptyStore();
   const r = raw as Partial<Store>;
+  const classIds = new Set<string>();
   const classes = Array.isArray(r.classes)
-    ? r.classes.flatMap((c): ClassList[] => {
-        if (!c || typeof c !== "object" || typeof c.name !== "string") return [];
+    ? r.classes.slice(0, MAX_CLASSES).flatMap((c): ClassList[] => {
+        if (!c || typeof c !== "object" || typeof c.name !== "string" || !c.name.trim()) return [];
+        const seen = new Set<string>();
         const students = Array.isArray(c.students)
           ? c.students
               .filter(
                 (s): s is Student =>
-                  !!s && typeof s.id === "string" && typeof s.name === "string" && s.name.trim() !== "",
+                  !!s &&
+                  typeof s.id === "string" &&
+                  typeof s.name === "string" &&
+                  s.name.trim() !== "" &&
+                  !seen.has(s.id) &&
+                  !!seen.add(s.id),
               )
               .slice(0, MAX_STUDENTS)
-              .map((s) => ({ id: s.id, name: s.name.slice(0, MAX_NAME_LENGTH) }))
+              .map((s) => ({ id: s.id, name: s.name.trim().slice(0, MAX_NAME_LENGTH) }))
           : [];
         const ids = new Set(students.map((s) => s.id));
-        const pool = Array.isArray(c.pool) ? c.pool.filter((id) => ids.has(id)) : [...ids];
+        const valid = (list: unknown) =>
+          Array.isArray(list)
+            ? [...new Set(list.filter((id): id is string => typeof id === "string" && ids.has(id)))]
+            : null;
+        const pool = valid(c.pool) ?? [...ids];
         const absent =
-          c.absent && typeof c.absent.date === "string" && Array.isArray(c.absent.ids)
-            ? { date: c.absent.date, ids: c.absent.ids.filter((id) => ids.has(id)) }
+          c.absent && typeof c.absent.date === "string"
+            ? { date: c.absent.date, ids: valid(c.absent.ids) ?? [] }
             : { date: today(), ids: [] };
+        let id = typeof c.id === "string" ? c.id : newId();
+        if (classIds.has(id)) id = newId();
+        classIds.add(id);
         return [
           {
-            id: typeof c.id === "string" ? c.id : newId(),
-            name: c.name.slice(0, 60),
+            id,
+            name: c.name.trim().slice(0, 60),
             students,
             pool,
             absent,
+            ...(typeof c.last === "string" && ids.has(c.last) ? { last: c.last } : {}),
           },
         ];
       })
@@ -256,6 +300,7 @@ export function exportStore(store: Store): string {
 
 /** Indlæs en eksportfil. Klasserne tilføjes som nye klasser. */
 export function parseImport(text: string): ClassList[] {
+  if (text.length > MAX_IMPORT_BYTES) throw new Error("Filen er for stor til at være en klasseliste.");
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -264,11 +309,24 @@ export function parseImport(text: string): ClassList[] {
   }
   const classes = (data as { classes?: unknown })?.classes;
   if (!Array.isArray(classes)) throw new Error("Filen indeholder ingen klasselister.");
-  const result = classes.flatMap((c) => {
-    if (!c || typeof c.name !== "string" || !Array.isArray(c.students)) return [];
-    const names = parseNames(c.students.filter((s: unknown) => typeof s === "string").join("\n"));
+  const result = classes.slice(0, MAX_CLASSES).flatMap((c) => {
+    if (!c || typeof c.name !== "string" || !c.name.trim() || !Array.isArray(c.students)) return [];
+    const names = parseNames(
+      c.students
+        .filter((s: unknown): s is string => typeof s === "string")
+        .map((s: string) => s.replace(/[\r\n]+/g, " "))
+        .join("\n"),
+    );
     return [createClass(c.name.slice(0, 60), names)];
   });
   if (result.length === 0) throw new Error("Filen indeholder ingen klasselister.");
   return result;
+}
+
+/** Giv klassen et navn, der ikke allerede er brugt: "4.b" → "4.b (2)". */
+export function uniqueName(name: string, taken: Iterable<string>): string {
+  const used = new Set(taken);
+  let candidate = name;
+  for (let i = 2; used.has(candidate); i++) candidate = `${name} (${i})`;
+  return candidate;
 }

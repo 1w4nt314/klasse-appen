@@ -14,6 +14,6 @@ export async function generateMetadata({
 export default async function AppPage({ params }: PageProps<"/apps/[slug]">) {
   const { slug } = await params;
   if (!getApp(slug)) notFound();
-  await requireTeacher(`/apps/${slug}`);
-  return <AppRuntime slug={slug} />;
+  const teacher = await requireTeacher(`/apps/${slug}`);
+  return <AppRuntime slug={slug} userKey={teacher.id} />;
 }

@@ -10,7 +10,8 @@ export function GroupsView({ cls }: { cls: ClassList }) {
   const [groups, setGroups] = useState<Student[][] | null>(null);
   const present = presentStudents(cls);
 
-  const max = Math.max(2, Math.min(mode.by === "size" ? 10 : 15, present.length));
+  // Grupper: højst halvdelen af eleverne, så ingen står alene.
+  const max = Math.max(2, Math.min(mode.by === "size" ? 10 : 15, mode.by === "count" ? Math.floor(present.length / 2) : present.length));
   const value = Math.min(mode.value, max);
   const generate = () => setGroups(makeGroups(present, { ...mode, value }));
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ClassEditor } from "./ClassEditor";
 import { DrawView } from "./DrawView";
+import type { AppProps } from "../runtime";
 import { GroupsView } from "./GroupsView";
 import { useStore } from "./useStore";
 import "./navnetraekker.css";
@@ -16,14 +17,25 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "list", label: "Klasseliste" },
 ];
 
-export default function Navnetraekker() {
-  const { store, active, updateClass, addClasses, removeClass, selectClass, saveFailed } =
-    useStore();
+export default function Navnetraekker({ userKey }: AppProps) {
+  const {
+    store,
+    active,
+    updateClass,
+    addClasses,
+    removeClass,
+    selectClass,
+    clearAll,
+    saveFailed,
+    recovered,
+  } = useStore(userKey);
   const [view, setView] = useState<View>(active ? "draw" : "list");
   const [creating, setCreating] = useState(false);
+  // Mens rullen kører, kan klasse og visning ikke skiftes (navnet er allerede trukket).
+  const [spinning, setSpinning] = useState(false);
 
   const toggleFullscreen = () => {
-    if (document.fullscreenElement) document.exitFullscreen();
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     else document.documentElement.requestFullscreen?.().catch(() => {});
   };
 
@@ -49,6 +61,7 @@ export default function Navnetraekker() {
               <span className="sr-only">Klasse</span>
               <select
                 value={active?.id ?? ""}
+                disabled={spinning}
                 onChange={(e) => {
                   setCreating(false);
                   selectClass(e.target.value);
@@ -75,7 +88,8 @@ export default function Navnetraekker() {
                     setView(v.id);
                   }}
                   aria-pressed={view === v.id && !creating}
-                  className="rounded-[4px] px-3 py-1 text-sm font-bold text-muted aria-pressed:bg-brand aria-pressed:text-white"
+                  disabled={spinning}
+                  className="rounded-[4px] px-3 py-1 text-sm font-bold text-muted disabled:opacity-60 aria-pressed:bg-brand aria-pressed:text-white"
                 >
                   {v.label}
                 </button>
@@ -86,6 +100,7 @@ export default function Navnetraekker() {
           <div className="ml-auto flex items-center gap-2">
             <button
               type="button"
+              disabled={spinning}
               onClick={() => {
                 setCreating(true);
                 setView("list");
@@ -96,7 +111,11 @@ export default function Navnetraekker() {
             </button>
             <button
               type="button"
-              onClick={toggleFullscreen}
+              onClick={(e) => {
+                // Giv fokus fra sig, så mellemrum bagefter trækker i stedet for at forlade fuld skærm.
+                if (e.detail > 0) e.currentTarget.blur();
+                toggleFullscreen();
+              }}
               className="rounded-control border border-line-strong px-2.5 py-1.5 text-sm font-bold hover:border-brand hover:text-brand"
             >
               Fuld skærm
@@ -107,8 +126,14 @@ export default function Navnetraekker() {
 
       {saveFailed && (
         <p role="alert" className="bg-danger-soft px-4 py-2 text-center text-sm text-danger">
-          Browseren tillader ikke at gemme her (fx i et privat vindue). Klasselisten forsvinder,
-          når du lukker siden.
+          Klasselisterne kunne ikke gemmes i browseren (fx i et privat vindue, eller fordi
+          lagerpladsen er fuld). Ændringerne forsvinder, når du lukker siden.
+        </p>
+      )}
+      {recovered && (
+        <p role="alert" className="bg-danger-soft px-4 py-2 text-center text-sm text-danger">
+          De gemte klasselister var beskadigede og kunne ikke indlæses. Hent dem fra en gemt fil,
+          eller opret dem igen.
         </p>
       )}
 
@@ -133,10 +158,20 @@ export default function Navnetraekker() {
               setView("draw");
             }}
             onCancel={store.classes.length > 0 ? () => setCreating(false) : undefined}
+            onClearAll={() => {
+              clearAll();
+              setCreating(false);
+              setView("list");
+            }}
             store={store}
           />
         ) : view === "draw" ? (
-          <DrawView key={active.id} cls={active} onChange={updateClass} />
+          <DrawView
+            key={active.id}
+            cls={active}
+            onChange={updateClass}
+            onSpinningChange={setSpinning}
+          />
         ) : (
           <GroupsView key={active.id} cls={active} />
         )}

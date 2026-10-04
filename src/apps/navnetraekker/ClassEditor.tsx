@@ -20,6 +20,7 @@ export function ClassEditor({
   onImport,
   onDelete,
   onCancel,
+  onClearAll,
 }: {
   /** null = ny klasse. */
   cls: ClassList | null;
@@ -28,6 +29,7 @@ export function ClassEditor({
   onImport: (classes: ClassList[]) => void;
   onDelete: (id: string) => void;
   onCancel?: () => void;
+  onClearAll: () => void;
 }) {
   const [name, setName] = useState(cls?.name ?? "");
   const [text, setText] = useState(cls ? cls.students.map((s) => s.name).join("\n") : "");
@@ -177,6 +179,21 @@ export function ClassEditor({
               }}
             />
           </div>
+          <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
+            Listerne bliver liggende her efter du logger ud. Bruger du en fælles computer, så slet
+            dem, når du er færdig.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Slet alle dine klasselister fra denne computer? Gem dem evt. som fil først."))
+                onClearAll();
+            }}
+            disabled={store.classes.length === 0}
+            className="mt-2 w-full rounded-control px-4 py-2 text-sm font-bold text-danger hover:bg-danger-soft disabled:opacity-50"
+          >
+            Slet alle klasselister fra denne computer
+          </button>
           {importError && (
             <p role="alert" className="mt-3 rounded-control bg-danger-soft px-3 py-2 text-sm text-danger">
               {importError}

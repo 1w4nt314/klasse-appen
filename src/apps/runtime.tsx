@@ -7,8 +7,14 @@ const Loading = () => (
   <div className="grid min-h-dvh place-items-center text-muted">Henter app …</div>
 );
 
+/**
+ * Props alle apps får. `userKey` er den indloggede lærers id — bruges fx til at
+ * holde data i browseren adskilt pr. lærer på en fælles computer.
+ */
+export type AppProps = { userKey: string };
+
 /** Appens selve kode hentes først når den åbnes. */
-const components: Record<string, ComponentType> = {
+const components: Record<string, ComponentType<AppProps>> = {
   "klasse-zoo": dynamic(() => import("./klasse-zoo/KlasseZoo"), {
     ssr: false,
     loading: Loading,
@@ -19,7 +25,7 @@ const components: Record<string, ComponentType> = {
   }),
 };
 
-export function AppRuntime({ slug }: { slug: string }) {
+export function AppRuntime({ slug, userKey }: { slug: string; userKey: string }) {
   const App = components[slug];
-  return App ? <App /> : null;
+  return App ? <App userKey={userKey} /> : null;
 }

@@ -1,86 +1,149 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { emptyStore, sanitizeStore, STORAGE_KEY, type ClassList, type Store } from "./store";
-
-/** Kan browseren gemme? (Ikke altid i private vinduer eller med blokeret lagring.) */
-function canStore() {
-  try {
-    localStorage.setItem(`${STORAGE_KEY}:test`, "1");
-    localStorage.removeItem(`${STORAGE_KEY}:test`);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function load(): Store {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? sanitizeStore(JSON.parse(raw)) : emptyStore();
-  } catch {
-    return emptyStore();
-  }
-}
+import { useCallback, useMemo, useSyncExternalStore } from "react";
+import {
+  emptyStore,
+  sanitizeStore,
+  STORAGE_KEY,
+  uniqueName,
+  type ClassList,
+  type Store,
+} from "./store";
 
 /**
- * Klasselisterne i browserens localStorage. Komponenten kører kun i browseren
- * (ssr: false), så der kan læses med det samme.
+ * Klasselisterne i browserens localStorage, adskilt pr. lærer (nøglen indeholder
+ * lærerens id), så en kollega der logger ind på samme smartboard-pc ikke ser dem.
+ * Navnene forlader aldrig browseren.
  */
-export function useStore() {
-  const [store, setStore] = useState<Store>(load);
-  const [saveFailed] = useState(() => !canStore());
 
-  useEffect(() => {
+type Snapshot = {
+  store: Store;
+  /** Seneste forsøg på at gemme fejlede (privat vindue, fuld eller blokeret lagring). */
+  saveFailed: boolean;
+  /** De gemte data var beskadigede; en kopi er lagt under `<nøgle>:beskadiget`. */
+  recovered: boolean;
+};
+
+type Entry = { snap: Snapshot; listeners: Set<() => void> };
+const entries = new Map<string, Entry>();
+
+const keyFor = (userKey: string) => `${STORAGE_KEY}:${userKey}`;
+
+function read(key: string): Snapshot {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(key);
+  } catch {
+    return { store: emptyStore(), saveFailed: true, recovered: false };
+  }
+  if (!raw) return { store: emptyStore(), saveFailed: false, recovered: false };
+  try {
+    return { store: sanitizeStore(JSON.parse(raw)), saveFailed: false, recovered: false };
+  } catch {
+    // Smid ikke lærerens data væk: gem den rå værdi, før noget nyt skrives.
     try {
-      const json = JSON.stringify(store);
-      // Skriv kun ved ændring, så to åbne faner ikke skubber til hinanden i ring.
-      if (localStorage.getItem(STORAGE_KEY) !== json) localStorage.setItem(STORAGE_KEY, json);
-    } catch {
-      // Blokeret lagring vises som advarsel (saveFailed); intet at gøre her.
-    }
-  }, [store]);
+      localStorage.setItem(`${key}:beskadiget`, raw);
+    } catch {}
+    return { store: emptyStore(), saveFailed: false, recovered: true };
+  }
+}
 
-  // Hold flere faner i sync, hvis læreren har appen åben to steder.
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setStore(load());
+function entry(key: string): Entry {
+  let e = entries.get(key);
+  if (!e) {
+    e = { snap: read(key), listeners: new Set() };
+    entries.set(key, e);
+  }
+  return e;
+}
+
+function commit(key: string, store: Store) {
+  const e = entry(key);
+  let saveFailed = false;
+  try {
+    const json = JSON.stringify(store);
+    // Skriv kun ved ændring, så to åbne faner ikke skubber til hinanden i ring.
+    if (localStorage.getItem(key) !== json) localStorage.setItem(key, json);
+  } catch {
+    saveFailed = true;
+  }
+  e.snap = { ...e.snap, store, saveFailed };
+  e.listeners.forEach((l) => l());
+}
+
+function subscribe(key: string, listener: () => void) {
+  const e = entry(key);
+  e.listeners.add(listener);
+  // En anden fane har ændret listerne: hent dem, men behold den klasse der er valgt her.
+  const onStorage = (ev: StorageEvent) => {
+    if (ev.key !== key) return;
+    const fresh = read(key);
+    const activeId = fresh.store.classes.some((c) => c.id === e.snap.store.activeId)
+      ? e.snap.store.activeId
+      : fresh.store.activeId;
+    e.snap = { ...fresh, store: { ...fresh.store, activeId } };
+    e.listeners.forEach((l) => l());
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    e.listeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+export function useStore(userKey: string) {
+  const key = keyFor(userKey);
+  const snap = useSyncExternalStore(
+    useCallback((l: () => void) => subscribe(key, l), [key]),
+    () => entry(key).snap,
+    () => entry(key).snap,
+  );
+  const { store } = snap;
+
+  const actions = useMemo(() => {
+    const current = () => entry(key).snap.store;
+    return {
+      updateClass(next: ClassList) {
+        const s = current();
+        const others = s.classes.filter((c) => c.id !== next.id).map((c) => c.name);
+        const named = { ...next, name: uniqueName(next.name, others) };
+        commit(key, { ...s, classes: s.classes.map((c) => (c.id === next.id ? named : c)) });
+      },
+      addClasses(added: ClassList[]) {
+        if (added.length === 0) return;
+        const s = current();
+        // Samme navn som en eksisterende klasse → "4.b (2)", så de kan skelnes i listen.
+        const taken = s.classes.map((c) => c.name);
+        const named = added.map((c) => {
+          const name = uniqueName(c.name, taken);
+          taken.push(name);
+          return { ...c, name };
+        });
+        commit(key, { ...s, classes: [...s.classes, ...named], activeId: named[0].id });
+      },
+      removeClass(id: string) {
+        const s = current();
+        const classes = s.classes.filter((c) => c.id !== id);
+        commit(key, {
+          ...s,
+          classes,
+          activeId: s.activeId === id ? (classes[0]?.id ?? null) : s.activeId,
+        });
+      },
+      selectClass(id: string) {
+        commit(key, { ...current(), activeId: id });
+      },
+      /** Fjern alle klasselister fra denne computer (fx på en fælles pc). */
+      clearAll() {
+        commit(key, emptyStore());
+        try {
+          localStorage.removeItem(key);
+          localStorage.removeItem(`${key}:beskadiget`);
+        } catch {}
+      },
     };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [key]);
 
   const active = store.classes.find((c) => c.id === store.activeId) ?? null;
-
-  const updateClass = useCallback((next: ClassList) => {
-    setStore((s) => ({ ...s, classes: s.classes.map((c) => (c.id === next.id ? next : c)) }));
-  }, []);
-
-  const addClasses = useCallback((added: ClassList[]) => {
-    if (added.length === 0) return;
-    setStore((s) => {
-      // Samme navn som en eksisterende klasse → "4.b (2)", så de kan skelnes i listen.
-      const taken = new Set(s.classes.map((c) => c.name));
-      const named = added.map((c) => {
-        let name = c.name;
-        for (let i = 2; taken.has(name); i++) name = `${c.name} (${i})`;
-        taken.add(name);
-        return { ...c, name };
-      });
-      return { ...s, classes: [...s.classes, ...named], activeId: named[0].id };
-    });
-  }, []);
-
-  const removeClass = useCallback((id: string) => {
-    setStore((s) => {
-      const classes = s.classes.filter((c) => c.id !== id);
-      return { ...s, classes, activeId: s.activeId === id ? (classes[0]?.id ?? null) : s.activeId };
-    });
-  }, []);
-
-  const selectClass = useCallback((id: string) => {
-    setStore((s) => ({ ...s, activeId: id }));
-  }, []);
-
-  return { store, active, updateClass, addClasses, removeClass, selectClass, saveFailed };
+  return { ...snap, active, ...actions };
 }
