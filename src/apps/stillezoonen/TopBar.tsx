@@ -1,25 +1,47 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { TEMPOS, type Settings } from "./settings";
 import { ThemePicker } from "./ThemePicker";
 import type { Theme } from "./themes/types";
 
-/** Luk når der klikkes udenfor eller trykkes Escape. */
-function useDismiss(open: boolean, close: () => void, ref: RefObject<HTMLElement | null>) {
+/** Luk når der klikkes udenfor eller trykkes Escape (så får `onEscape` lov at flytte fokus). */
+function useDismiss(
+  open: boolean,
+  close: () => void,
+  ref: RefObject<HTMLElement | null>,
+  onEscape?: () => void,
+) {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      close();
+      onEscape?.();
+    };
     document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("pointerdown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, close, ref]);
+  }, [open, close, ref, onEscape]);
+}
+
+/** "2:41" til automatisk genaktivering. Tikker hvert sekund mens den vises. */
+function useCountdown(until: number | null) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (until === null) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [until]);
+  if (until === null) return "";
+  const s = Math.max(0, Math.ceil((until - now) / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
 /**
@@ -32,18 +54,22 @@ export function SoundMeter({
   threshold,
   onThreshold,
   muted,
+  mutedUntil,
   onMute,
 }: {
   meterRef: RefObject<HTMLDivElement | null>;
   threshold: number;
   onThreshold: (value: number) => void;
   muted: boolean;
+  mutedUntil: number | null;
   onMute: (muted: boolean) => void;
 }) {
   const [hover, setHover] = useState(false);
   const [pinned, setPinned] = useState(false);
   const open = hover || pinned;
-  useDismiss(pinned, () => setPinned(false), meterRef);
+  const closePinned = useCallback(() => setPinned(false), []);
+  useDismiss(pinned, closePinned, meterRef);
+  const countdown = useCountdown(muted ? mutedUntil : null);
 
   return (
     <div
@@ -65,13 +91,19 @@ export function SoundMeter({
         <span className="zoo-meter-fill" />
         <span className="zoo-meter-limit" />
       </button>
-      {muted && !open && <span className="zoo-muted-tag">Mikrofon slået fra</span>}
+      {muted && !open && (
+        <button type="button" className="zoo-muted-tag" onClick={() => onMute(false)}>
+          <MicIcon off />
+          Mikrofonen er slået fra · tændes om {countdown}
+          <span className="zoo-muted-action">Slå til</span>
+        </button>
+      )}
 
       {open && (
         <div className="zoo-meter-card">
           <div className="zoo-meter-card-head">
             <span>Lydniveau</span>
-            {muted && <span className="zoo-muted-pill">Slået fra</span>}
+            {muted && <span className="zoo-muted-pill">Slået fra · tændes om {countdown}</span>}
           </div>
           <div className="zoo-meter">
             <div className="zoo-meter-fill" />
@@ -93,7 +125,7 @@ export function SoundMeter({
             onClick={() => onMute(!muted)}
           >
             <MicIcon off={!muted} />
-            {muted ? "Slå mikrofonen til igen" : "Slå mikrofonen fra (mens jeg taler)"}
+            {muted ? "Slå mikrofonen til igen" : "Slå mikrofonen fra i 3 min (mens jeg taler)"}
           </button>
         </div>
       )}
@@ -121,14 +153,24 @@ export function SettingsMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  useDismiss(open, () => setOpen(false), ref);
+  const button = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  const refocus = useCallback(() => button.current?.focus(), []);
+  useDismiss(open, close, ref, refocus);
+  // Flyt fokus ind i menuen, når den åbnes med tastaturet.
+  useEffect(() => {
+    if (open) panel.current?.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+  }, [open]);
 
   return (
     <div ref={ref} className="zoo-menu-wrap">
       <button
+        ref={button}
         type="button"
         className="zoo-chip zoo-gear"
-        aria-haspopup="true"
+        aria-haspopup="dialog"
+        aria-controls="zoo-settings"
         aria-expanded={open}
         aria-label="Indstillinger"
         onClick={() => setOpen((o) => !o)}
@@ -137,7 +179,13 @@ export function SettingsMenu({
       </button>
 
       {open && (
-        <section className="zoo-menu" aria-label="Indstillinger for Stillezoonen">
+        <section
+          ref={panel}
+          id="zoo-settings"
+          role="dialog"
+          className="zoo-menu"
+          aria-label="Indstillinger for Stillezoonen"
+        >
           <fieldset>
             <legend>Tema</legend>
             <ThemePicker current={theme.id} onChange={onTheme} compact />

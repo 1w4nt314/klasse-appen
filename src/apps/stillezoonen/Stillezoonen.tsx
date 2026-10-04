@@ -243,7 +243,7 @@ export default function Stillezoonen() {
       </div>
 
       <div className="zoo-topbar">
-        <Link href="/apps" className="zoo-chip zoo-back">
+        <Link href="/apps" className="zoo-chip zoo-back" aria-label="Alle apps">
           <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
             <path
               d="M12.5 4.5 7 10l5.5 5.5"
@@ -254,7 +254,7 @@ export default function Stillezoonen() {
               strokeLinejoin="round"
             />
           </svg>
-          Alle apps
+          <span className="zoo-back-label">Alle apps</span>
         </Link>
 
         {running && (
@@ -263,6 +263,7 @@ export default function Stillezoonen() {
             threshold={settings.threshold}
             onThreshold={(threshold) => setSettings((s) => ({ ...s, threshold }))}
             muted={mic.muted}
+            mutedUntil={mic.mutedUntil}
             onMute={mic.setMuted}
           />
         )}
@@ -300,13 +301,13 @@ export default function Stillezoonen() {
         </div>
       )}
 
-      {running && (
-        <FloatingTimer
-          storageKey="stillezoonen:timer"
-          hidden={!settings.timer}
-          onClose={() => setSettings((s) => ({ ...s, timer: false }))}
-        />
-      )}
+      {/* Monteret uafhængigt af mikrofonen, så en kørende timer overlever Stop/Start. */}
+      <FloatingTimer
+        storageKey="stillezoonen:timer"
+        hidden={!settings.timer}
+        onClose={() => setSettings((s) => ({ ...s, timer: false }))}
+        onDone={() => setSettings((s) => ({ ...s, timer: true }))}
+      />
 
       {running ? null : (
         <StartScreen

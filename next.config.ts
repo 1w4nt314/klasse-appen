@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       // Klasse Zoo hedder nu Stillezoonen.
-      { source: "/apps/klasse-zoo", destination: "/apps/stillezoonen", permanent: true },
+      { source: "/apps/klasse-zoo", destination: "/apps/stillezoonen", permanent: false },
     ];
   },
 };

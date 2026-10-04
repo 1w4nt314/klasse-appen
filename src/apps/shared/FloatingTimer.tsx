@@ -29,7 +29,8 @@ const clampRect = (r: Rect): Rect => {
 };
 
 function loadRect(key: string): Rect {
-  const fallback = { x: window.innerWidth - 340, y: 80, w: 300, h: 200 };
+  // Øverst til venstre under "Alle apps" — fri himmel, ikke oven på menuen.
+  const fallback = { x: 16, y: 72, w: 300, h: 200 };
   try {
     const raw = localStorage.getItem(key);
     if (raw) {
@@ -51,31 +52,46 @@ const fmt = (ms: number) => {
 export function FloatingTimer({
   storageKey,
   onClose,
+  onDone,
   hidden = false,
-  zIndex = 350,
+  zIndex = 310,
 }: {
   storageKey: string;
   onClose: () => void;
+  /** Kaldes når tiden er gået — fx for at vise en skjult timer. */
+  onDone?: () => void;
   /** Skjult tæller stadig ned — så kan læreren gemme timeren væk uden at stoppe den. */
   hidden?: boolean;
   zIndex?: number;
 }) {
   const [rect, setRect] = useState<Rect>(() => loadRect(storageKey));
   const [phase, setPhase] = useState<Phase>("setup");
-  const [minutes, setMinutes] = useState(5);
-  const [seconds, setSeconds] = useState(0);
-  /** Resterende tid i ms, når timeren er sat på pause (eller før start). */
-  const [remaining, setRemaining] = useState(5 * 60_000);
+  // Felterne holdes som tekst, så et tomt felt ikke hopper til "0" mens man skriver.
+  const [minutesText, setMinutesText] = useState("5");
+  const [secondsText, setSecondsText] = useState("00");
+  const minutes = Math.min(99, Number(minutesText) || 0);
+  const seconds = Math.min(59, Number(secondsText) || 0);
+  /** Resterende tid i ms, når timeren er sat på pause. */
+  const [remaining, setRemaining] = useState(0);
   const [endAt, setEndAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const drag = useRef<{ mode: "move" | "resize"; sx: number; sy: number; start: Rect } | null>(null);
 
-  // Gem placering.
+  // Gem kun når læreren selv flytter/ændrer vinduet — ikke når det klemmes
+  // midlertidigt af et lille browservindue.
+  const rectRef = useRef(rect);
   useEffect(() => {
+    rectRef.current = rect;
+  });
+  const saveRect = () => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify(rect));
+      localStorage.setItem(storageKey, JSON.stringify(rectRef.current));
     } catch {}
-  }, [rect, storageKey]);
+  };
+  const onDoneRef = useRef(onDone);
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  });
 
   // Hold vinduet inden for skærmen, når den ændrer størrelse (fx fuld skærm).
   useEffect(() => {
@@ -94,20 +110,24 @@ export function FloatingTimer({
         setPhase("done");
         setEndAt(null);
         setRemaining(0);
+        onDoneRef.current?.();
       }
     }, 200);
     return () => window.clearInterval(id);
   }, [phase, endAt]);
 
-  const left = phase === "running" && endAt !== null ? Math.max(0, endAt - now) : remaining;
+  const left =
+    phase === "running" && endAt !== null
+      ? Math.max(0, endAt - now)
+      : phase === "setup"
+        ? (minutes * 60 + seconds) * 1000
+        : remaining;
 
-  const setDuration = (m: number, s: number) => {
-    const mm = Math.min(99, Math.max(0, Math.floor(m) || 0));
-    const ss = Math.min(59, Math.max(0, Math.floor(s) || 0));
-    setMinutes(mm);
-    setSeconds(ss);
-    setRemaining((mm * 60 + ss) * 1000);
+  const setPreset = (m: number) => {
+    setMinutesText(String(m));
+    setSecondsText("00");
   };
+  const digits = (v: string) => v.replace(/\D/g, "").slice(0, 2);
 
   const start = () => {
     if (left <= 0) return;
@@ -123,7 +143,6 @@ export function FloatingTimer({
   };
   const reset = () => {
     setEndAt(null);
-    setRemaining((minutes * 60 + seconds) * 1000);
     setPhase("setup");
   };
 
@@ -150,6 +169,7 @@ export function FloatingTimer({
     );
   };
   const onPointerUp = () => {
+    if (drag.current) saveRect();
     drag.current = null;
   };
 
@@ -181,12 +201,11 @@ export function FloatingTimer({
             <div className="ft-inputs">
               <label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={0}
-                  max={99}
-                  value={minutes}
-                  onChange={(e) => setDuration(Number(e.target.value), seconds)}
+                  value={minutesText}
+                  onChange={(e) => setMinutesText(digits(e.target.value))}
+                  onBlur={() => setMinutesText(String(minutes))}
                   aria-label="Minutter"
                 />
                 <span>min</span>
@@ -194,12 +213,11 @@ export function FloatingTimer({
               <span className="ft-colon">:</span>
               <label>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={0}
-                  max={59}
-                  value={seconds}
-                  onChange={(e) => setDuration(minutes, Number(e.target.value))}
+                  value={secondsText}
+                  onChange={(e) => setSecondsText(digits(e.target.value))}
+                  onBlur={() => setSecondsText(String(seconds).padStart(2, "0"))}
                   aria-label="Sekunder"
                 />
                 <span>sek</span>
@@ -207,7 +225,7 @@ export function FloatingTimer({
             </div>
             <div className="ft-presets">
               {PRESETS.map((m) => (
-                <button key={m} type="button" onClick={() => setDuration(m, 0)}>
+                <button key={m} type="button" onClick={() => setPreset(m)}>
                   {m} min
                 </button>
               ))}

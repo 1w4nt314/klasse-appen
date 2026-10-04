@@ -354,16 +354,17 @@
 
 /* ---------- Topbjælke ---------- */
 
+/* Tre kolonner, så måleren i midten aldrig overlapper siderne. */
 .zoo-topbar {
   position: absolute;
   z-index: 320;
   top: 0;
   left: 0;
   right: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   pointer-events: none;
 }
@@ -375,7 +376,10 @@
 }
 
 .zoo-back {
+  grid-column: 1;
+  justify-self: start;
   text-decoration: none;
+  white-space: nowrap;
 }
 .zoo-back:hover {
   background: #fff;
@@ -383,6 +387,8 @@
 }
 
 .zoo-top-right {
+  grid-column: 3;
+  justify-self: end;
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
@@ -396,15 +402,18 @@
     display: none;
   }
 }
+@media (max-width: 480px) {
+  .zoo-back-label {
+    display: none;
+  }
+}
 
 /* Lydmåleren: tynd streg øverst i midten, folder ud ved hover/klik. */
 .zoo-meterbox {
   --level: 0%;
-  position: absolute;
-  left: 50%;
-  top: 0.75rem;
-  translate: -50% 0;
-  width: min(30rem, 42vw);
+  grid-column: 2;
+  position: relative;
+  width: clamp(6rem, 34vw, 30rem);
   display: grid;
   justify-items: center;
 }
@@ -457,18 +466,41 @@
     rgb(195 203 210 / 0.9) 6px 12px
   );
 }
+/* Skal kunne ses på afstand: læreren må ikke glemme, at mikrofonen er slået fra. */
 .zoo-muted-tag {
-  margin-top: 0.35rem;
-  padding: 0.15rem 0.55rem;
-  border-radius: var(--radius-control);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.5rem 0.4rem 0.75rem;
+  border-radius: var(--radius-card);
   background: var(--danger);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: clamp(0.8rem, 1.4vw, 1rem);
   font-weight: 800;
+  white-space: nowrap;
+  box-shadow: var(--shadow-float);
+  animation: zoo-pop 200ms ease-out;
+}
+.zoo-muted-action {
+  margin-left: 0.25rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-control);
+  background: #fff;
+  color: var(--danger);
+}
+@media (max-width: 720px) {
+  .zoo-muted-tag {
+    white-space: normal;
+    max-width: 70vw;
+  }
 }
 .zoo-meter-card {
-  width: 100%;
-  margin-top: 0.6rem;
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  left: 50%;
+  translate: -50% 0;
+  width: min(30rem, calc(100vw - 2rem));
   padding: 0.75rem 0.9rem 0.85rem;
   border-radius: var(--radius-card);
   border: 1px solid var(--line);
@@ -601,7 +633,7 @@
 .zoo-banner {
   position: absolute;
   z-index: 300;
-  top: max(18%, 9rem);
+  top: max(24%, 15rem);
   left: 50%;
   translate: -50% 0;
   max-width: min(90vw, 40rem);
@@ -654,9 +686,7 @@
   background: var(--accent);
   transition: background-color 200ms;
 }
-.zoo-meter[data-over="true"] .zoo-meter-fill {
-  background: var(--danger);
-}
+
 
 .zoo-meter-limit {
   position: absolute;

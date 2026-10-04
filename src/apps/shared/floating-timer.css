@@ -14,6 +14,11 @@
   touch-action: none;
 }
 
+/* Virker også uden Tailwinds preflight. */
+.ft-window[hidden] {
+  display: none;
+}
+
 .ft-bar {
   display: flex;
   align-items: center;
@@ -165,14 +170,25 @@
   opacity: 0.5;
 }
 
+/* Stort greb, så det kan rammes med en finger på en smartboard. */
 .ft-resize {
   position: absolute;
   right: 0;
   bottom: 0;
-  width: 18px;
-  height: 18px;
+  width: 36px;
+  height: 36px;
   cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, var(--line-strong) 50% 60%, transparent 60% 70%, var(--line-strong) 70% 80%, transparent 80%);
+  touch-action: none;
+  background: linear-gradient(
+    135deg,
+    transparent 55%,
+    var(--line-strong) 55% 61%,
+    transparent 61% 70%,
+    var(--line-strong) 70% 76%,
+    transparent 76% 85%,
+    var(--line-strong) 85% 91%,
+    transparent 91%
+  );
 }
 
 @media (prefers-reduced-motion: reduce) {
