@@ -366,7 +366,8 @@ const nudibranch: CreatureSpec = {
 /* ---------------------------------------------------------------------- ål */
 
 const AAL_AB = "M178 32 C 164 32 156 46 136 46 C 116 46 108 22 88 22 C 72 22 66 40 50 40";
-const AAL_C = "M50 40 C 38 40 32 26 14 28";
+const AAL_C1 = "M50 40 C 44 40 40 35 34 32";
+const AAL_C2 = "M34 32 C 28 28 22 27 14 28";
 
 const eel: CreatureSpec = {
   name: "Ål",
@@ -378,7 +379,8 @@ const eel: CreatureSpec = {
   art: (
     <>
       <g className="zoo-tail">
-        <path d={AAL_C} stroke="#566330" strokeWidth="9" fill="none" strokeLinecap="round" />
+        <path d={AAL_C1} stroke="#566330" strokeWidth="11" fill="none" strokeLinecap="round" />
+        <path d={AAL_C2} stroke="#566330" strokeWidth="7" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-torso">
         <path d={AAL_AB} stroke="#6c7a3a" strokeWidth="15" fill="none" strokeLinecap="round" />
@@ -411,7 +413,7 @@ const gaele = (bx: number, by: number, tx: number, ty: number, key: string, farv
   const grene = [0.4, 0.65, 0.9].map((f, i) => {
     const mx = bx + dx * f;
     const my = by + dy * f;
-    const len = 6.5 - i * 1.3;
+    const len = 5.6 - i * 1.1;
     return `M${r2(mx + px * len + ux * 3)} ${r2(my + py * len + uy * 3)} L ${r2(mx)} ${r2(my)} L ${r2(mx - px * len + ux * 3)} ${r2(my - py * len + uy * 3)}`;
   });
   return (
@@ -452,9 +454,9 @@ const axolotl: CreatureSpec = {
       </g>
       <g className="zoo-torso">
         {/* Gællekrone: fjerneste sæt */}
-        {gaele(106, 32, 80, 22, "g1", "#ee7f9c")}
-        {gaele(108, 32, 88, 8, "g2", "#ee7f9c")}
-        {gaele(110, 32, 102, 3, "g3", "#ee7f9c")}
+        {gaele(104, 33, 72, 27, "g1", "#ee7f9c")}
+        {gaele(106, 32, 80, 10, "g2", "#ee7f9c")}
+        {gaele(108, 31, 96, 2, "g3", "#ee7f9c")}
         <path d="M20 48 C 40 34 90 34 114 38 L 114 66 C 90 70 40 68 20 58 Z" fill="#f7b2c4" />
         <path d="M30 46 C 50 38 88 38 110 41 C 88 42 50 44 32 52 Z" fill="#fcd5df" opacity="0.85" />
         <path d="M26 58 C 50 66 90 68 112 62 L 114 66 C 90 70 40 68 20 58 Z" fill="#e48aa4" opacity="0.5" />
@@ -464,9 +466,9 @@ const axolotl: CreatureSpec = {
       <g className="zoo-head">
         <ellipse cx="122" cy="46" rx="28" ry="21" fill="#f7b2c4" />
         <ellipse cx="124" cy="37" rx="17" ry="7" fill="#fcd5df" opacity="0.7" />
-        {gaele(116, 32, 96, 24, "g4", "#e2587f")}
-        {gaele(118, 30, 106, 10, "g5", "#e2587f")}
-        {gaele(121, 30, 120, 5, "g6", "#e2587f")}
+        {gaele(116, 33, 88, 29, "g4", "#e2587f")}
+        {gaele(118, 32, 98, 12, "g5", "#e2587f")}
+        {gaele(121, 31, 114, 3, "g6", "#e2587f")}
         {EYE(135, 38, 4)}
         <path d="M122 51 C 130 62 143 62 149 49" stroke="#a8435e" strokeWidth="2.4" fill="none" strokeLinecap="round" />
         <circle cx="144" cy="43" r="1.3" fill="#a8435e" />

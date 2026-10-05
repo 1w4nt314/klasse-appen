@@ -102,7 +102,7 @@ const hammerhaj: CreatureSpec = {
       <path d="M176 66 C 176 78, 182 84, 192 84 C 186 76, 186 70, 188 60 Z" fill="#a4b6c5" opacity="0.8" />
       {EYE(199, 19, 4.4)}
       {EYE(199, 79, 4.4)}
-      <path d="M190 50 q 10 10 20 0" stroke="#3f5365" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <path d="M188 50 q 9 9 18 0" stroke="#3f5365" strokeWidth="2.4" fill="none" strokeLinecap="round" />
       <circle cx="184" cy="56" r="4" fill="#ff9a8a" opacity="0.55" />
     </>
   ),
