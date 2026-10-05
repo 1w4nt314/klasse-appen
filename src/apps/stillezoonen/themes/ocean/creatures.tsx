@@ -1,5 +1,12 @@
 import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
+import { more } from "./creatures-2";
+import { evenMore } from "./creatures-3";
+import { yetMore } from "./creatures-4";
+import { specials } from "./specials";
+import { specialsTwo } from "./specials-2";
+import { specialsThree } from "./specials-3";
+import { variants } from "./variants";
 
 /**
  * Havdyrene i Stillezoonen. Fisk og skildpadde er tegnet i profil, vendt mod højre;
@@ -316,4 +323,11 @@ export const creatures: Record<string, CreatureSpec> = {
   seahorse,
   octopus,
   crab,
+  ...more,
+  ...evenMore,
+  ...yetMore,
+  ...variants,
+  ...specials,
+  ...specialsTwo,
+  ...specialsThree,
 };
