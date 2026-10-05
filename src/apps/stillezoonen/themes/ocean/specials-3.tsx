@@ -220,15 +220,25 @@ const krakenGlimt = (
   </>
 );
 
-/** Det lille legetøjs-sejlskib; bunden af skroget hviler i (156, 42). */
+/**
+ * Legetøjs-sejlskibet, tegnet om skrogets bundmidte (156, 42) og forstørret 1,8×,
+ * så bunden hviler i (172, 36), oven i en lille bølge med vandsprøjt.
+ */
 const sejlskib = (
   <>
-    <path d="M156 34 V 8" stroke="#7c4a1e" strokeWidth="2" strokeLinecap="round" />
-    <path d="M156 8 l 7 2.4 l -7 2.4 Z" fill="#f59e0b" />
-    <path d="M157.5 11 L 157.5 31 L 170 31 Z" fill="#fff" stroke="#cbd5e1" strokeWidth="0.8" strokeLinejoin="round" />
-    <path d="M154.5 15 L 154.5 31 L 145 31 Z" fill="#fde68a" stroke="#e5c55a" strokeWidth="0.8" strokeLinejoin="round" />
-    <path d="M140 33 L 172 33 L 166 42 L 146 42 Z" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" strokeLinejoin="round" />
-    <path d="M142.5 36.5 H 169.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    <g transform="translate(172 36) scale(1.8) translate(-156 -42)">
+      <path d="M156 34 V 8" stroke="#7c4a1e" strokeWidth="2" strokeLinecap="round" />
+      <path d="M156 8 l 7 2.4 l -7 2.4 Z" fill="#f59e0b" />
+      <path d="M157.5 11 L 157.5 31 L 170 31 Z" fill="#fff" stroke="#cbd5e1" strokeWidth="0.8" strokeLinejoin="round" />
+      <path d="M154.5 15 L 154.5 31 L 145 31 Z" fill="#fde68a" stroke="#e5c55a" strokeWidth="0.8" strokeLinejoin="round" />
+      <path d="M140 33 L 172 33 L 166 42 L 146 42 Z" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.2" strokeLinejoin="round" />
+      <path d="M142.5 36.5 H 169.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+    </g>
+    {/* Bølgen, skibet vugger på, og et par vanddråber. */}
+    <path d="M144 40 C 150 33, 156 33, 160 38 C 165 32, 172 32, 176 37 C 181 32, 188 32, 194 38 C 198 41, 196 45, 190 45 L 150 45 C 144 45, 141 43, 144 40 Z" fill="#bfe9ff" />
+    <path d="M146 39 C 151 34, 155 34, 159 38 M163 37 C 167 33, 171 33, 175 36 M179 36 C 184 33, 188 33, 192 37" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    <circle cx="142" cy="30" r="2" fill="#e0f7ff" />
+    <circle cx="200" cy="30" r="2" fill="#e0f7ff" />
   </>
 );
 
@@ -236,11 +246,11 @@ const sejlskib = (
 const babyKraken: CreatureSpec = {
   name: "Lille Kraken",
   rarity: "legendary",
-  height: 22,
-  aspect: 192 / 180,
+  height: 25.4,
+  aspect: 220 / 208,
   gait: "float",
   pace: 0.7,
-  viewBox: "-12 0 192 180",
+  viewBox: "-12 -28 220 208",
   art: (
     <>
       {KR_BAGARME.map((d, i) => <g key={i}>{kArm(d, KR_BAG, 10)}</g>)}
@@ -277,9 +287,9 @@ const babyKraken: CreatureSpec = {
         </g>
       ))}
       {/* Højre forarm strakt op med sejlskibet på spidsen. */}
-      {kArm(["M116 98 C 138 100, 150 86, 150 66", "M150 66 C 150 56, 152 49, 156 44"], KR_ARM, 11)}
-      <circle cx="141" cy="92" r="2.1" fill={KR_SUG} />
-      <circle cx="150" cy="72" r="2.1" fill={KR_SUG} />
+      {kArm(["M116 98 C 140 100, 158 88, 162 68", "M162 68 C 165 58, 168 52, 171 46"], KR_ARM, 11)}
+      <circle cx="143" cy="92" r="2.1" fill={KR_SUG} />
+      <circle cx="160" cy="76" r="2.1" fill={KR_SUG} />
       {krakenHoved(true)}
       {krakenGlimt}
       {/* Skibet vipper frem og tilbage på armspidsen. */}
@@ -288,8 +298,8 @@ const babyKraken: CreatureSpec = {
       <g fill="none" stroke="#e0f7ff" strokeWidth="1.8">
         <g className="zoo-fx-rise"><circle cx="40" cy="28" r="3.6" /></g>
         <g className="zoo-fx-rise" style={fx("0.8s")}><circle cx="28" cy="16" r="2.6" /></g>
-        <g className="zoo-fx-rise" style={fx("1.6s")}><circle cx="132" cy="22" r="3" /></g>
-        <g className="zoo-fx-rise" style={fx("1.2s")}><circle cx="122" cy="14" r="2.2" /></g>
+        <g className="zoo-fx-rise" style={fx("1.6s")}><circle cx="104" cy="6" r="3" /></g>
+        <g className="zoo-fx-rise" style={fx("1.2s")}><circle cx="116" cy="-6" r="2.2" /></g>
         <g className="zoo-fx-rise" style={fx("2s")}><circle cx="52" cy="12" r="2.2" /></g>
       </g>
     </>
