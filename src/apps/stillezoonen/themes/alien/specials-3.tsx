@@ -131,7 +131,7 @@ const PUST_FARVER = [DR_STJERNE, "#ffffff", "#bfe3ff", "#ffb3e6"];
 const PUST_ANTAL = 8;
 const pusteStjerner = Array.from({ length: PUST_ANTAL }, (_, i) => {
   const [x, y] = pusteBue(0.1 + (i * 0.9) / (PUST_ANTAL - 1));
-  return { x, y, r: r1(2.6 + i * 0.4), farve: PUST_FARVER[i % PUST_FARVER.length] };
+  return { x, y, r: r1(3.4 + i * 0.45), farve: PUST_FARVER[i % PUST_FARVER.length] };
 });
 
 /** Sød baby-rumdrage — står den stille, sætter den sig og puster glitrende stjerner. */
@@ -167,8 +167,8 @@ const starDragon: CreatureSpec = {
     <>
       {/* Halen ligger på jorden og logrer. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.3s", "100% 100%"), animationDuration: "1.3s" }}>
-        <path d="M40 98 C 26 104, 14 102, 10 90 C 8 104, 22 120, 46 116 Z" fill={DR_KROP} />
-        {STJERNE(10, 86, 7.5, DR_GULD)}
+        <path d="M40 98 C 28 104, 20 102, 17 92 C 14 106, 26 120, 46 116 Z" fill={DR_KROP} />
+        {STJERNE(17, 88, 7, DR_GULD)}
       </g>
       {/* Fjerne vinge vipper. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.15s", "100% 100%"), animationDuration: "0.7s" }}>{drageVingeBag}</g>
@@ -196,6 +196,8 @@ const starDragon: CreatureSpec = {
       <rect x="94" y="96" width="13" height="22" rx="6" fill={DR_KROP} />
       <ellipse cx="101" cy="117" rx="8.5" ry="3" fill={DR_KROP} />
       <path d="M102 116 v 2 M106 116 v 2" stroke={DR_HUD} strokeWidth="1.4" strokeLinecap="round" />
+      {/* Et lille glimt ved munden, hvor stjernerne kommer ud. */}
+      <g className="zoo-fx-sparkle" style={{ ...fx("0.1s"), animationDuration: "0.7s" }}>{GLIMT(146, 50, 4, "#fff6c2")}</g>
       {/* Glimmerspor langs buen. */}
       <path d="M143 50 C 172 30, 168 -16, 122 -20" stroke="#fff3b0" strokeWidth="2.6" strokeDasharray="0.1 7" fill="none" strokeLinecap="round" opacity="0.8" />
       {/* Stjernerne strømmer ud i buen, den ene efter den anden. */}
@@ -229,9 +231,11 @@ const KAT_OERE = "#ff9fd8";
 const galaksePels = (form: ReactNode, dx = 0, dy = 0) => (
   <Klip form={form}>
     <g transform={`translate(${dx} ${dy})`}>
-      <path d="M18 84 C 40 56, 74 72, 104 38" stroke={KAT_TAAGE_BLAA} strokeWidth="16" fill="none" strokeLinecap="round" opacity="0.32" />
-      <path d="M50 62 C 52 52, 66 50, 70 58 C 74 68, 60 74, 55 67 C 51 61, 58 57, 62 61" stroke={KAT_TAAGE_ROSA} strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.75" />
-      <circle cx="61" cy="62" r="2.4" fill="#fff" />
+      <path d="M18 84 C 40 56, 74 72, 104 38" stroke={KAT_TAAGE_BLAA} strokeWidth="24" fill="none" strokeLinecap="round" opacity="0.14" />
+      <path d="M18 84 C 40 56, 74 72, 104 38" stroke="#9fd8ff" strokeWidth="10" fill="none" strokeLinecap="round" opacity="0.18" />
+      <ellipse cx="61" cy="62" rx="11" ry="8" fill={KAT_TAAGE_ROSA} opacity="0.22" />
+      <path d="M53 62 C 54 55, 64 53, 67 59 C 70 66, 60 70, 57 65 C 54 61, 59 58, 62 61" stroke={KAT_TAAGE_ROSA} strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.75" />
+      <circle cx="61.5" cy="61.5" r="1.8" fill="#fff" />
       <circle cx="38" cy="56" r="1.4" fill="#fff" />
       <circle cx="86" cy="70" r="1.3" fill="#fff" />
       <circle cx="80" cy="50" r="1.1" fill={KAT_STJERNE} />
@@ -331,7 +335,7 @@ const galaxyCat: CreatureSpec = {
       </g>
       {katBen(42, KAT_PELS)}
       {/* Hovedet sænket mod planeten. */}
-      <g transform="translate(-4 12) rotate(8 106 40)">{katHoved(true)}</g>
+      <g transform="translate(-6 6) rotate(6 106 40)">{katHoved(true)}</g>
       {/* Nære forpote slår legende efter planeten. */}
       <g className="zoo-fx-wave" style={{ ...fx("0s", "0% 100%"), animationDuration: "0.5s" }}>
         <path d="M94 84 C 104 82, 112 78, 120 73" stroke={KAT_PELS} strokeWidth="10" fill="none" strokeLinecap="round" />
@@ -421,8 +425,8 @@ const ufoSkrog = (
 /** Glaskuppel (tegnes over kaptajnen). */
 const ufoKuppel = (
   <>
-    <path d="M40 56 C 38 10, 112 8, 110 56 Z" fill="#c5f7ff" opacity="0.5" />
-    <path d="M50 38 C 54 24, 66 18, 78 18" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" opacity="0.8" />
+    <path d="M40 56 C 38 -2, 112 -4, 110 56 Z" fill="#c5f7ff" opacity="0.5" />
+    <path d="M49 36 C 52 22, 64 14, 76 13" stroke="#fff" strokeWidth="3.5" fill="none" strokeLinecap="round" opacity="0.8" />
     <path d="M40 56 C 60 60, 90 60, 110 56" stroke={UFO_MOERK} strokeWidth="3" fill="none" strokeLinecap="round" />
   </>
 );
@@ -450,11 +454,11 @@ const goldenUfo: CreatureSpec = {
   art: (
     <>
       {/* Kaptajnen sidder i kuplen. */}
-      <circle cx="77" cy="42" r="14" fill={KAPTAJN_GROEN} />
-      {kaptajnHat(76, 34, 0.9)}
-      {EYE(73, 43, 3.4)}
-      {EYE(84, 43, 3.4)}
-      <path d="M76 50 q 4 3 8 0" stroke="#2f8a3b" strokeWidth="2" fill="none" strokeLinecap="round" />
+      <circle cx="77" cy="36" r="12" fill={KAPTAJN_GROEN} />
+      {kaptajnHat(76, 29, 0.75)}
+      {EYE(73, 35, 3)}
+      {EYE(83, 35, 3)}
+      <path d="M77 40 q 3.5 2.6 7 0" stroke="#2f8a3b" strokeWidth="1.8" fill="none" strokeLinecap="round" />
       {ufoKuppel}
       {ufoSkrog}
       <circle cx="75" cy="83" r="4" fill={UFO_GLANS} />
@@ -467,9 +471,9 @@ const goldenUfo: CreatureSpec = {
   special: (
     <>
       {/* Lyskeglen fra lugen under tallerkenen. */}
-      <path d="M66 82 L 84 82 L 114 146 L 36 146 Z" fill="#fff3a8" opacity="0.4" />
-      <path d="M70 82 L 80 82 L 98 146 L 52 146 Z" fill="#fffbe0" opacity="0.45" />
-      <ellipse cx="75" cy="145" rx="39" ry="4.5" fill="#fff3a8" opacity="0.8" />
+      <path d="M66 82 L 84 82 L 114 146 L 36 146 Z" fill="#fff7c7" opacity="0.42" />
+      <path d="M70 82 L 80 82 L 98 146 L 52 146 Z" fill="#fffbe8" opacity="0.5" />
+      <ellipse cx="75" cy="145" rx="39" ry="4.5" fill="#fff7c7" opacity="0.9" />
       {ufoKuppel}
       {ufoSkrog}
       <ellipse cx="75" cy="82" rx="10" ry="3.2" fill={UFO_GLANS} />
@@ -496,8 +500,8 @@ const goldenUfo: CreatureSpec = {
       <path d="M67 118 l 5 0 M78 118 l 5 0" stroke="#ffd84a" strokeWidth="2" strokeLinecap="round" />
       {/* Vinkende arm. */}
       <g className="zoo-fx-wave" style={{ ...fx("0s", "0% 100%"), animationDuration: "0.5s" }}>
-        <path d="M82 121 C 87 118, 90 112, 90 105" stroke={KAPTAJN_GROEN} strokeWidth="4" fill="none" strokeLinecap="round" />
-        <circle cx="90" cy="103" r="3.4" fill={KAPTAJN_GROEN} />
+        <path d="M83 121 C 89 118, 94 112, 97 104" stroke={KAPTAJN_GROEN} strokeWidth="4" fill="none" strokeLinecap="round" />
+        <circle cx="97.5" cy="102" r="3.6" fill={KAPTAJN_GROEN} />
       </g>
       <circle cx="76" cy="105" r="11" fill={KAPTAJN_GROEN} />
       {kaptajnHat(75, 99, 0.75)}
