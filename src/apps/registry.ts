@@ -1,5 +1,6 @@
 import { manifest as stillezoonen } from "./stillezoonen/manifest";
 import { manifest as navnetraekker } from "./navnetraekker/manifest";
+import { manifest as opgavelab } from "./opgavelab/manifest";
 import type { AppManifest } from "./types";
 
 /**
@@ -8,7 +9,7 @@ import type { AppManifest } from "./types";
  *      klientkomponent.
  *   2. Tilføj manifestet her og komponenten i runtime.tsx.
  */
-export const apps: AppManifest[] = [stillezoonen, navnetraekker];
+export const apps: AppManifest[] = [stillezoonen, navnetraekker, opgavelab];
 
 export function getApp(slug: string) {
   return apps.find((a) => a.slug === slug);

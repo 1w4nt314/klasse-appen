@@ -1,0 +1,318 @@
+/* Opgavelab — alle klasser er præfikset `ol-` da filen er global. */
+
+/* Samme fontfil bruges på skærmen og i PDF-eksporten (DejaVu Sans, Bitstream Vera-licens). */
+@font-face {
+  font-family: "OpgavelabSans";
+  src: url("/fonts/DejaVuSans.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpgavelabSans";
+  src: url("/fonts/DejaVuSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.ol-root {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr) 300px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "top top top"
+    "tools main props";
+  height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* ---------- Topbar ---------- */
+
+.ol-topbar {
+  grid-area: top;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.ol-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-back:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.ol-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--brand-strong);
+}
+
+.ol-name {
+  flex: 1 1 200px;
+  max-width: 340px;
+  min-width: 0;
+}
+.ol-name input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.ol-dirty {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.ol-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ---------- Knapper ---------- */
+
+.ol-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.ol-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ol-btn-strong {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.ol-btn-strong:hover:not(:disabled) {
+  background: var(--brand-strong);
+  color: #fff;
+}
+.ol-btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.ol-btn-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ---------- Sidepaneler ---------- */
+
+.ol-tools,
+.ol-props {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--surface);
+}
+.ol-tools {
+  grid-area: tools;
+  border-right: 1px solid var(--line);
+}
+.ol-props {
+  grid-area: props;
+  border-left: 1px solid var(--line);
+}
+
+.ol-panel-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ol-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ol-tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-tool:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.ol-tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ol-hint {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ol-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+  color: var(--ink);
+  resize: vertical;
+}
+
+.ol-values {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.ol-values th,
+.ol-values td {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.ol-values th {
+  width: 3.5em;
+  font-weight: 800;
+}
+.ol-values td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Ark ---------- */
+
+.ol-main {
+  grid-area: main;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ol-stage {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  place-items: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ol-sheet {
+  background: #ffffff;
+  box-shadow: var(--shadow-float);
+  line-height: 0;
+}
+
+.ol-stage[data-dragging] {
+  cursor: grabbing;
+}
+
+/* ---------- Smal skærm: ark først, værktøjer som række over arket ---------- */
+
+@media (max-width: 900px) {
+  .ol-root {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .ol-topbar {
+    padding: 8px 12px;
+  }
+  .ol-top-actions {
+    margin-left: 0;
+  }
+  .ol-tools {
+    order: 1;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .ol-tools .ol-panel-title,
+  .ol-tools .ol-hint {
+    display: none;
+  }
+  .ol-tool-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ol-main {
+    order: 2;
+    display: block;
+  }
+  .ol-stage {
+    width: 100%;
+    aspect-ratio: 210 / 297;
+    padding: 8px;
+  }
+  .ol-props {
+    order: 3;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (pointer: coarse) {
+  .ol-btn,
+  .ol-tool,
+  .ol-back {
+    min-height: 44px;
+  }
+}
