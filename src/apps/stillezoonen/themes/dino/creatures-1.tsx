@@ -384,10 +384,10 @@ const fjer = (x: number, y: number, vinkel: number, laengde: number, farve: stri
 const velociraptor: CreatureSpec = {
   name: "Velociraptor",
   height: 11,
-  aspect: 170 / 128,
+  aspect: 182 / 128,
   gait: "walk",
   pace: 1.4,
-  viewBox: "0 0 170 128",
+  viewBox: "-12 0 182 128",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">

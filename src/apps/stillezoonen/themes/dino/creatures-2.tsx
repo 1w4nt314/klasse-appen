@@ -111,11 +111,11 @@ const quetzalcoatlus: CreatureSpec = {
 const archaeopteryx: CreatureSpec = {
   name: "Archaeopteryx",
   height: 7,
-  aspect: 160 / 120,
+  aspect: 165 / 120,
   gait: "float",
   zone: "open",
   pace: 1.2,
-  viewBox: "0 0 160 120",
+  viewBox: "-5 0 165 120",
   art: (
     <>
       {/* lang fjerhale */}

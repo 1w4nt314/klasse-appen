@@ -372,12 +372,12 @@ const mrVingeFjer = (x: number, y: number, vinkler: number[], len: number, mork:
 
 const microraptor: CreatureSpec = {
   name: "Microraptor",
-  height: 6,
-  aspect: 140 / 90,
+  height: 6.6,
+  aspect: 140 / 99,
   gait: "float",
   zone: "open",
   pace: 1.0,
-  viewBox: "0 0 140 90",
+  viewBox: "0 -9 140 99",
   art: (
     <>
       {/* fjerne vinge (arm) */}
