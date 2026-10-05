@@ -219,22 +219,42 @@ const starDragon: CreatureSpec = {
 /* Galaksekatten (legendarisk)                                              */
 /* ------------------------------------------------------------------------ */
 
-const KAT_PELS = "#3a2a8f";
-const KAT_MOERK = "#291d6e";
-const KAT_SNUDE = "#5a48b8";
-const KAT_TAAGE_ROSA = "#ff7fd1";
-const KAT_TAAGE_BLAA = "#5fd3f0";
+const KAT_PELS = "#6c5ce0";
+const KAT_MOERK = "#5545c2";
+const KAT_SNUDE = "#978af5";
+const KAT_TAAGE_ROSA = "#ff8fdc";
+const KAT_TAAGE_BLAA = "#8fe9ff";
 const KAT_STJERNE = "#fff3b0";
-const KAT_OERE = "#ff9fd8";
+const KAT_OERE = "#ffa6dc";
+/** Lys, glødende kant, så katten står tydeligt mod den mørke rumhimmel. */
+const KAT_GLOED = "#bdeeff";
+
+/**
+ * Glødende kant bag en silhuet: `form(w)` tegner formen uden farve; flader
+ * arver glødens fyld/streg, streger lægger selv `w` til deres bredde.
+ * `halo` giver desuden et blødt, bredere skær.
+ */
+const katGloed = (form: (w: number) => ReactNode, halo = true) => (
+  <>
+    {halo && (
+      <g fill={KAT_GLOED} stroke={KAT_GLOED} strokeWidth="12" strokeLinejoin="round" strokeLinecap="round" opacity="0.3">
+        {form(12)}
+      </g>
+    )}
+    <g fill={KAT_GLOED} stroke={KAT_GLOED} strokeWidth="6" strokeLinejoin="round" strokeLinecap="round">
+      {form(6)}
+    </g>
+  </>
+);
 
 /** Galaksepels: mælkevej og tåge-swirl, klippet til formen `form`. */
 const galaksePels = (form: ReactNode, dx = 0, dy = 0) => (
   <Klip form={form}>
     <g transform={`translate(${dx} ${dy})`}>
-      <path d="M18 84 C 40 56, 74 72, 104 38" stroke={KAT_TAAGE_BLAA} strokeWidth="24" fill="none" strokeLinecap="round" opacity="0.14" />
-      <path d="M18 84 C 40 56, 74 72, 104 38" stroke="#9fd8ff" strokeWidth="10" fill="none" strokeLinecap="round" opacity="0.18" />
-      <ellipse cx="61" cy="62" rx="11" ry="8" fill={KAT_TAAGE_ROSA} opacity="0.22" />
-      <path d="M53 62 C 54 55, 64 53, 67 59 C 70 66, 60 70, 57 65 C 54 61, 59 58, 62 61" stroke={KAT_TAAGE_ROSA} strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.75" />
+      <path d="M18 84 C 40 56, 74 72, 104 38" stroke={KAT_TAAGE_BLAA} strokeWidth="24" fill="none" strokeLinecap="round" opacity="0.3" />
+      <path d="M18 84 C 40 56, 74 72, 104 38" stroke="#e0f7ff" strokeWidth="9" fill="none" strokeLinecap="round" opacity="0.3" />
+      <ellipse cx="61" cy="62" rx="11" ry="8" fill={KAT_TAAGE_ROSA} opacity="0.35" />
+      <path d="M53 62 C 54 55, 64 53, 67 59 C 70 66, 60 70, 57 65 C 54 61, 59 58, 62 61" stroke="#ffb3ea" strokeWidth="3" fill="none" strokeLinecap="round" />
       <circle cx="61.5" cy="61.5" r="1.8" fill="#fff" />
       <circle cx="38" cy="56" r="1.4" fill="#fff" />
       <circle cx="86" cy="70" r="1.3" fill="#fff" />
@@ -244,6 +264,16 @@ const galaksePels = (form: ReactNode, dx = 0, dy = 0) => (
       {STJERNE(40, 64, 3.2, "#fff")}
     </g>
   </Klip>
+);
+
+/** Hovedets silhuet (ører, hoved og snude) til gløden. */
+const katHovedForm = (
+  <>
+    <path d="M89 31 L 91 6 L 106 22 Z" />
+    <path d="M106 22 L 119 4 L 123 30 Z" />
+    <circle cx="106" cy="40" r="19" />
+    <ellipse cx="118" cy="48" rx="9" ry="7" />
+  </>
 );
 
 /** Kattens hoved med galakse-ører; `kig` sænker blikket (ser ned på planeten). */
@@ -259,11 +289,19 @@ const katHoved = (kig: boolean) => (
     <circle cx="100" cy="30" r="1.2" fill="#fff" />
     <ellipse cx="118" cy="48" rx="9" ry="7" fill={KAT_SNUDE} />
     <path d="M123 43 l 5 0 l -2.5 3.4 Z" fill="#ff9fc8" />
-    <path d="M125.5 46.4 v 2.6 q -2.4 3 -5 1 M125.5 49 q 2 3 4.4 1" stroke="#1d1240" strokeWidth="1.4" fill="none" strokeLinecap="round" />
-    <path d="M118 48 L 137 45 M118 50 L 137 52" stroke="#c9bfff" strokeWidth="1.1" strokeLinecap="round" />
+    <path d="M125.5 46.4 v 2.6 q -2.4 3 -5 1 M125.5 49 q 2 3 4.4 1" stroke="#2a1d6b" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    <path d="M118 48 L 137 45 M118 50 L 137 52" stroke="#efeaff" strokeWidth="1.1" strokeLinecap="round" />
     <circle cx="113" cy={kig ? 39 : 37} r="5.6" fill="#ffd84a" />
     {EYE(kig ? 115 : 114, kig ? 40 : 37, 3.8)}
-    <circle cx="110" cy="49" r="3.6" fill="#ff8ad8" opacity="0.5" />
+    <circle cx="110" cy="49" r="3.6" fill="#ff8ad8" opacity="0.55" />
+  </>
+);
+
+/** Benets silhuet fra `top` og ned (nære ben gløder kun under kroppen). */
+const katBenForm = (x: number, top = 70) => (
+  <>
+    <rect x={x} y={top} width="10" height={98 - top} rx="5" />
+    <ellipse cx={x + 6} cy="97.4" rx="7" ry="2.6" />
   </>
 );
 
@@ -275,41 +313,67 @@ const katBen = (x: number, farve: string) => (
   </>
 );
 
-/** Den lille ringplanet (garnnøglet), centreret i (0, 0). */
+const KAT_HALE_GAA = "M30 58 C 12 54, 6 36, 12 20 C 15 12, 24 12, 24 20";
+const KAT_HALE_LEG = "M34 56 C 24 44, 22 28, 30 16 C 34 10, 42 11, 40 19";
+const KAT_FJERN_POTE = "M90 88 L 122 94";
+const KAT_NAER_POTE = "M94 84 C 104 82, 113 77, 122 72";
+
+/** Ringplaneten (garnnøglet), centreret i (0, 0); tegnes forstørret. */
 const ringPlanet = (
   <>
     <path d="M-12.5 0 A 12.5 4.2 0 0 1 12.5 0" stroke="#ffd84a" strokeWidth="2.4" fill="none" />
     <circle cx="0" cy="0" r="7.5" fill="#ff8a5c" />
     <path d="M-6.5 -3 C -2 -5, 3 -5, 6.8 -2.4 M-7.2 2 C -2 3.6, 3 3.6, 7.2 1.6" stroke="#ffc08a" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <circle cx="-3" cy="-3.4" r="1.4" fill="#ffe0c8" />
     <path d="M-12.5 0 A 12.5 4.2 0 0 0 12.5 0" stroke="#ffd84a" strokeWidth="2.4" fill="none" />
   </>
 );
 
-/** Kat med galaksepels — står den stille, leger den med en lille ringplanet. */
+/** Kat med galaksepels — står den stille, leger den med en ringplanet. */
 const galaxyCat: CreatureSpec = {
   name: "Galaksekatten",
   rarity: "legendary",
-  height: 11,
-  aspect: 150 / 100,
+  height: 11.4,
+  aspect: 172 / 104,
   gait: "walk",
   pace: 1.1,
-  viewBox: "0 0 150 100",
+  viewBox: "-6 -4 172 104",
   art: (
     <>
+      {/* Glødende kant bag hale, krop og hoved. */}
+      {katGloed((w) => (
+        <>
+          <path d={KAT_HALE_GAA} fill="none" strokeWidth={9 + w} />
+          <ellipse cx="62" cy="62" rx="36" ry="20" />
+          {katHovedForm}
+        </>
+      ))}
       <g>
-        <path d="M30 58 C 12 54, 6 36, 12 20 C 15 12, 24 12, 24 20" stroke={KAT_PELS} strokeWidth="9" fill="none" strokeLinecap="round" />
+        <path d={KAT_HALE_GAA} stroke={KAT_PELS} strokeWidth="9" fill="none" strokeLinecap="round" />
         <circle cx="13" cy="30" r="1.4" fill="#fff" />
         {STJERNE(18, 16, 2.6, KAT_STJERNE)}
       </g>
-      <g className="zoo-leg zoo-leg-a">{katBen(78, KAT_MOERK)}</g>
-      <g className="zoo-leg zoo-leg-b">{katBen(30, KAT_MOERK)}</g>
+      <g className="zoo-leg zoo-leg-a">
+        {katGloed(() => katBenForm(78))}
+        {katBen(78, KAT_MOERK)}
+      </g>
+      <g className="zoo-leg zoo-leg-b">
+        {katGloed(() => katBenForm(30))}
+        {katBen(30, KAT_MOERK)}
+      </g>
       <g className="zoo-torso">
         <ellipse cx="62" cy="62" rx="36" ry="20" fill={KAT_PELS} />
         {galaksePels(<ellipse cx="62" cy="62" rx="36" ry="20" />)}
         <g className="zoo-fx-sparkle" style={fx("0.4s")}>{GLIMT(70, 48, 3.6)}</g>
       </g>
-      <g className="zoo-leg zoo-leg-b">{katBen(90, KAT_PELS)}</g>
-      <g className="zoo-leg zoo-leg-a">{katBen(42, KAT_PELS)}</g>
+      <g className="zoo-leg zoo-leg-b">
+        {katGloed(() => katBenForm(90, 76), false)}
+        {katBen(90, KAT_PELS)}
+      </g>
+      <g className="zoo-leg zoo-leg-a">
+        {katGloed(() => katBenForm(42, 84), false)}
+        {katBen(42, KAT_PELS)}
+      </g>
       <g className="zoo-head">
         {katHoved(false)}
         <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(128, 22, 3, "#fff6c2")}</g>
@@ -318,43 +382,56 @@ const galaxyCat: CreatureSpec = {
   ),
   special: (
     <>
+      {/* Glødende kant bag krop, hoved og ben. */}
+      {katGloed((w) => (
+        <>
+          {katBenForm(30)}
+          {katBenForm(42)}
+          <path d={KAT_FJERN_POTE} fill="none" strokeWidth={10 + w} />
+          <ellipse cx="64" cy="64" rx="36" ry="19" transform="rotate(16 66 66)" />
+          <g transform="translate(-6 6) rotate(6 106 40)">{katHovedForm}</g>
+        </>
+      ))}
       {/* Halen står op og vifter. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.2s", "50% 100%"), animationDuration: "0.8s" }}>
-        <path d="M34 56 C 24 44, 22 28, 30 16 C 34 10, 42 11, 40 19" stroke={KAT_PELS} strokeWidth="9" fill="none" strokeLinecap="round" />
+        {katGloed((w) => <path d={KAT_HALE_LEG} fill="none" strokeWidth={9 + w} />)}
+        <path d={KAT_HALE_LEG} stroke={KAT_PELS} strokeWidth="9" fill="none" strokeLinecap="round" />
         <circle cx="26" cy="34" r="1.4" fill="#fff" />
         {STJERNE(34, 12, 2.6, KAT_STJERNE)}
       </g>
       {/* Bagbenene står, hvor de står, når den går. */}
       {katBen(30, KAT_MOERK)}
       {/* Fjerne forben ligger strakt frem på jorden. */}
-      <path d="M90 88 L 122 94" stroke={KAT_MOERK} strokeWidth="10" fill="none" strokeLinecap="round" />
+      <path d={KAT_FJERN_POTE} stroke={KAT_MOERK} strokeWidth="10" fill="none" strokeLinecap="round" />
       {/* Legebuk: numsen oppe, brystet nede. */}
       <g transform="rotate(16 66 66)">
         <ellipse cx="64" cy="64" rx="36" ry="19" fill={KAT_PELS} />
         {galaksePels(<ellipse cx="64" cy="64" rx="36" ry="19" />, 2, 2)}
       </g>
+      {katGloed(() => katBenForm(42, 84), false)}
       {katBen(42, KAT_PELS)}
       {/* Hovedet sænket mod planeten. */}
       <g transform="translate(-6 6) rotate(6 106 40)">{katHoved(true)}</g>
       {/* Nære forpote slår legende efter planeten. */}
       <g className="zoo-fx-wave" style={{ ...fx("0s", "0% 100%"), animationDuration: "0.5s" }}>
-        <path d="M94 84 C 104 82, 112 78, 120 73" stroke={KAT_PELS} strokeWidth="10" fill="none" strokeLinecap="round" />
-        <circle cx="121" cy="73" r="2" fill={KAT_OERE} />
+        {katGloed((w) => <path d={KAT_NAER_POTE} fill="none" strokeWidth={10 + w} />, false)}
+        <path d={KAT_NAER_POTE} stroke={KAT_PELS} strokeWidth="10" fill="none" strokeLinecap="round" />
+        <circle cx="123" cy="72" r="2.2" fill={KAT_OERE} />
       </g>
       {/* Ringplaneten hopper og snurrer mellem poterne. */}
       <g className="zoo-fx-bob" style={{ ...fx("0.3s"), animationDuration: "0.5s" }}>
-        <rect x="134" y="-150" width="0.1" height="246" fill="none" />
-        <g className="zoo-fx-spin" style={{ animationDuration: "1.2s" } as CSSProperties}>
-          <g transform="translate(134 84) rotate(-20)">{ringPlanet}</g>
+        <rect x="139" y="-150" width="0.1" height="246" fill="none" />
+        <g className="zoo-fx-spin" style={{ animationDuration: "1.6s" } as CSSProperties}>
+          <g transform="translate(139 74) rotate(-20) scale(1.9)">{ringPlanet}</g>
         </g>
       </g>
       {/* Stjerner funkler omkring legen. */}
-      <g className="zoo-fx-sparkle">{STJERNE(140, 60, 4, KAT_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.5s")}>{GLIMT(118, 58, 3.4)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.9s")}>{STJERNE(144, 76, 2.8, "#fff")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.3s")}>{GLIMT(62, 42, 4)}</g>
-      <g className="zoo-fx-sparkle" style={fx("1.1s")}>{GLIMT(16, 26, 3, "#fff6c2")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.7s")}>{HJERTE(132, 14, 4, KAT_TAAGE_ROSA)}</g>
+      <g className="zoo-fx-sparkle">{STJERNE(156, 38, 4, KAT_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.5s")}>{GLIMT(128, 42, 3.4)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.9s")}>{STJERNE(160, 62, 2.8, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.3s")}>{GLIMT(62, 40, 4)}</g>
+      <g className="zoo-fx-sparkle" style={fx("1.1s")}>{GLIMT(14, 26, 3, "#fff6c2")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.7s")}>{HJERTE(134, 14, 4, KAT_TAAGE_ROSA)}</g>
     </>
   ),
 };

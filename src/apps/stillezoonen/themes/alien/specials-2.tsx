@@ -239,9 +239,9 @@ const stargazer: CreatureSpec = {
       <g transform="rotate(-35 96 50)">
         <rect x="92" y="44" width="12" height="12" rx="3" fill="#3a3550" />
       </g>
-      {/* Armen holder om kikkerten. */}
-      <path d="M68 88 C 86 94, 102 82, 106 60" stroke={GROEN.benFor} strokeWidth="9" fill="none" strokeLinecap="round" />
-      <circle cx="107" cy="57" r="5.5" fill={GROEN.benFor} />
+      {/* Armen holder kikkerten ved beslaget (under munden). */}
+      <path d="M68 88 C 90 94, 106 76, 114 56" stroke={GROEN.benFor} strokeWidth="9" fill="none" strokeLinecap="round" />
+      <circle cx="115" cy="53" r="5.5" fill={GROEN.benFor} />
     </>
   ),
 };
@@ -344,11 +344,11 @@ const lysprik = (x: number, y: number, r: number, farve: string, d: string) => (
 const danceBot: CreatureSpec = {
   name: "Dansebotten",
   rarity: "rare",
-  height: 21.5,
-  aspect: 120 / 170,
+  height: 22,
+  aspect: 120 / 174,
   gait: "walk",
   pace: 0.95,
-  viewBox: "0 -20 120 170",
+  viewBox: "0 -24 120 174",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">{robotBenBag}</g>
@@ -389,12 +389,12 @@ const danceBot: CreatureSpec = {
         {/* Bageste arm: skulder og albue drejer i kantede ryk. */}
         <g className="zoo-fx-wave" style={fxv("0s", "50% 50%", "0.9s", TRIN)}>
           {omkring(40, 80, 40, 34)}
-          <path d="M40 80 H 18" stroke={ROBOT_MOERK} strokeWidth="9" strokeLinecap="round" />
+          <path d="M40 80 H 23" stroke={ROBOT_MOERK} strokeWidth="9" strokeLinecap="round" />
           <g className="zoo-fx-wave" style={fxv("0s", "50% 50%", "0.9s", TRIN)}>
-            {omkring(18, 80, 8, 32)}
-            <path d="M18 80 V 58" stroke={ROBOT_MOERK} strokeWidth="9" strokeLinecap="round" />
-            {robotKlo(18, 54, true)}
-            <circle cx="18" cy="80" r="5.5" fill={ROBOT_FOD} />
+            {omkring(23, 80, 8, 32)}
+            <path d="M23 80 V 58" stroke={ROBOT_MOERK} strokeWidth="9" strokeLinecap="round" />
+            {robotKlo(23, 54, true)}
+            <circle cx="23" cy="80" r="5.5" fill={ROBOT_FOD} />
           </g>
         </g>
         {robotKrop}
@@ -664,11 +664,11 @@ const damp = (x: number, y: number, d: string) => (
 const chefTentacle: CreatureSpec = {
   name: "Kokke-tentaklen",
   rarity: "rare",
-  height: 26.3,
-  aspect: 180 / 214,
+  height: 26.8,
+  aspect: 188 / 218,
   gait: "walk",
   pace: 0.9,
-  viewBox: "-20 -84 180 214",
+  viewBox: "-24 -88 188 218",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">{tentakelBen(BEN_BAG[0], true)}</g>
