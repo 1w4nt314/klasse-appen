@@ -440,7 +440,7 @@ const arm = (pre: string, dx: number, dy: number, fjern: boolean) => (
       strokeLinecap="round"
     />
     <circle cx="132" cy="122" r="9.5" fill={fjern ? "#d3b27a" : "#e4c68e"} />
-    {[8, 28, 48].map((v, i) => kloer(`${pre}${i}`, 134, 122, v, 46 - i * 3, fjern ? "#e6dcb8" : "#f6efd8"))}
+    {[0, 18, 36].map((v, i) => kloer(`${pre}${i}`, 134, 122, v, 62 - i * 4, fjern ? "#e6dcb8" : "#f6efd8"))}
   </g>
 );
 
