@@ -145,13 +145,17 @@ const rock = (x: number, y: number, s: number, key: string, flip = false) => (
   </g>
 );
 
-/** Treklø-fodspor set skråt fra oven (klemt sammen lodret). Midten ligger i (0,0). */
+/** Treklø-fodspor set skråt fra oven (klemt sammen lodret). Hælen ligger i (0,0). */
 const footprint = (x: number, y: number, s: number, rot: number, color: string, key: string) => (
-  <g key={key} transform={`translate(${x} ${y}) scale(${s} ${r2(s * 0.48)}) rotate(${rot})`} fill={color}>
-    <ellipse cx="0" cy="0" rx="17" ry="19" />
-    <ellipse cx="0" cy="-34" rx="7" ry="18" />
-    <ellipse cx="-20" cy="-25" rx="7" ry="17" transform="rotate(-34 -20 -25)" />
-    <ellipse cx="20" cy="-25" rx="7" ry="17" transform="rotate(34 20 -25)" />
+  <g key={key} transform={`translate(${x} ${y}) scale(${s} ${r2(s * 0.5)}) rotate(${rot})`}>
+    <path
+      d="M0 -14 L -20 -44 M0 -14 L 0 -54 M0 -14 L 20 -44"
+      stroke={color}
+      strokeWidth="13"
+      strokeLinecap="round"
+      fill="none"
+    />
+    <ellipse cx="0" cy="-8" rx="15" ry="14" fill={color} />
   </g>
 );
 
@@ -189,15 +193,20 @@ const sprout = (x: number, y: number, s: number, color: string, key: string) => 
   </g>
 );
 
-/** Røgpuffer over vulkanen: [x, y, radius, forsinkelse]. */
+/** Røgpuffer over vulkanen: [x, y, radius, forsinkelse]. De overlapper, så de ligner én blød sky. */
 const SMOKE = [
-  [1086, 282, 24, 0],
-  [1104, 248, 32, 1.2],
-  [1076, 236, 22, 2.6],
-  [1130, 206, 40, 0.6],
-  [1168, 168, 44, 2],
-  [1214, 140, 40, 3.2],
-  [1124, 170, 28, 1.6],
+  [1084, 288, 18, 0],
+  [1094, 264, 24, 1.4],
+  [1080, 246, 18, 2.8],
+  [1110, 236, 28, 0.6],
+  [1098, 212, 24, 2.2],
+  [1136, 204, 32, 1],
+  [1122, 180, 26, 3],
+  [1164, 172, 36, 1.8],
+  [1150, 146, 28, 0.4],
+  [1204, 152, 34, 2.6],
+  [1190, 124, 26, 1.2],
+  [1240, 132, 28, 3.4],
 ] as const;
 
 const CSS = `
@@ -239,9 +248,9 @@ export function Background({ className, animated = true }: Props) {
       <defs>
         <linearGradient id="dino-sky" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0" stopColor="#f6c98a" />
-          <stop offset="0.32" stopColor="#fbdcae" />
-          <stop offset="0.52" stopColor="#fdebd0" />
-          <stop offset="0.68" stopColor="#dcedf0" />
+          <stop offset="0.3" stopColor="#fbdcae" />
+          <stop offset="0.45" stopColor="#fdeacd" />
+          <stop offset="0.58" stopColor="#e0eef0" />
           <stop offset="1" stopColor="#d2ebf0" />
         </linearGradient>
         <radialGradient id="dino-sun" cx="0.5" cy="0.5" r="0.5">
@@ -306,7 +315,7 @@ export function Background({ className, animated = true }: Props) {
         />
         <ellipse cx="1085" cy="306" rx="26" ry="6" fill="#9d84b2" />
         <ellipse cx="1085" cy="305" rx="16" ry="3" fill="#ffc79a" opacity="0.8" />
-        <g className="zoo-dino-smoke" fill="#fffaf2">
+        <g className="zoo-dino-smoke" fill="#fffaf2" opacity="0.92">
           {SMOKE.map(([x, y, rad, d], i) => (
             <circle
               key={`smoke-${i}`}
@@ -314,7 +323,6 @@ export function Background({ className, animated = true }: Props) {
               cx={x}
               cy={y}
               r={rad}
-              opacity={i < 2 ? 0.95 : 0.85}
               style={{ animationDelay: `${d}s` }}
             />
           ))}
@@ -388,7 +396,7 @@ export function Background({ className, animated = true }: Props) {
       {/* Store sten og en rede med æg ved horisonten */}
       {rock(1210, 614, 0.95, "sten-1")}
       {rock(1290, 618, 0.55, "sten-2", true)}
-      <g transform="translate(1110 612)">
+      <g transform="translate(1110 612) scale(1.3)">
         <ellipse cx="0" cy="0" rx="40" ry="11" fill="#b88a55" />
         <ellipse cx="-14" cy="-10" rx="11" ry="14" fill="#fdf6e4" />
         <ellipse cx="10" cy="-12" rx="12" ry="15" fill="#e9f4d8" />
@@ -418,7 +426,7 @@ export function Background({ className, animated = true }: Props) {
       {/* Guldsmede over søen */}
       {dragonfly(650, 540, 0.9, "#2f9fc4", "gs-1", 0)}
       {dragonfly(830, 512, 0.8, "#e0785a", "gs-2", 3, "zoo-dino-fly-2")}
-      {dragonfly(420, 600, 0.75, "#7b6bd0", "gs-3", 6)}
+      {dragonfly(430, 548, 0.75, "#7b6bd0", "gs-3", 6)}
 
       {/* Jorden */}
       <path
@@ -453,16 +461,16 @@ export function Background({ className, animated = true }: Props) {
       <path d="M990 752 C 950 800, 946 850, 960 890" stroke="#d8bb80" strokeWidth="5" fill="none" strokeLinecap="round" opacity="0.6" />
 
       {/* Store dino-fodspor op ad stien */}
-      {footprint(810, 862, 1.35, -6, "#d0b078", "fs-1")}
-      {footprint(880, 800, 1.15, 10, "#d0b078", "fs-2")}
-      {footprint(870, 738, 0.95, 18, "#d0b078", "fs-3")}
-      {footprint(948, 694, 0.78, 26, "#d0b078", "fs-4")}
-      {footprint(986, 654, 0.62, 30, "#d0b078", "fs-5")}
+      {footprint(812, 872, 1.3, -4, "#d0b078", "fs-1")}
+      {footprint(884, 812, 1.12, 8, "#d0b078", "fs-2")}
+      {footprint(878, 750, 0.95, 18, "#d0b078", "fs-3")}
+      {footprint(952, 702, 0.78, 28, "#d0b078", "fs-4")}
+      {footprint(988, 660, 0.62, 34, "#d0b078", "fs-5")}
       {/* og et par små spor i græsset */}
-      {footprint(300, 690, 0.7, -60, "#8eac4e", "fs-6")}
-      {footprint(236, 712, 0.7, -70, "#8eac4e", "fs-7")}
-      {footprint(1330, 862, 0.9, 70, "#8eac4e", "fs-8")}
-      {footprint(1408, 846, 0.9, 80, "#8eac4e", "fs-9")}
+      {footprint(300, 696, 0.7, -70, "#8eac4e", "fs-6")}
+      {footprint(232, 716, 0.7, -76, "#8eac4e", "fs-7")}
+      {footprint(1330, 868, 0.85, 76, "#8eac4e", "fs-8")}
+      {footprint(1410, 852, 0.85, 70, "#8eac4e", "fs-9")}
 
       {/* Græstotter, spirer og småsten */}
       <g opacity="0.7">
