@@ -381,7 +381,7 @@ const microraptor: CreatureSpec = {
   art: (
     <>
       {/* fjerne vinge (arm) */}
-      <g className="zoo-wing" style={{ "--flap": "0.5s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.5s", transformOrigin: "90% 89%" } as React.CSSProperties}>
         {mrVingeFjer(76, 38, [198, 214, 230, 246], 44, true, "fv")}
       </g>
       <g className="zoo-torso">
@@ -397,7 +397,7 @@ const microraptor: CreatureSpec = {
         <path d="M56 78 L 54 84 L 61 83 M62 79 L 62 85 L 68 83" stroke="#e0b24a" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       {/* nære vinge (arm) */}
-      <g className="zoo-wing" style={{ "--flap": "0.5s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.5s", transformOrigin: "90% 90%" } as React.CSSProperties}>
         {mrVingeFjer(80, 40, [192, 208, 224, 240, 256], 48, false, "nv")}
       </g>
       <g className="zoo-head">

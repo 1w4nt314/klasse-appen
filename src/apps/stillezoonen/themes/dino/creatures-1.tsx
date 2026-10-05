@@ -580,7 +580,7 @@ const pachycephalosaurus: CreatureSpec = {
   aspect: 152 / 126,
   gait: "walk",
   pace: 1,
-  viewBox: "0 14 152 126",
+  viewBox: "0 12.75 152 126",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">

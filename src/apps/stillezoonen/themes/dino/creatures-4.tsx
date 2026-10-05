@@ -98,7 +98,7 @@ const allosaurus: CreatureSpec = {
 
 const diplodocus: CreatureSpec = {
   name: "Diplodocus",
-  height: 26,
+  height: 17,
   aspect: 390 / 124,
   gait: "walk",
   pace: 0.55,

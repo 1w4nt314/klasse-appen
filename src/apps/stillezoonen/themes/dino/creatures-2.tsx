@@ -17,13 +17,13 @@ const pteranodon: CreatureSpec = {
   viewBox: "0 0 200 130",
   art: (
     <>
-      {/* fjern vinge (mørkere) */}
-      <g className="zoo-wing" style={{ "--flap": "0.6s" } as React.CSSProperties}>
+      {/* fjern vinge (mørkere, terracotta-hud) */}
+      <g className="zoo-wing" style={{ "--flap": "0.6s", transformOrigin: "95% 98%" } as React.CSSProperties}>
         <path
           d="M110 64 C 108 38, 98 16, 74 4 C 70 20, 74 30, 80 34 C 82 46, 88 54, 96 66 Z"
-          fill="#cf7a3f"
+          fill="#9a4228"
         />
-        <path d="M110 64 C 106 38, 96 16, 74 4" stroke="#a85a2a" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M110 64 C 106 38, 96 16, 74 4" stroke="#6e281a" strokeWidth="3" fill="none" strokeLinecap="round" />
       </g>
       {/* lille hale og fødder */}
       <path d="M82 76 L 60 90 L 84 88 Z" fill="#d9803f" />
@@ -34,13 +34,13 @@ const pteranodon: CreatureSpec = {
         <ellipse cx="112" cy="84" rx="22" ry="8" fill="#f8dcae" transform="rotate(-8 112 84)" />
       </g>
       {/* nær vinge */}
-      <g className="zoo-wing" style={{ "--flap": "0.6s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.6s", transformOrigin: "99% 89%" } as React.CSSProperties}>
         <path
           d="M102 68 C 84 44, 50 22, 10 16 C 22 28, 28 36, 30 46 C 40 46, 46 52, 48 62 C 60 62, 68 70, 70 80 C 82 82, 92 82, 104 80 Z"
-          fill="#f4b46c"
+          fill="#c8643a"
         />
-        <path d="M102 68 C 84 44, 50 22, 10 16" stroke="#c9703a" strokeWidth="3.5" fill="none" strokeLinecap="round" />
-        <path d="M102 70 L 30 46 M102 72 L 48 62 M102 74 L 70 80" stroke="#e29247" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path d="M102 68 C 84 44, 50 22, 10 16" stroke="#7a2f1c" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+        <path d="M102 70 L 30 46 M102 72 L 48 62 M102 74 L 70 80" stroke="#a4472a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-head">
         <path d="M122 70 C 134 66, 140 60, 146 54" stroke="#eb9a52" strokeWidth="16" fill="none" strokeLinecap="round" />
@@ -67,7 +67,7 @@ const quetzalcoatlus: CreatureSpec = {
   art: (
     <>
       {/* fjern vinge */}
-      <g className="zoo-wing" style={{ "--flap": "0.9s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.9s", transformOrigin: "96% 98%" } as React.CSSProperties}>
         <path
           d="M116 92 C 112 62, 98 28, 62 4 C 62 20, 66 28, 72 34 C 74 50, 82 62, 90 70 C 94 80, 100 88, 108 96 Z"
           fill="#5f8280"
@@ -83,7 +83,7 @@ const quetzalcoatlus: CreatureSpec = {
         <ellipse cx="114" cy="104" rx="22" ry="8" fill="#e3eee6" transform="rotate(-8 114 104)" />
       </g>
       {/* nær vinge */}
-      <g className="zoo-wing" style={{ "--flap": "0.9s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.9s", transformOrigin: "99% 93%" } as React.CSSProperties}>
         <path
           d="M104 90 C 80 62, 44 34, 4 28 C 16 40, 22 48, 24 58 C 36 58, 42 64, 44 74 C 56 74, 62 82, 64 92 C 78 94, 90 96, 106 100 Z"
           fill="#a8c4bd"
@@ -138,7 +138,7 @@ const archaeopteryx: CreatureSpec = {
       </g>
       <ellipse cx="9" cy="104" rx="10" ry="4.6" fill="#7fb4cc" transform="rotate(145 9 104)" />
       {/* fjern vinge */}
-      <g className="zoo-wing" style={{ "--flap": "0.35s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.35s", transformOrigin: "56% 89%" } as React.CSSProperties}>
         <g transform="translate(86 54)" opacity="0.9">
           <ellipse rx="22" ry="6.5" fill="#24566f" transform="rotate(-70) translate(20 0)" />
           <ellipse rx="22" ry="6.5" fill="#24566f" transform="rotate(-95) translate(20 0)" />
@@ -152,7 +152,7 @@ const archaeopteryx: CreatureSpec = {
         <ellipse cx="86" cy="72" rx="17" ry="7" fill="#f4e6c4" transform="rotate(-14 86 72)" />
       </g>
       {/* nær vinge: fjervifte */}
-      <g className="zoo-wing" style={{ "--flap": "0.35s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.35s", transformOrigin: "87% 71%" } as React.CSSProperties}>
         <g transform="translate(88 56)">
           <ellipse rx="26" ry="7.5" fill="#4f90ad" transform="rotate(-100) translate(24 0)" />
           <ellipse rx="26" ry="7.5" fill="#2f6a86" transform="rotate(-125) translate(24 0)" />

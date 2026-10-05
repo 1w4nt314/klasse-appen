@@ -589,7 +589,7 @@ const nightPteranodon: CreatureSpec = {
   art: (
     <>
       {/* fjern vinge (mørkere) */}
-      <g className="zoo-wing" style={{ "--flap": "0.6s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.6s", transformOrigin: "95% 98%" } as React.CSSProperties}>
         <path
           d="M110 64 C 108 38, 98 16, 74 4 C 70 20, 74 30, 80 34 C 82 46, 88 54, 96 66 Z"
           fill="#16224a"
@@ -608,7 +608,7 @@ const nightPteranodon: CreatureSpec = {
         <ellipse cx="112" cy="84" rx="22" ry="8" fill="#5671bd" transform="rotate(-8 112 84)" />
       </g>
       {/* nær vinge */}
-      <g className="zoo-wing" style={{ "--flap": "0.6s" } as React.CSSProperties}>
+      <g className="zoo-wing" style={{ "--flap": "0.6s", transformOrigin: "99% 89%" } as React.CSSProperties}>
         <path
           d="M102 68 C 84 44, 50 22, 10 16 C 22 28, 28 36, 30 46 C 40 46, 46 52, 48 62 C 60 62, 68 70, 70 80 C 82 82, 92 82, 104 80 Z"
           fill="#2e4a96"
