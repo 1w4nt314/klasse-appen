@@ -110,8 +110,7 @@ const wishFish: CreatureSpec = {
       <circle cx="106" cy="56" r="4.4" fill="#ff8a9a" opacity="0.6" />
       {oenskeKrone}
       {/* Den gyldne lysbue, ønskerne strømmer op ad. */}
-      <path d="M116 18 C 126 -2, 114 -26, 90 -30 C 66 -34, 42 -24, 26 -4" stroke="#fff3b0" strokeWidth="9" fill="none" strokeLinecap="round" opacity="0.18" />
-      <path d="M116 18 C 126 -2, 114 -26, 90 -30 C 66 -34, 42 -24, 26 -4" stroke="#fff7c2" strokeWidth="2.6" strokeDasharray="0.1 6" fill="none" strokeLinecap="round" />
+      <path d="M116 18 C 126 -2, 114 -26, 90 -30 C 66 -34, 42 -24, 26 -4" stroke="#fff7c2" strokeWidth="3" strokeDasharray="0.1 6" fill="none" strokeLinecap="round" />
       {ONSKER.map((o, i) => (
         <g key={i} className="zoo-fx-rise" style={fx(`${(i * 0.3).toFixed(1)}s`)}>
           {o.form === "stjerne" ? STJERNE(o.x, o.y, o.r, o.farve) : HJERTE(o.x, o.y, o.r, o.farve)}

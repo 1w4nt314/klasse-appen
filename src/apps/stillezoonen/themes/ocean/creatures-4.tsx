@@ -371,7 +371,7 @@ const AAL_C2 = "M34 32 C 28 28 22 27 14 28";
 
 const eel: CreatureSpec = {
   name: "Ål",
-  height: 6,
+  height: 8,
   aspect: 200 / 60,
   gait: "swim",
   pace: 1.1,
