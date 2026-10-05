@@ -19,84 +19,124 @@ const bezier = (a: Pkt, b: Pkt, c: Pkt, d: Pkt) => (t: number): Pkt => {
   return [r1(k[0] * a[0] + k[1] * b[0] + k[2] * c[0] + k[3] * d[0]), r1(k[0] * a[1] + k[1] * b[1] + k[2] * c[1] + k[3] * d[1])];
 };
 
+/** Lys, glødende kant, så mørke figurer står tydeligt mod den mørke rumhimmel. */
+const GLOED = "#bdeeff";
+
+/**
+ * Glødende kant bag en silhuet: `form(w)` tegner formen uden farve; flader
+ * arver glødens fyld/streg, streger lægger selv `w` til deres bredde.
+ * `halo` giver desuden et blødt, bredere skær. `bund` klipper gløden ved
+ * jorden (viewBox' bund), så den ikke stikker ud under fødderne.
+ */
+const gloedKant = (form: (w: number) => ReactNode, { halo = true, bund }: { halo?: boolean; bund?: number } = {}) => {
+  const kant = (
+    <>
+      {halo && (
+        <g fill={GLOED} stroke={GLOED} strokeWidth="12" strokeLinejoin="round" strokeLinecap="round" opacity="0.3">
+          {form(12)}
+        </g>
+      )}
+      <g fill={GLOED} stroke={GLOED} strokeWidth="6" strokeLinejoin="round" strokeLinecap="round">
+        {form(6)}
+      </g>
+    </>
+  );
+  return bund === undefined ? kant : <Klip form={<rect x="-100" y="-200" width="400" height={bund + 200} />}>{kant}</Klip>;
+};
+
 /* ------------------------------------------------------------------------ */
 /* Stjernedragen (legendarisk)                                              */
 /* ------------------------------------------------------------------------ */
 
-const DR_KROP = "#4b3fb8";
-const DR_MOERK = "#352a8c";
-const DR_SNUDE = "#5d51cc";
-const DR_BUG = "#c3b4ff";
-const DR_VINGE = "#7a5de0";
-const DR_HUD = "#b9a5ff";
+const DR_KROP = "#7060e0";
+const DR_MOERK = "#5545c2";
+const DR_SNUDE = "#8e81f3";
+const DR_BUG = "#d6cbff";
+const DR_STRIBE = "#aa9cf2";
+const DR_VINGE = "#5a46c8";
+const DR_HUD = "#cdbfff";
 const DR_GULD = "#f6c343";
 const DR_GULD_MOERK = "#d99a1c";
 const DR_STJERNE = "#ffe27a";
-const DR_SOELV = "#cfe6ff";
+const DR_SOELV = "#e2f1ff";
+/** Bunden (jorden) i dragens viewBox. */
+const DR_BUND = 120;
 
-/** Lille gylden pig/horn med roden i (x, y), drejet `vinkel` grader. */
-const dragePig = (x: number, y: number, vinkel: number, s = 1) => (
-  <path
-    d="M-4 2 Q -1.6 -8 0 -11 Q 1.6 -8 4 2 Z"
-    transform={`translate(${x} ${y}) rotate(${vinkel}) scale(${s})`}
-    fill={DR_GULD}
-    stroke={DR_GULD_MOERK}
-    strokeWidth="1"
-    strokeLinejoin="round"
-  />
-);
+/** Gyldne pigge/horn: [x, y, vinkel, skala] — kammen ned ad nakken og to små horn. */
+const DR_PIGGE: [number, number, number, number][] = [
+  [87, 40, -52, 1],
+  [81, 50, -58, 0.95],
+  [75, 60, -64, 0.85],
+  [100, 25, -22, 1.35],
+  [112, 23, 8, 1.25],
+];
+const PIG_D = "M-4 2 Q -1.6 -8 0 -11 Q 1.6 -8 4 2 Z";
+const pigFlyt = ([x, y, v, s]: [number, number, number, number]) => `translate(${x} ${y}) rotate(${v}) scale(${s})`;
 
-/** Lille flagermusvinge med roden i (0, 0), der peger op og bagud. */
+/** Flagermusvingens hud med roden i (0, 0), der peger op og bagud. */
+const VINGE_D = "M3 2 C -1 -14, -10 -26, -22 -34 C -20 -26, -23 -21, -28 -17 C -21 -17, -17 -13, -16 -8 C -10 -9, -3 -5, 7 1 Z";
 const drageVinge = (hud: string, ben: string) => (
   <>
-    <path d="M3 2 C -1 -14, -10 -26, -22 -34 C -20 -26, -23 -21, -28 -17 C -21 -17, -17 -13, -16 -8 C -10 -9, -3 -5, 7 1 Z" fill={hud} />
+    <path d={VINGE_D} fill={hud} />
     <path d="M3 1 C -1 -14, -10 -26, -22 -33 M2 -1 L -26 -17 M3 -1 L -15 -8" stroke={ben} strokeWidth="2.4" fill="none" strokeLinecap="round" />
   </>
 );
 
-/** Fjern vinge (bag kroppen) og nær vinge (oven på kroppen). */
-const drageVingeBag = <g transform="translate(80 62) scale(1)">{drageVinge("#9a86e8", DR_MOERK)}</g>;
-const drageVingeFor = <g transform="translate(64 68) scale(1.2)">{drageVinge(DR_HUD, DR_VINGE)}</g>;
+/** Fjern vinge (bag kroppen) og nær vinge (oven på kroppen) med deres silhuetter. */
+const VINGE_BAG = "translate(80 62)";
+const VINGE_FOR = "translate(64 68) scale(1.2)";
+const drageVingeBag = <g transform={VINGE_BAG}>{drageVinge("#ad9df2", DR_VINGE)}</g>;
+const drageVingeFor = <g transform={VINGE_FOR}>{drageVinge(DR_HUD, DR_VINGE)}</g>;
+const vingeForm = (flyt: string) => <path d={VINGE_D} transform={flyt} />;
 
 /** Halen med en gylden stjerne i spidsen. */
+const HALE_GAA = "M40 80 C 26 82, 15 76, 10 64 C 8 80, 18 98, 42 102 Z";
+const HALE_SID = "M40 98 C 28 104, 20 102, 17 92 C 14 106, 26 120, 46 116 Z";
 const drageHale = (
   <>
-    <path d="M40 80 C 26 82, 15 76, 10 64 C 8 80, 18 98, 42 102 Z" fill={DR_KROP} />
+    <path d={HALE_GAA} fill={DR_KROP} />
     <path d="M38 92 C 28 92, 20 86, 15 76" stroke={DR_SNUDE} strokeWidth="2" fill="none" strokeLinecap="round" />
     {STJERNE(10, 60, 7.5, DR_GULD)}
+  </>
+);
+
+/** Hals, hoved og pigge som silhuet (til gløden). */
+const drageHovedForm = (
+  <>
+    {DR_PIGGE.map((p, i) => <path key={i} d={PIG_D} transform={pigFlyt(p)} />)}
+    <path d="M70 68 C 76 54, 82 44, 90 36 L 114 56 C 104 66, 98 78, 94 92 Z" />
+    <circle cx="108" cy="42" r="22" />
+    <ellipse cx="127" cy="50" rx="16" ry="12.5" />
   </>
 );
 
 /** Hals, hoved med horn-kam og ansigt. `pust` giver åben, pustende mund. */
 const drageHoved = (pust: boolean) => (
   <>
-    {/* Gylden horn-kam ned ad nakken (roden gemmer sig under halsen). */}
-    {dragePig(87, 40, -52, 1)}
-    {dragePig(81, 50, -58, 0.95)}
-    {dragePig(75, 60, -64, 0.85)}
-    {/* To små gyldne horn. */}
-    {dragePig(100, 25, -22, 1.35)}
-    {dragePig(112, 23, 8, 1.25)}
+    {/* Gylden horn-kam ned ad nakken og to små horn (rødderne gemmer sig under hovedet). */}
+    {DR_PIGGE.map((p, i) => (
+      <path key={i} d={PIG_D} transform={pigFlyt(p)} fill={DR_GULD} stroke={DR_GULD_MOERK} strokeWidth="1" strokeLinejoin="round" />
+    ))}
     {/* Hals og hoved. */}
     <path d="M70 68 C 76 54, 82 44, 90 36 L 114 56 C 104 66, 98 78, 94 92 Z" fill={DR_KROP} />
     <path d="M110 58 C 102 68, 98 80, 96 94 L 88 96 C 90 80, 96 66, 104 56 Z" fill={DR_BUG} />
     <circle cx="108" cy="42" r="22" fill={DR_KROP} />
     <ellipse cx="127" cy="50" rx="16" ry="12.5" fill={DR_KROP} />
     <ellipse cx="129" cy="55" rx="12" ry="6.5" fill={DR_SNUDE} />
-    <ellipse cx="139" cy="45" rx="1.6" ry="2.3" fill={DR_MOERK} />
+    <ellipse cx="139" cy="45" rx="1.6" ry="2.3" fill={DR_VINGE} />
     <path d="M94 32 C 98 26, 104 23, 110 23" stroke={DR_SNUDE} strokeWidth="3" fill="none" strokeLinecap="round" />
     {STJERNE(97, 44, 4.5, DR_STJERNE)}
     <circle cx="103" cy="54" r="1.5" fill={DR_SOELV} />
     <circle cx="113" cy="38" r="8.5" fill="#fff" />
     {EYE(115, 38, 5.6)}
-    <circle cx="120" cy="52" r="4.5" fill="#ff9fd0" opacity="0.55" />
+    <circle cx="120" cy="52" r="4.5" fill="#ff9fd0" opacity="0.6" />
     {pust ? (
       <>
         <ellipse cx="137" cy="57" rx="5" ry="4.4" fill="#2a1d6b" />
         <ellipse cx="136" cy="59" rx="3" ry="1.8" fill="#ff8fb8" />
       </>
     ) : (
-      <path d="M123 58 q 8 5 16 -1" stroke={DR_MOERK} strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <path d="M123 58 q 8 5 16 -1" stroke="#3a2a8f" strokeWidth="2.4" fill="none" strokeLinecap="round" />
     )}
   </>
 );
@@ -106,13 +146,21 @@ const drageKrop = (
   <>
     <ellipse cx="62" cy="86" rx="34" ry="24" fill={DR_KROP} />
     <ellipse cx="68" cy="98" rx="24" ry="10" fill={DR_BUG} />
-    <path d="M54 96 q 4 3 8 0 M66 98 q 4 3 8 0 M78 96 q 3 3 7 0" stroke={DR_HUD} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    <path d="M54 96 q 4 3 8 0 M66 98 q 4 3 8 0 M78 96 q 3 3 7 0" stroke={DR_STRIBE} strokeWidth="1.8" fill="none" strokeLinecap="round" />
     <path d="M38 74 C 46 66, 58 63, 70 64" stroke={DR_SNUDE} strokeWidth="3" fill="none" strokeLinecap="round" />
     {STJERNE(50, 80, 6.5, DR_STJERNE)}
     {STJERNE(78, 78, 4.5, DR_SOELV)}
     {STJERNE(36, 92, 4, DR_SOELV)}
     <circle cx="64" cy="86" r="1.6" fill={DR_STJERNE} />
     <circle cx="44" cy="70" r="1.4" fill={DR_SOELV} />
+  </>
+);
+
+/** Benets silhuet fra `top` og ned (nære ben gløder kun under kroppen). */
+const drageBenForm = (x: number, top = 96, w = 13) => (
+  <>
+    <rect x={x} y={top} width={w} height={118 - top} rx="6" />
+    <ellipse cx={x + 7} cy="117" rx="8.5" ry="3" />
   </>
 );
 
@@ -145,18 +193,41 @@ const starDragon: CreatureSpec = {
   viewBox: "0 -34 172 154",
   art: (
     <>
+      {/* Glødende kant bag hale, krop, vinger, hals og hoved (de står stille, mens benene går). */}
+      {gloedKant(() => (
+        <>
+          <path d={HALE_GAA} />
+          {vingeForm(VINGE_BAG)}
+          {vingeForm(VINGE_FOR)}
+          <ellipse cx="62" cy="86" rx="34" ry="24" />
+          {drageHovedForm}
+        </>
+      ))}
       {drageHale}
-      <g className="zoo-leg zoo-leg-a">{drageBen(82, DR_MOERK)}</g>
-      <g className="zoo-leg zoo-leg-b">{drageBen(32, DR_MOERK)}</g>
+      <g className="zoo-leg zoo-leg-a">
+        {gloedKant(() => drageBenForm(82), { bund: DR_BUND })}
+        {drageBen(82, DR_MOERK)}
+      </g>
+      <g className="zoo-leg zoo-leg-b">
+        {gloedKant(() => drageBenForm(32), { bund: DR_BUND })}
+        {drageBen(32, DR_MOERK)}
+      </g>
       <g className="zoo-torso">
         {drageVingeBag}
         {drageKrop}
+        {gloedKant(() => vingeForm(VINGE_FOR), { halo: false })}
         {drageVingeFor}
         <g className="zoo-fx-sparkle" style={fx("0.5s")}>{GLIMT(56, 74, 4.5)}</g>
         <g className="zoo-fx-sparkle" style={fx("1.1s")}>{GLIMT(30, 46, 3.4, "#fff6c2")}</g>
       </g>
-      <g className="zoo-leg zoo-leg-b">{drageBen(92, DR_KROP)}</g>
-      <g className="zoo-leg zoo-leg-a">{drageBen(46, DR_KROP)}</g>
+      <g className="zoo-leg zoo-leg-b">
+        {gloedKant(() => drageBenForm(92, 102), { halo: false, bund: DR_BUND })}
+        {drageBen(92, DR_KROP)}
+      </g>
+      <g className="zoo-leg zoo-leg-a">
+        {gloedKant(() => drageBenForm(46, 112), { halo: false, bund: DR_BUND })}
+        {drageBen(46, DR_KROP)}
+      </g>
       <g className="zoo-head">
         {drageHoved(false)}
         <g className="zoo-fx-sparkle" style={fx("0.2s")}>{GLIMT(120, 12, 3.6, "#fff6c2")}</g>
@@ -165,13 +236,32 @@ const starDragon: CreatureSpec = {
   ),
   special: (
     <>
+      {/* Glødende kant bag krop, ben, hals og hoved. */}
+      {gloedKant(
+        () => (
+          <>
+            <rect x="84" y="96" width="12" height="22" rx="6" />
+            <ellipse cx="91" cy="117" rx="8" ry="3" />
+            <ellipse cx="62" cy="94" rx="33" ry="23" transform="rotate(-16 62 96)" />
+            <ellipse cx="50" cy="104" rx="16" ry="13" />
+            <ellipse cx="62" cy="117" rx="12" ry="3" />
+            {drageBenForm(94)}
+            <g transform="rotate(-12 108 50)">{drageHovedForm}</g>
+          </>
+        ),
+        { bund: DR_BUND },
+      )}
       {/* Halen ligger på jorden og logrer. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.3s", "100% 100%"), animationDuration: "1.3s" }}>
-        <path d="M40 98 C 28 104, 20 102, 17 92 C 14 106, 26 120, 46 116 Z" fill={DR_KROP} />
+        {gloedKant(() => <path d={HALE_SID} />, { bund: DR_BUND })}
+        <path d={HALE_SID} fill={DR_KROP} />
         {STJERNE(17, 88, 7, DR_GULD)}
       </g>
       {/* Fjerne vinge vipper. */}
-      <g className="zoo-fx-wave" style={{ ...fx("0.15s", "100% 100%"), animationDuration: "0.7s" }}>{drageVingeBag}</g>
+      <g className="zoo-fx-wave" style={{ ...fx("0.15s", "100% 100%"), animationDuration: "0.7s" }}>
+        {gloedKant(() => vingeForm(VINGE_BAG))}
+        {drageVingeBag}
+      </g>
       {/* Fjerne forben. */}
       <rect x="84" y="96" width="12" height="22" rx="6" fill={DR_MOERK} />
       <ellipse cx="91" cy="117" rx="8" ry="3" fill={DR_MOERK} />
@@ -189,10 +279,14 @@ const starDragon: CreatureSpec = {
       <ellipse cx="62" cy="117" rx="12" ry="3" fill={DR_KROP} />
       <path d="M68 116 v 2 M72 116 v 2" stroke={DR_HUD} strokeWidth="1.4" strokeLinecap="round" />
       {/* Nære vinge vipper glad. */}
-      <g className="zoo-fx-wave" style={{ ...fx("0s", "100% 100%"), animationDuration: "0.7s" }}>{drageVingeFor}</g>
+      <g className="zoo-fx-wave" style={{ ...fx("0s", "100% 100%"), animationDuration: "0.7s" }}>
+        {gloedKant(() => vingeForm(VINGE_FOR), { halo: false })}
+        {drageVingeFor}
+      </g>
       {/* Hovedet løftet lidt, munden åben. */}
       <g transform="rotate(-12 108 50)">{drageHoved(true)}</g>
       {/* Nære forben foran. */}
+      {gloedKant(() => drageBenForm(94, 100), { halo: false, bund: DR_BUND })}
       <rect x="94" y="96" width="13" height="22" rx="6" fill={DR_KROP} />
       <ellipse cx="101" cy="117" rx="8.5" ry="3" fill={DR_KROP} />
       <path d="M102 116 v 2 M106 116 v 2" stroke={DR_HUD} strokeWidth="1.4" strokeLinecap="round" />
@@ -226,27 +320,6 @@ const KAT_TAAGE_ROSA = "#ff8fdc";
 const KAT_TAAGE_BLAA = "#8fe9ff";
 const KAT_STJERNE = "#fff3b0";
 const KAT_OERE = "#ffa6dc";
-/** Lys, glødende kant, så katten står tydeligt mod den mørke rumhimmel. */
-const KAT_GLOED = "#bdeeff";
-
-/**
- * Glødende kant bag en silhuet: `form(w)` tegner formen uden farve; flader
- * arver glødens fyld/streg, streger lægger selv `w` til deres bredde.
- * `halo` giver desuden et blødt, bredere skær.
- */
-const katGloed = (form: (w: number) => ReactNode, halo = true) => (
-  <>
-    {halo && (
-      <g fill={KAT_GLOED} stroke={KAT_GLOED} strokeWidth="12" strokeLinejoin="round" strokeLinecap="round" opacity="0.3">
-        {form(12)}
-      </g>
-    )}
-    <g fill={KAT_GLOED} stroke={KAT_GLOED} strokeWidth="6" strokeLinejoin="round" strokeLinecap="round">
-      {form(6)}
-    </g>
-  </>
-);
-
 /** Galaksepels: mælkevej og tåge-swirl, klippet til formen `form`. */
 const galaksePels = (form: ReactNode, dx = 0, dy = 0) => (
   <Klip form={form}>
@@ -341,7 +414,7 @@ const galaxyCat: CreatureSpec = {
   art: (
     <>
       {/* Glødende kant bag hale, krop og hoved. */}
-      {katGloed((w) => (
+      {gloedKant((w) => (
         <>
           <path d={KAT_HALE_GAA} fill="none" strokeWidth={9 + w} />
           <ellipse cx="62" cy="62" rx="36" ry="20" />
@@ -354,11 +427,11 @@ const galaxyCat: CreatureSpec = {
         {STJERNE(18, 16, 2.6, KAT_STJERNE)}
       </g>
       <g className="zoo-leg zoo-leg-a">
-        {katGloed(() => katBenForm(78))}
+        {gloedKant(() => katBenForm(78), { bund: 100 })}
         {katBen(78, KAT_MOERK)}
       </g>
       <g className="zoo-leg zoo-leg-b">
-        {katGloed(() => katBenForm(30))}
+        {gloedKant(() => katBenForm(30), { bund: 100 })}
         {katBen(30, KAT_MOERK)}
       </g>
       <g className="zoo-torso">
@@ -367,11 +440,11 @@ const galaxyCat: CreatureSpec = {
         <g className="zoo-fx-sparkle" style={fx("0.4s")}>{GLIMT(70, 48, 3.6)}</g>
       </g>
       <g className="zoo-leg zoo-leg-b">
-        {katGloed(() => katBenForm(90, 76), false)}
+        {gloedKant(() => katBenForm(90, 76), { halo: false, bund: 100 })}
         {katBen(90, KAT_PELS)}
       </g>
       <g className="zoo-leg zoo-leg-a">
-        {katGloed(() => katBenForm(42, 84), false)}
+        {gloedKant(() => katBenForm(42, 84), { halo: false, bund: 100 })}
         {katBen(42, KAT_PELS)}
       </g>
       <g className="zoo-head">
@@ -383,7 +456,7 @@ const galaxyCat: CreatureSpec = {
   special: (
     <>
       {/* Glødende kant bag krop, hoved og ben. */}
-      {katGloed((w) => (
+      {gloedKant((w) => (
         <>
           {katBenForm(30)}
           {katBenForm(42)}
@@ -394,7 +467,7 @@ const galaxyCat: CreatureSpec = {
       ))}
       {/* Halen står op og vifter. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.2s", "50% 100%"), animationDuration: "0.8s" }}>
-        {katGloed((w) => <path d={KAT_HALE_LEG} fill="none" strokeWidth={9 + w} />)}
+        {gloedKant((w) => <path d={KAT_HALE_LEG} fill="none" strokeWidth={9 + w} />)}
         <path d={KAT_HALE_LEG} stroke={KAT_PELS} strokeWidth="9" fill="none" strokeLinecap="round" />
         <circle cx="26" cy="34" r="1.4" fill="#fff" />
         {STJERNE(34, 12, 2.6, KAT_STJERNE)}
@@ -408,13 +481,13 @@ const galaxyCat: CreatureSpec = {
         <ellipse cx="64" cy="64" rx="36" ry="19" fill={KAT_PELS} />
         {galaksePels(<ellipse cx="64" cy="64" rx="36" ry="19" />, 2, 2)}
       </g>
-      {katGloed(() => katBenForm(42, 84), false)}
+      {gloedKant(() => katBenForm(42, 84), { halo: false, bund: 100 })}
       {katBen(42, KAT_PELS)}
       {/* Hovedet sænket mod planeten. */}
       <g transform="translate(-6 6) rotate(6 106 40)">{katHoved(true)}</g>
       {/* Nære forpote slår legende efter planeten. */}
       <g className="zoo-fx-wave" style={{ ...fx("0s", "0% 100%"), animationDuration: "0.5s" }}>
-        {katGloed((w) => <path d={KAT_NAER_POTE} fill="none" strokeWidth={10 + w} />, false)}
+        {gloedKant((w) => <path d={KAT_NAER_POTE} fill="none" strokeWidth={10 + w} />, { halo: false })}
         <path d={KAT_NAER_POTE} stroke={KAT_PELS} strokeWidth="10" fill="none" strokeLinecap="round" />
         <circle cx="123" cy="72" r="2.2" fill={KAT_OERE} />
       </g>
@@ -526,7 +599,9 @@ const goldenUfo: CreatureSpec = {
   aspect: 150 / 150,
   gait: "float",
   pace: 0.95,
-  zone: "open",
+  // Står på jorden: boksen rummer lysstrålen helt ned, så UFO'en svæver
+  // over sin skygge (i zone "open" røg tallerkenen op under topbaren).
+  zone: "ground",
   viewBox: "0 0 150 150",
   art: (
     <>

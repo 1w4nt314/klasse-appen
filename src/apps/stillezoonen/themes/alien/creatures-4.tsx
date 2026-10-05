@@ -257,7 +257,8 @@ const rover: CreatureSpec = {
   viewBox: "0 0 124 90",
   art: (
     <>
-      <g className="zoo-leg zoo-leg-b">
+      {/* Hjulene står fast (ingen ben-gynge); roveren glider frem. */}
+      <g>
         {ROVER_WHEEL(36, "#4a3c96", "#ffb36a")}
         {ROVER_WHEEL(60, "#4a3c96", "#ffb36a")}
         {ROVER_WHEEL(84, "#4a3c96", "#ffb36a")}
@@ -274,7 +275,7 @@ const rover: CreatureSpec = {
         <circle cx="68" cy="56" r="3.4" fill="#ffd84a" />
         <rect x="76" y="50" width="14" height="10" rx="4" fill="#ff9d4a" />
       </g>
-      <g className="zoo-leg zoo-leg-a">
+      <g>
         {ROVER_WHEEL(24, "#5b49b0", "#ff9d4a")}
         {ROVER_WHEEL(48, "#5b49b0", "#ff9d4a")}
         {ROVER_WHEEL(72, "#5b49b0", "#ff9d4a")}

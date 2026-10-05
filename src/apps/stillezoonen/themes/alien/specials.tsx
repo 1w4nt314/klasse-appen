@@ -76,7 +76,9 @@ const cowUfo: CreatureSpec = {
   aspect: 140 / 160,
   gait: "float",
   pace: 1,
-  zone: "open",
+  // Står på jorden: boksen rummer lysstrålen helt ned, så UFO'en svæver
+  // over sin skygge (i zone "open" røg tallerkenen op under topbaren).
+  zone: "ground",
   viewBox: "0 0 140 160",
   art: (
     <>
