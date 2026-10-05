@@ -22,6 +22,9 @@ const HUE = "#3f7fd1";
 const HUE_MOERK = "#2f64ad";
 const TOERKLAEDE = "#e0453a";
 const STRIBE = "#f4c430";
+const PIND = "#e0a64e";
+const PIND_MOERK = "#c98a3c";
+const PIND_KNOP = "#9a5e24";
 
 /** Fårets uld når det går (som Får i creatures.tsx). */
 const ULD_GAAR: ReadonlyArray<readonly [number, number, number]> = [
@@ -118,47 +121,50 @@ const knittingSheep: CreatureSpec = {
   ),
   special: (
     <>
-      {/* Fjerne bagben strakt frem langs jorden; hoven står, hvor forbenene står, når det går. */}
-      <path d="M76 113 H 114" stroke="#3f3935" strokeWidth="10" strokeLinecap="round" />
+      {/* Fjerne forben bag kroppen; kun hoven med strikkepinden ses. */}
+      <g className="zoo-fx-shake" style={{ ...fx("0.2s", "0% 50%"), animationDuration: "0.5s" } as CSSProperties}>
+        <path d="M100 80 L 158 92" stroke="#3f3935" strokeWidth="9" strokeLinecap="round" />
+        <path d="M162 95 L 130 69" stroke={PIND_MOERK} strokeWidth="3" strokeLinecap="round" />
+        <circle cx="163" cy="96" r="3" fill={PIND_KNOP} />
+      </g>
+      {/* Fjerne bagben bøjet frem; hoven står, hvor forbenene står, når det går. */}
+      <path d="M80 110 L 110 113" stroke="#3f3935" strokeWidth="10" strokeLinecap="round" />
+      <rect x="108" y="104" width="9" height="14" rx="4" fill="#2b2622" />
       {/* Kroppen sidder på halen. */}
       <circle cx="34" cy="104" r="10" fill={ULD} />
       {uld(ULD_SIDDER)}
       <circle cx="84" cy="74" r="14" fill="#f9f5ec" />
       <circle cx="60" cy="80" r="12" fill="#f9f5ec" />
       {/* Nære bagben. */}
-      <path d="M80 114.5 H 124" stroke="#5a524c" strokeWidth="11" strokeLinecap="round" />
+      <path d="M86 113 L 118 114.5" stroke="#5a524c" strokeWidth="11" strokeLinecap="round" />
+      <rect x="117" y="104" width="10" height="16" rx="4" fill="#3f3935" />
+      {/* Garnet løber fra strikketøjet ned til nøglet. */}
+      <path d="M140 104 C 138 110, 134 112, 138 112" stroke={TOERKLAEDE} strokeWidth="1.6" fill="none" strokeLinecap="round" />
       {/* Uldnøglet ved fødderne vipper og ruller lidt. */}
-      <path d="M140 102 C 150 108, 152 112, 156 106" stroke={TOERKLAEDE} strokeWidth="1.6" fill="none" strokeLinecap="round" />
       <g className="zoo-fx-bob" style={{ animationDuration: "1.2s" }}>
-        {boks(152, 60, 60)}
+        {boks(138, 40, 80)}
         <g className="zoo-fx-shake" style={{ ...fx("0.1s", "50% 100%"), animationDuration: "1.2s" } as CSSProperties}>
-          <circle cx="152" cy="111" r="9" fill={TOERKLAEDE} />
-          <path d="M145 106 C 150 110, 156 110, 160 106 M144 112 C 150 116, 156 116, 160 113 M148 103 C 146 110, 148 116, 152 120" stroke="#b8302a" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <circle cx="138" cy="113" r="7" fill={TOERKLAEDE} />
+          <path d="M132 110 C 136 113, 141 113, 144 110 M132 115 C 136 118, 141 118, 144 115 M135 107 C 133 112, 135 117, 139 120" stroke="#b8302a" strokeWidth="1.3" fill="none" strokeLinecap="round" />
         </g>
       </g>
-      {/* Fjerne forben med strikkepind. */}
-      <g className="zoo-fx-shake" style={fx("0.2s", "0% 0%")}>
-        <path d="M104 78 L 146 98" stroke="#3f3935" strokeWidth="9" strokeLinecap="round" />
-        <path d="M150 103 L 123 75" stroke="#c98a3c" strokeWidth="2.6" strokeLinecap="round" />
-        <circle cx="151" cy="104" r="2.6" fill="#9a5e24" />
-      </g>
-      {/* Det halvfærdige stribede halstørklæde hænger ned fra pindene, og garnet løber til nøglet. */}
-      <path d="M140 102 C 140 92, 140 88, 140 86" stroke={TOERKLAEDE} strokeWidth="1.6" fill="none" />
+      {/* Det halvfærdige stribede halstørklæde hænger ned fra pindene. */}
       <g className="zoo-fx-shake" style={{ ...fx("0s", "50% 0%"), animationDuration: "0.8s" } as CSSProperties}>
-        <path d="M131 85 L 147 85 L 146 108 L 132 108 Z" fill={TOERKLAEDE} />
-        <path d="M131.3 91 H 146.7 M131.6 99 H 146.4" stroke={STRIBE} strokeWidth="3.5" />
-        <path d="M133 108 l -1 4 M137 108 v 4 M141 108 v 4 M145 108 l 1 4" stroke={TOERKLAEDE} strokeWidth="2" strokeLinecap="round" />
-        <path d="M131 85.5 H 147" stroke="#f08a80" strokeWidth="2" strokeDasharray="2 2" />
+        <path d="M136 80 L 158 80 L 157 104 L 137 104 Z" fill={TOERKLAEDE} />
+        <path d="M136.3 87 H 157.7 M136.6 96 H 157.4" stroke={STRIBE} strokeWidth="4" />
+        <path d="M139 104 l -1 4 M144 104 v 4 M150 104 v 4 M155 104 l 1 4" stroke={TOERKLAEDE} strokeWidth="2.2" strokeLinecap="round" />
+        <path d="M136 81 H 158" stroke="#f08a80" strokeWidth="2.2" strokeDasharray="2.2 2.2" />
       </g>
       {/* Nære forben med den anden strikkepind. */}
-      <g className="zoo-fx-shake" style={fx("0s", "0% 0%")}>
-        <path d="M112 84 L 128 98" stroke="#5a524c" strokeWidth="10" strokeLinecap="round" />
-        <path d="M127 103 L 156 76" stroke="#d99a4c" strokeWidth="2.6" strokeLinecap="round" />
-        <circle cx="126" cy="104" r="2.6" fill="#9a5e24" />
+      <g className="zoo-fx-shake" style={{ ...fx("0s", "0% 0%"), animationDuration: "0.5s" } as CSSProperties}>
+        <path d="M110 84 L 130 96" stroke="#5a524c" strokeWidth="10" strokeLinecap="round" />
+        <path d="M130 99 L 164 66" stroke={PIND} strokeWidth="3" strokeLinecap="round" />
+        <circle cx="129" cy="100" r="3" fill={PIND_KNOP} />
+        <rect x="126" y="92" width="9" height="9" rx="3.5" fill="#3f3935" />
       </g>
       {/* Hovedet bøjet over strikketøjet, nikker roligt. */}
       <g className="zoo-fx-nod" style={{ animationDuration: "1.6s" }}>
-        <g transform="translate(-16 -4) rotate(8 142 62)">
+        <g transform="translate(-24 -4) rotate(8 142 62)">
           {halstoerklaede}
           {faareHoved}
         </g>
@@ -200,7 +206,7 @@ const griseHoved = (afslappet: boolean) => (
     <circle cx="122" cy="66" r="6" fill="#f09db0" opacity="0.6" />
     {afslappet ? (
       <>
-        <path d="M134 72 q 6 6 12 2" stroke="#b8687a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path d="M137 68 q 5 5 11 1" stroke="#b8687a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
         {/* Agurkeskiven over øjet. */}
         <circle cx="138" cy="47" r="7.5" fill="#4f9a3a" />
         <circle cx="138" cy="47" r="6" fill="#bfe39a" />
@@ -277,13 +283,15 @@ const spaPig: CreatureSpec = {
       <path d="M58 60 C 52 46, 44 38, 40 30" stroke={GRIS} strokeWidth="12" fill="none" strokeLinecap="round" />
       <ellipse cx="38" cy="27" rx="7" ry="5" transform="rotate(-60 38 27)" fill="#c9788a" />
       {/* Maven stikker op af mudderet. */}
-      <ellipse cx="84" cy="58" rx="34" ry="13" fill={GRIS} />
-      <ellipse cx="80" cy="54" rx="18" ry="5" fill="#fbd0d6" opacity="0.7" />
+      <ellipse cx="84" cy="54" rx="34" ry="13" fill={GRIS} />
+      <ellipse cx="80" cy="49" rx="18" ry="5" fill="#fbd0d6" opacity="0.7" />
+      <circle cx="94" cy="46" r="3" fill={MUDDER} />
+      <circle cx="70" cy="47" r="2" fill={MUDDER} />
       {/* Hovedet læner sig tilbage mod karrets kant. */}
       <g transform="translate(-2 -12) rotate(-22 130 54)">{griseHoved(true)}</g>
       {/* Mudderoverfladen foran grisen. */}
-      <path d="M16 62 C 30 56, 44 60, 56 58 C 70 62, 86 56, 100 60 C 112 57, 118 60, 124 62 Z" fill={MUDDER} />
-      <path d="M30 60 q 6 -3 12 0 M70 60 q 6 -3 12 0" stroke={MUDDER_LYS} strokeWidth="2" fill="none" strokeLinecap="round" />
+      <path d="M16 60 C 24 50, 36 54, 44 52 C 54 48, 62 54, 72 52 C 84 48, 96 54, 104 52 C 112 50, 118 54, 124 58 L 124 62 H 16 Z" fill={MUDDER} />
+      <path d="M28 56 q 6 -3 12 0 M80 54 q 6 -3 12 0" stroke={MUDDER_LYS} strokeWidth="2" fill="none" strokeLinecap="round" />
       {/* Badekarret på små gyldne fødder. */}
       <ellipse cx="40" cy="105" rx="7" ry="5" fill="#d9a441" />
       <ellipse cx="132" cy="105" rx="7" ry="5" fill="#d9a441" />
@@ -296,16 +304,17 @@ const spaPig: CreatureSpec = {
       <rect x="106" y="62" width="11" height="8" rx="3" fill="#c9788a" />
       {/* Badeand vugger på mudderet. */}
       <g className="zoo-fx-bob" style={{ animationDuration: "1.3s" }}>
-        <ellipse cx="66" cy="55" rx="8" ry="5" fill="#ffd84a" />
-        <circle cx="71" cy="49" r="4" fill="#ffd84a" />
-        <path d="M74 49 l 4 1 l -4 1.6 z" fill="#f5821e" />
-        <circle cx="72" cy="48" r="0.9" fill="#1d1a17" />
+        <ellipse cx="62" cy="50" rx="8" ry="5" fill="#ffd84a" />
+        <circle cx="67" cy="44" r="4" fill="#ffd84a" />
+        <path d="M70 44 l 4 1 l -4 1.6 z" fill="#f5821e" />
+        <circle cx="68" cy="43" r="0.9" fill="#1d1a17" />
       </g>
       {/* Bobler stiger op. */}
-      {boble(48, 50, 3, "0s", true)}
-      {boble(96, 50, 2.5, "0.8s", false)}
-      {boble(116, 46, 3.5, "1.5s", true)}
-      {boble(86, 48, 2, "1.9s", true)}
+      {boble(48, 48, 4.5, "0s", true)}
+      {boble(98, 50, 3.5, "0.8s", false)}
+      {boble(112, 44, 5, "1.5s", true)}
+      {boble(84, 46, 3, "1.9s", true)}
+      {boble(26, 50, 3, "1.1s", false)}
     </>
   ),
 };
@@ -389,9 +398,10 @@ const alarmRooster: CreatureSpec = {
       </g>
       <g className="zoo-torso">
         {haneKrop}
-        {/* Vækkeuret klemt ind under vingen. */}
-        {vaekkeur(84, 104, 10)}
         {haneVinge}
+        {/* Vækkeuret klemt ind under vingespidsen. */}
+        {vaekkeur(92, 104, 11)}
+        <path d="M74 96 C 84 94, 88 100, 86 110 C 80 112, 74 106, 74 96 Z" fill="#8f3a1a" />
       </g>
       <g className="zoo-head">
         {haneHoved}
@@ -547,7 +557,7 @@ const footballGoat: CreatureSpec = {
       <rect x="58" y="142" width="12" height="8" rx="3" fill="#4a3f3a" />
       {/* Hovedet løftet; det nikker bolden op i takt med hoppet. */}
       <g className="zoo-fx-nod" style={{ ...fx("0s", "10% 90%"), animationDuration: "0.55s" } as CSSProperties}>
-        <g transform="rotate(-22 140 60)">
+        <g transform="rotate(-6 140 60)">
           {gedeHoved}
           {/* Øjet kigger op efter bolden. */}
           <circle cx="155" cy="44" r="4.6" fill="#fff" />
@@ -556,17 +566,18 @@ const footballGoat: CreatureSpec = {
       </g>
       {/* Bolden hopper på panden (to indlejrede bob-grupper giver et højere hop). */}
       <g className="zoo-fx-bob" style={{ animationDuration: "0.55s", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" }}>
-        {boks(150, 0, 150)}
+        {boks(160, 0, 140)}
         <g className="zoo-fx-bob" style={{ animationDuration: "0.55s", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" }}>
-          {boks(151, 0, 150)}
-          {fodbold(150, 20, 9)}
+          {boks(161, 10, 100)}
+          {fodbold(158, 21, 12)}
         </g>
       </g>
       {/* Små stjerner, når bolden rammer. */}
       <g className="zoo-fx-sparkle" style={{ ...fx("0.55s"), animationDuration: "1.1s" } as CSSProperties}>
-        {STJERNE(136, 26, 4, "#ffd84a")}
-        {STJERNE(166, 24, 3.4, "#ffd84a")}
-        {GLIMT(170, 34, 3, "#fff")}
+        {STJERNE(142, 28, 5, "#ffd84a")}
+        {STJERNE(176, 26, 4.5, "#ffd84a")}
+        {GLIMT(180, 38, 3.5, "#fff")}
+        {GLIMT(138, 40, 3, "#fff")}
       </g>
     </>
   ),

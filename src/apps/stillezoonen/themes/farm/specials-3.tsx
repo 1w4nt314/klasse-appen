@@ -382,11 +382,11 @@ const unicorn: CreatureSpec = {
       <g className="zoo-fx-sparkle" style={fx("0.7s")}>{GLIMT(222, -14, 3.4, "#fff")}</g>
       <g className="zoo-fx-sparkle" style={fx("0.35s")}>{STJERNE(196, -20, 3, "#ffe98a")}</g>
       {/* Stjerner og hjerter stiger op. */}
-      <g className="zoo-fx-rise">{HJERTE(132, 30, 6, "#f472b6")}</g>
-      <g className="zoo-fx-rise" style={fx("0.8s")}>{STJERNE(110, 44, 5, "#facc15")}</g>
-      <g className="zoo-fx-rise" style={fx("1.6s")}>{HJERTE(150, 6, 5, "#a78bfa")}</g>
-      <g className="zoo-fx-rise" style={fx("1.2s")}>{STJERNE(236, 6, 4.5, "#38bdf8")}</g>
-      <g className="zoo-fx-rise" style={fx("2s")}>{HJERTE(84, 52, 5, "#fb7185")}</g>
+      <g className="zoo-fx-rise">{HJERTE(132, 30, 7.5, "#f472b6")}</g>
+      <g className="zoo-fx-rise" style={fx("0.8s")}>{STJERNE(110, 44, 6.5, "#facc15")}</g>
+      <g className="zoo-fx-rise" style={fx("1.6s")}>{HJERTE(150, 6, 6.5, "#a78bfa")}</g>
+      <g className="zoo-fx-rise" style={fx("1.2s")}>{STJERNE(236, 8, 5.5, "#38bdf8")}</g>
+      <g className="zoo-fx-rise" style={fx("2s")}>{HJERTE(84, 52, 6.5, "#fb7185")}</g>
       <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(100, 96, 5)}</g>
     </>
   ),
