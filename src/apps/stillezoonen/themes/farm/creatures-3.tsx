@@ -207,7 +207,8 @@ const farmCat: CreatureSpec = {
         <path d="M105 55 L 112 55 L 108.5 59.5 Z" fill="#e8808f" />
         <path d="M108.5 59.5 V 63 M108.5 63 C 106 66, 103 65, 102 63 M108.5 63 C 111 66, 114 65, 115 63" stroke="#8a4b2a" strokeWidth="1.6" fill="none" strokeLinecap="round" />
         <path d="M112 58 L 126 54 M112 61 L 127 62" stroke="#fbeed2" strokeWidth="1.4" strokeLinecap="round" />
-        {EYE(104, 47, 3.8)}
+        {EYE(99.5, 47, 3.8)}
+        {EYE(114, 47, 3.3)}
       </g>
     </>
   ),

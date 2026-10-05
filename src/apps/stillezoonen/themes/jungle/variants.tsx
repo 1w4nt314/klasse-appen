@@ -262,8 +262,10 @@ const whiteTiger: CreatureSpec = {
         <ellipse cx="184" cy="66" rx="16" ry="11" fill="#ffffff" />
         <path d="M188 58 l 8 0 l -4 5 z" fill="#e59aa0" />
         <path d="M164 36 q 4 6 0 12 M178 32 q 3 5 0 10" stroke="#5b3d2c" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-        <circle cx="180" cy="49" r="6" fill="#7cc4ee" />
-        {EYE(180, 49, 3.4)}
+        <circle cx="176" cy="49" r="6" fill="#7cc4ee" />
+        {EYE(176, 49, 3.4)}
+        <circle cx="191" cy="48" r="5.2" fill="#7cc4ee" />
+        {EYE(191, 48, 3)}
       </g>
     </>
   ),

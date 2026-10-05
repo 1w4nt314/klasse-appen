@@ -404,8 +404,10 @@ const spaceBunny: CreatureSpec = {
         <circle cx="88.5" cy="7.4" r="1.8" fill="#fff" />
         {/* Hoved */}
         <circle cx="66" cy="62" r="24" fill="#f7f3ff" />
-        <circle cx="74" cy="58" r="7.5" fill="#fff" />
-        {EYE(76, 58, 5)}
+        <circle cx="67" cy="58" r="7.5" fill="#fff" />
+        {EYE(69, 58, 5)}
+        <circle cx="82" cy="57" r="6.2" fill="#fff" />
+        {EYE(83.5, 57, 4.2)}
         <circle cx="62" cy="72" r="4.4" fill="#ff9fcf" opacity="0.6" />
         <ellipse cx="88" cy="66" rx="4.2" ry="3.2" fill="#ff7ac8" />
         <path d="M82 72 q 5 5 10 0" stroke="#8f5bf0" strokeWidth="2.4" fill="none" strokeLinecap="round" />

@@ -364,8 +364,10 @@ const katHoved = (kig: boolean) => (
     <path d="M123 43 l 5 0 l -2.5 3.4 Z" fill="#ff9fc8" />
     <path d="M125.5 46.4 v 2.6 q -2.4 3 -5 1 M125.5 49 q 2 3 4.4 1" stroke="#2a1d6b" strokeWidth="1.4" fill="none" strokeLinecap="round" />
     <path d="M118 48 L 137 45 M118 50 L 137 52" stroke="#efeaff" strokeWidth="1.1" strokeLinecap="round" />
-    <circle cx="113" cy={kig ? 39 : 37} r="5.6" fill="#ffd84a" />
-    {EYE(kig ? 115 : 114, kig ? 40 : 37, 3.8)}
+    <circle cx="119" cy={kig ? 39 : 37} r="4.6" fill="#ffd84a" />
+    {EYE(kig ? 120.5 : 120, kig ? 40 : 37, 3.2)}
+    <circle cx="104" cy={kig ? 39 : 37} r="5.6" fill="#ffd84a" />
+    {EYE(kig ? 106 : 105, kig ? 40 : 37, 3.8)}
     <circle cx="110" cy="49" r="3.6" fill="#ff8ad8" opacity="0.55" />
   </>
 );

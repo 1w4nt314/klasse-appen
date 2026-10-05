@@ -77,7 +77,8 @@ const tiger: CreatureSpec = {
         <ellipse cx="184" cy="66" rx="16" ry="11" fill="#fbe3c4" />
         <path d="M188 58 l 8 0 l -4 5 z" fill="#2b221c" />
         <path d="M164 36 q 4 6 0 12 M178 32 q 3 5 0 10" stroke="#2b221c" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-        {EYE(180, 49, 3.8)}
+        {EYE(176, 49, 3.8)}
+        {EYE(191, 48, 3.3)}
       </g>
     </>
   ),
@@ -283,8 +284,10 @@ const panther: CreatureSpec = {
         <circle cx="172" cy="54" r="23" fill="#2f3138" />
         <ellipse cx="184" cy="64" rx="14" ry="10" fill="#3d4049" />
         <path d="M188 57 l 7 0 l -3.5 4.5 z" fill="#15161a" />
-        <circle cx="179" cy="48" r="5" fill="#d9c34a" />
-        {EYE(180, 48, 2.8)}
+        <circle cx="175" cy="48" r="5" fill="#d9c34a" />
+        {EYE(176, 48, 2.8)}
+        <circle cx="188" cy="47" r="4.3" fill="#d9c34a" />
+        {EYE(188.5, 47, 2.4)}
       </g>
     </>
   ),
