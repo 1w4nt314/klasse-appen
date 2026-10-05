@@ -189,8 +189,8 @@ const haandklaede = (
     <path d="M108 36 C 120 28, 140 26, 156 34" stroke="#7cc4e4" strokeWidth="3.5" fill="none" strokeLinecap="round" />
     <path d="M114 22 C 124 26, 134 28, 146 24" stroke="#dfe7ea" strokeWidth="2.5" fill="none" strokeLinecap="round" />
     <path d="M104 42 C 120 34, 140 33, 156 40" stroke="#e6ecef" strokeWidth="5" fill="none" strokeLinecap="round" />
-    <ellipse cx="128" cy="12" rx="9" ry="6" transform="rotate(-14 128 12)" fill="#fdfdfb" />
-    <path d="M122 12 q 6 -4 12 -1" stroke="#7cc4e4" strokeWidth="2" fill="none" strokeLinecap="round" />
+    <ellipse cx="128" cy="14" rx="9" ry="6" transform="rotate(-14 128 14)" fill="#fdfdfb" />
+    <path d="M122 14 q 6 -4 12 -1" stroke="#7cc4e4" strokeWidth="2" fill="none" strokeLinecap="round" />
   </>
 );
 
@@ -576,7 +576,7 @@ const footballGoat: CreatureSpec = {
         {boks(160, 0, 140)}
         <g className="zoo-fx-bob" style={{ animationDuration: "0.55s", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" }}>
           {boks(161, 12, 88)}
-          {fodbold(158, 23, 12)}
+          {fodbold(159, 21, 15)}
         </g>
       </g>
       {/* Små stjerner, når bolden rammer. */}
