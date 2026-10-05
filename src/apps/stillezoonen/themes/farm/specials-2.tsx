@@ -145,7 +145,7 @@ const knittingSheep: CreatureSpec = {
         {boks(138, 40, 80)}
         <g className="zoo-fx-shake" style={{ ...fx("0.1s", "50% 100%"), animationDuration: "1.2s" } as CSSProperties}>
           <circle cx="138" cy="113" r="7" fill={TOERKLAEDE} />
-          <path d="M132 110 C 136 113, 141 113, 144 110 M132 115 C 136 118, 141 118, 144 115 M135 107 C 133 112, 135 117, 139 120" stroke="#b8302a" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+          <path d="M132 110 C 136 113, 141 113, 144 110 M132 115 C 136 118, 141 118, 144 115 M135 107 C 133 112, 135 116, 139 118.5" stroke="#b8302a" strokeWidth="1.3" fill="none" strokeLinecap="round" />
         </g>
       </g>
       {/* Det halvfærdige stribede halstørklæde hænger ned fra pindene. */}
@@ -206,7 +206,7 @@ const griseHoved = (afslappet: boolean) => (
     <circle cx="122" cy="66" r="6" fill="#f09db0" opacity="0.6" />
     {afslappet ? (
       <>
-        <path d="M137 68 q 5 5 11 1" stroke="#b8687a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
+        <path d="M136 70 q 5 5 11 1" stroke="#b8687a" strokeWidth="2.5" fill="none" strokeLinecap="round" />
         {/* Agurkeskiven over øjet. */}
         <circle cx="138" cy="47" r="7.5" fill="#4f9a3a" />
         <circle cx="138" cy="47" r="6" fill="#bfe39a" />
@@ -275,6 +275,8 @@ const spaPig: CreatureSpec = {
   ),
   special: (
     <>
+      {/* Karret og mudderet sidder 4 enheder lavere end grisens gå-figur; fødderne står på bunden. */}
+      <g transform="translate(0 4)">
       {/* Mudderet bag i karret. */}
       <path d="M18 62 C 24 50, 40 52, 48 54 C 60 46, 74 50, 82 52 C 96 46, 112 50, 120 54 L 152 62 Z" fill={MUDDER} />
       {/* Bagbenet hviler over kanten, med krydsede ben. */}
@@ -287,14 +289,18 @@ const spaPig: CreatureSpec = {
       <ellipse cx="80" cy="49" rx="18" ry="5" fill="#fbd0d6" opacity="0.7" />
       <circle cx="94" cy="46" r="3" fill={MUDDER} />
       <circle cx="70" cy="47" r="2" fill={MUDDER} />
+      </g>
       {/* Hovedet læner sig tilbage mod karrets kant. */}
-      <g transform="translate(-2 -12) rotate(-22 130 54)">{griseHoved(true)}</g>
+      <g transform="translate(-2 -9) rotate(-22 130 54)">{griseHoved(true)}</g>
+      <g transform="translate(0 4)">
       {/* Mudderoverfladen foran grisen. */}
       <path d="M16 60 C 24 50, 36 54, 44 52 C 54 48, 62 54, 72 52 C 84 48, 96 54, 104 52 C 112 50, 118 54, 124 58 L 124 62 H 16 Z" fill={MUDDER} />
       <path d="M28 56 q 6 -3 12 0 M80 54 q 6 -3 12 0" stroke={MUDDER_LYS} strokeWidth="2" fill="none" strokeLinecap="round" />
+      </g>
       {/* Badekarret på små gyldne fødder. */}
       <ellipse cx="40" cy="105" rx="7" ry="5" fill="#d9a441" />
       <ellipse cx="132" cy="105" rx="7" ry="5" fill="#d9a441" />
+      <g transform="translate(0 4)">
       <path d="M16 62 H 156 C 156 88, 144 102, 122 102 H 50 C 28 102, 16 88, 16 62 Z" fill="#f4f6f9" />
       <path d="M22 80 C 30 96, 44 100, 60 100 H 116 C 132 100, 144 94, 150 82" stroke="#dbe2ea" strokeWidth="4" fill="none" strokeLinecap="round" />
       <rect x="12" y="58" width="148" height="8" rx="4" fill="#ffffff" stroke="#d3dae3" strokeWidth="1.5" />
@@ -315,6 +321,7 @@ const spaPig: CreatureSpec = {
       {boble(112, 44, 5, "1.5s", true)}
       {boble(84, 46, 3, "1.9s", true)}
       {boble(26, 50, 3, "1.1s", false)}
+      </g>
     </>
   ),
 };
@@ -432,15 +439,15 @@ const alarmRooster: CreatureSpec = {
         </g>
       </g>
       {/* Lydstreger fra næbbet. */}
-      <g className="zoo-fx-rise">{boks(140, 22, 14)}<path d="M138 30 q 5 -5 2 -12" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" /></g>
-      <g className="zoo-fx-rise" style={fx("0.6s")}>{boks(144, 20, 14)}<path d="M142 34 q 8 -8 4 -20" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" /></g>
-      <g className="zoo-fx-rise" style={fx("1.2s")}>{boks(130, 14, 14)}<path d="M126 18 l 4 -8 M134 20 l 6 -6" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-fx-sparkle" style={{ animationDuration: "0.9s" }}><path d="M138 30 q 5 -5 2 -12" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-fx-sparkle" style={{ ...fx("0.3s"), animationDuration: "0.9s" } as CSSProperties}><path d="M142 34 q 8 -8 4 -20" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" /></g>
+      <g className="zoo-fx-sparkle" style={{ ...fx("0.6s"), animationDuration: "0.9s" } as CSSProperties}><path d="M126 18 l 4 -8 M134 20 l 6 -6" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" /></g>
       {/* Vækkeuret står på jorden og ringer. */}
       <g className="zoo-fx-shake" style={{ ...fx("0s", "50% 100%"), animationDuration: "0.18s" } as CSSProperties}>
         {vaekkeur(124, 130, 12)}
       </g>
       <g className="zoo-fx-sparkle" style={{ animationDuration: "0.5s" }}>
-        <path d="M106 112 l -5 -4 M104 120 l -6 0 M142 112 l 5 -4 M144 120 l 6 0" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M106 112 l -5 -4 M104 120 l -6 0 M142 112 l 4 -3.5 M143 120 l 4.5 0" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
       </g>
     </>
   ),
@@ -568,8 +575,8 @@ const footballGoat: CreatureSpec = {
       <g className="zoo-fx-bob" style={{ animationDuration: "0.55s", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" }}>
         {boks(160, 0, 140)}
         <g className="zoo-fx-bob" style={{ animationDuration: "0.55s", animationTimingFunction: "cubic-bezier(0.2, 0.7, 0.4, 1)" }}>
-          {boks(161, 10, 100)}
-          {fodbold(158, 21, 12)}
+          {boks(161, 12, 88)}
+          {fodbold(158, 23, 12)}
         </g>
       </g>
       {/* Små stjerner, når bolden rammer. */}

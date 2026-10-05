@@ -112,7 +112,7 @@ const KO_SOELV = "#e6eaff";
 const KO_STJERNE = "#ffe27a";
 
 /** Usynlig boks fra viewBox' top til bund, så zoo-fx-bob løfter koen et par streger. */
-const KO_BOB_BOKS = <rect x="100" y="-24" width="1" height="174" fill="none" />;
+const KO_BOB_BOKS = <rect x="100" y="-50" width="1" height="200" fill="none" />;
 
 /** Halen med sølvdusk. */
 const koHale = (
@@ -167,15 +167,15 @@ const koHoved = (
   </>
 );
 
-/** Natblå ko med stjernepletter — står den stille, svæver den over månen. */
+/** Natblå ko med stjernepletter — står den stille, springer den over månen. */
 const moonCow: CreatureSpec = {
   name: "Månekoen",
   rarity: "legendary",
-  height: 23.2,
-  aspect: 220 / 174,
+  height: 26.7,
+  aspect: 220 / 200,
   gait: "walk",
   pace: 0.8,
-  viewBox: "0 -24 220 174",
+  viewBox: "0 -50 220 200",
   art: (
     <>
       {koHale}
@@ -196,34 +196,51 @@ const moonCow: CreatureSpec = {
   ),
   special: (
     <>
-      {/* Skyggen bliver på jorden, mens koen svæver. */}
-      <ellipse cx="106" cy="147" rx="66" ry="4" fill="#1f1c5a" opacity="0.22" />
+      {/* Skyggen bliver på jorden, mens koen springer. */}
+      <ellipse cx="104" cy="147" rx="54" ry="4" fill="#1f1c5a" opacity="0.22" />
+      {/* Den store, søvnige halvmåne, som koen springer hen over. */}
+      <path d="M131.6 76.4 A 42 42 0 1 0 131.6 135.6 A 36 36 0 0 1 131.6 76.4 Z" fill={KO_STJERNE} stroke="#e0ad2e" strokeWidth="2" strokeLinejoin="round" />
+      <path d="M78 84 C 74 92, 72 104, 74 114" stroke="#fff3b0" strokeWidth="3.5" fill="none" strokeLinecap="round" />
+      <path d="M90 96 q 6 5 12 0" stroke="#a8761a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      <path d="M92 118 q 6 5 12 0" stroke="#a8761a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+      <circle cx="88" cy="108" r="4" fill="#f5a3b5" opacity="0.7" />
+      {/* Koen midt i springet: løftet fra jorden og vugger let. */}
       <g className="zoo-fx-bob" style={{ animationDuration: "2s" }}>
         {KO_BOB_BOKS}
-        {koHale}
-        <ellipse cx="80" cy="104" rx="13" ry="9" fill="#c9a8f0" />
-        {koBen(128, 88, 18, 60, KO_MOERK)}
-        {koBen(46, 88, 18, 60, KO_MOERK)}
-        {koKrop}
-        {koBen(146, 90, 19, 58, KO_BLAA)}
-        {koBen(62, 90, 19, 58, KO_BLAA)}
-        {koHoved}
-        {/* Glad mund: "Muuu!" */}
-        <ellipse cx="195" cy="83" rx="4.5" ry="3" fill="#5a2f7a" />
+        <g transform="translate(0 -40)">
+          {/* Halen flagrer bagud. */}
+          <path d="M34 58 C 22 54, 14 46, 12 36" stroke={KO_MOERK} strokeWidth="4" fill="none" strokeLinecap="round" />
+          <ellipse cx="11" cy="29" rx="6" ry="9" transform="rotate(-25 11 29)" fill={KO_SOELV} />
+          {/* Bagbenene strakt bagud. */}
+          <g transform="rotate(58 55 92)">
+            <rect x="46" y="88" width="18" height="54" rx="7" fill={KO_MOERK} />
+            <rect x="46" y="132" width="18" height="10" rx="4" fill="#2a2668" />
+          </g>
+          {/* Forbenene bøjet ind under sig. */}
+          <path d="M137 90 L 156 108 L 140 120" stroke={KO_MOERK} strokeWidth="18" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M144.2 117.2 L 140 120" stroke="#2a2668" strokeWidth="18" strokeLinecap="round" />
+          <ellipse cx="80" cy="104" rx="13" ry="9" fill="#c9a8f0" />
+          {koKrop}
+          <g transform="rotate(50 71 94)">
+            <rect x="62" y="90" width="19" height="54" rx="7" fill={KO_BLAA} />
+            <rect x="62" y="134" width="19" height="10" rx="4" fill="#2a2668" />
+          </g>
+          <path d="M155 92 L 176 110 L 160 122" stroke={KO_BLAA} strokeWidth="19" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M164.2 119.2 L 160 122" stroke="#2a2668" strokeWidth="19" strokeLinecap="round" />
+          {koHoved}
+          {/* Glad mund: "Muuu!" */}
+          <ellipse cx="195" cy="83" rx="4.5" ry="3" fill="#5a2f7a" />
+        </g>
       </g>
-      {/* Halvmånen, som koen svæver hen over (smiler i søvne). */}
-      <path d="M118.6 110.8 A 19 19 0 1 0 118.6 143.2 A 17.6 17.6 0 0 1 118.6 110.8 Z" fill={KO_STJERNE} stroke="#e0ad2e" strokeWidth="1.4" strokeLinejoin="round" />
-      <path d="M98 123 q 3.5 3 7 0" stroke="#a8761a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-      <path d="M100 133 q 3.5 2.6 7 0" stroke="#a8761a" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-      <circle cx="101" cy="128" r="2.2" fill="#f5a3b5" opacity="0.7" />
       {/* Stjernerne omkring hende funkler. */}
-      <g className="zoo-fx-sparkle">{STJERNE(34, 2, 7, KO_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.4s")}>{STJERNE(122, -10, 6, "#fff")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.8s")}>{STJERNE(76, -8, 5, KO_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("1.2s")}>{STJERNE(200, 8, 6.5, KO_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.6s")}>{GLIMT(162, -6, 5, "#fff")}</g>
-      <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(136, 122, 3.6, "#fff3b0")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.2s")}>{GLIMT(12, 70, 3.4, "#fff")}</g>
+      <g className="zoo-fx-sparkle">{STJERNE(30, -26, 7, KO_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.4s")}>{STJERNE(118, -40, 6, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.8s")}>{STJERNE(72, -38, 5, KO_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("1.2s")}>{STJERNE(204, -22, 6.5, KO_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.6s")}>{GLIMT(140, -24, 5, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(150, 128, 5, "#fff3b0")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.2s")}>{GLIMT(44, 128, 4.5, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.9s")}>{STJERNE(196, 112, 5, "#fff")}</g>
     </>
   ),
 };
