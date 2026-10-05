@@ -86,17 +86,17 @@ const goldenHen: CreatureSpec = {
       <path d="M38 98 q 11 4 24 0 M40 104 q 10 3 19 0" stroke="#cf8f17" strokeWidth="2" fill="none" strokeLinecap="round" />
       <path d="M12 117 l 10 -4 M26 118 l 9 -5 M84 118 l 8 -5 M98 118 l 9 -4 M44 118 l 8 -4" stroke="#b98f3a" strokeWidth="2" strokeLinecap="round" />
       {/* Det skinnende guldæg. */}
-      <ellipse cx="106" cy="103" rx="10" ry="13" fill="#ffd23f" stroke="#d99a1c" strokeWidth="1.6" />
-      <ellipse cx="102" cy="98" rx="3" ry="5.5" transform="rotate(-18 102 98)" fill={HOENE_GLANS} />
+      <ellipse cx="107" cy="102" rx="11" ry="14" fill="#ffd23f" stroke="#d99a1c" strokeWidth="1.6" />
+      <ellipse cx="102.5" cy="96" rx="3.2" ry="6" transform="rotate(-18 102.5 96)" fill={HOENE_GLANS} />
       {/* Hovedet nikker stolt. */}
       <g className="zoo-fx-nod" style={fx("0s", "50% 100%")}>
         <g transform="translate(0 10)">{hoeneHoved}</g>
       </g>
       {/* Ægget funkler. */}
-      <g className="zoo-fx-sparkle">{GLIMT(114, 86, 4.5)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.45s")}>{GLIMT(110, 109, 3, "#fff")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.9s")}>{STJERNE(95, 84, 3, "#ffe98a")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.25s")}>{GLIMT(116, 100, 2.4, "#fff3b0")}</g>
+      <g className="zoo-fx-sparkle">{GLIMT(114, 83, 4.5)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.45s")}>{GLIMT(111, 108, 3.2, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.9s")}>{STJERNE(96, 82, 3.2, "#ffe98a")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.25s")}>{GLIMT(117.5, 96, 2.2, "#fff3b0")}</g>
       <g className="zoo-fx-sparkle" style={fx("1.15s")}>{GLIMT(44, 82, 4)}</g>
     </>
   ),
@@ -198,12 +198,7 @@ const moonCow: CreatureSpec = {
     <>
       {/* Skyggen bliver på jorden, mens koen svæver. */}
       <ellipse cx="106" cy="147" rx="66" ry="4" fill="#1f1c5a" opacity="0.22" />
-      {/* Halvmånen, som koen svæver hen over. */}
-      <circle cx="104" cy="128" r="19" fill="#fff6c2" opacity="0.45" />
-      <path d="M111.5 115 A 15 15 0 1 0 111.5 141 A 14 14 0 0 1 111.5 115 Z" fill={KO_STJERNE} stroke="#e9b93a" strokeWidth="1.2" />
-      <path d="M93 124 q 3 3 6 0" stroke="#b9861e" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-      <path d="M95 132 q 3 2 5 0" stroke="#b9861e" strokeWidth="1.4" fill="none" strokeLinecap="round" />
-      <g className="zoo-fx-bob">
+      <g className="zoo-fx-bob" style={{ animationDuration: "2s" }}>
         {KO_BOB_BOKS}
         {koHale}
         <ellipse cx="80" cy="104" rx="13" ry="9" fill="#c9a8f0" />
@@ -214,15 +209,20 @@ const moonCow: CreatureSpec = {
         {koBen(62, 90, 19, 58, KO_BLAA)}
         {koHoved}
         {/* Glad mund: "Muuu!" */}
-        <ellipse cx="196" cy="82" rx="4" ry="2.6" fill="#6b3f8a" />
+        <ellipse cx="195" cy="83" rx="4.5" ry="3" fill="#5a2f7a" />
       </g>
+      {/* Halvmånen, som koen svæver hen over (smiler i søvne). */}
+      <path d="M118.6 110.8 A 19 19 0 1 0 118.6 143.2 A 17.6 17.6 0 0 1 118.6 110.8 Z" fill={KO_STJERNE} stroke="#e0ad2e" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M98 123 q 3.5 3 7 0" stroke="#a8761a" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      <path d="M100 133 q 3.5 2.6 7 0" stroke="#a8761a" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+      <circle cx="101" cy="128" r="2.2" fill="#f5a3b5" opacity="0.7" />
       {/* Stjernerne omkring hende funkler. */}
-      <g className="zoo-fx-sparkle">{STJERNE(34, 2, 6, KO_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.4s")}>{STJERNE(122, -12, 5, "#fff")}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.8s")}>{STJERNE(76, -10, 4, KO_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("1.2s")}>{STJERNE(200, 8, 5.5, KO_STJERNE)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.6s")}>{GLIMT(160, -6, 4, "#fff")}</g>
-      <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(132, 118, 3.4, "#fff3b0")}</g>
+      <g className="zoo-fx-sparkle">{STJERNE(34, 2, 7, KO_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.4s")}>{STJERNE(122, -10, 6, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.8s")}>{STJERNE(76, -8, 5, KO_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("1.2s")}>{STJERNE(200, 8, 6.5, KO_STJERNE)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.6s")}>{GLIMT(162, -6, 5, "#fff")}</g>
+      <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(136, 122, 3.6, "#fff3b0")}</g>
       <g className="zoo-fx-sparkle" style={fx("0.2s")}>{GLIMT(12, 70, 3.4, "#fff")}</g>
     </>
   ),
@@ -272,7 +272,7 @@ const regnbueHale = (
     {REGNBUE.map((farve, i) => (
       <path
         key={farve}
-        d={`M${46 - i * 0.6} ${96 + i * 2.6} C ${30 - i * 2} ${98 + i * 3}, ${18 - i * 0.6} ${120 + i * 3}, ${16 + i * 3.4} ${152 - i * 2}`}
+        d={`M${46 - i * 0.6} ${96 + i * 2.6} C ${28 - i * 1.6} ${98 + i * 3}, ${17 + i * 0.4} ${126 + i * 2}, ${23 + i * 3.2} ${166 - i * 3}`}
         stroke={farve}
         strokeWidth="6.5"
         fill="none"
@@ -338,7 +338,7 @@ const unicorn: CreatureSpec = {
       <g className="zoo-torso">
         <ellipse cx="108" cy="104" rx="72" ry="34" fill={EH_HVID} />
         <path d="M138 84 C 148 54, 166 36, 190 28 L 218 50 C 200 62, 192 84, 184 114 Z" fill={EH_HVID} />
-        <ellipse cx="108" cy="126" rx="48" ry="9" fill="#ece6f8" />
+        <path d="M70 128 C 92 136, 128 136, 150 126" stroke="#ece6f8" strokeWidth="6" fill="none" strokeLinecap="round" />
         {regnbueManke(kamGaar, false)}
         <g className="zoo-fx-sparkle">{GLIMT(98, 98, 5)}</g>
         <g className="zoo-fx-sparkle" style={fx("0.8s")}>{GLIMT(60, 118, 4, "#ffd1f0")}</g>
@@ -368,7 +368,7 @@ const unicorn: CreatureSpec = {
       <ellipse cx="108" cy="104" rx="72" ry="34" fill={EH_HVID} />
       {/* Nakken rejst. */}
       <path d="M136 86 C 144 50, 158 28, 178 16 L 210 33 C 194 52, 190 84, 184 114 Z" fill={EH_HVID} />
-      <ellipse cx="108" cy="126" rx="48" ry="9" fill="#ece6f8" />
+      <path d="M70 128 C 92 136, 128 136, 150 126" stroke="#ece6f8" strokeWidth="6" fill="none" strokeLinecap="round" />
       {regnbueManke(kamStolt, true)}
       {/* Nære forben løftet stolt; de andre tre står, hvor de står, når den går. */}
       <path d="M166 118 L 188 146 L 182 168" stroke={EH_HVID} strokeWidth="16" fill="none" strokeLinecap="round" strokeLinejoin="round" />
