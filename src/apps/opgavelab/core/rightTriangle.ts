@@ -1,0 +1,311 @@
+// Opgavelab — geometri-kerne for den retvinklede trekant (dansk notation).
+// C = 90°, c er hypotenusen, a = BC (modstående A), b = AC (modstående B).
+// Formen gemmes som { a, b, rotation, mirror } med C som anker, så C altid er
+// præcis 90°. Alt regnes uafrundet; afrunding sker kun i formateringen.
+//
+// Ingen runtime-imports (kun `import type`), ingen enums/parameter properties,
+// så filen kan køres i Node med --experimental-strip-types.
+
+import type {
+  Bounds,
+  DocSettings,
+  DragOpts,
+  DragResult,
+  FigureDef,
+  Fmt,
+  ParamDef,
+  ParamKind,
+  Point,
+  RightTriangleShape,
+  Solution,
+} from "../model/types";
+
+/** Min/max katetelængde i mm (= LIMITS.sideMinCm/sideMaxCm · 10). */
+export const MIN_SIDE_MM = 10;
+export const MAX_SIDE_MM = 150;
+
+const RAD = Math.PI / 180;
+const EPS = 1e-9;
+
+export const PARAMS: ParamDef[] = [
+  { key: "a", label: "Side a", kind: "length" },
+  { key: "b", label: "Side b", kind: "length" },
+  { key: "c", label: "Side c", kind: "length" },
+  { key: "A", label: "Vinkel A", kind: "angle" },
+  { key: "B", label: "Vinkel B", kind: "angle" },
+  { key: "C", label: "Vinkel C", kind: "angle" },
+];
+
+const KIND: Record<string, ParamKind> = { a: "length", b: "length", c: "length", A: "angle", B: "angle", C: "angle" };
+
+// ---- små hjælpere (lokale kopier; core-filer må ikke importere runtime fra hinanden) ----
+
+function clampSide(v: number): number {
+  return v < MIN_SIDE_MM ? MIN_SIDE_MM : v > MAX_SIDE_MM ? MAX_SIDE_MM : v;
+}
+
+function snapTo(v: number, step: number): number {
+  return step > 0 ? Math.round(v / step) * step : v;
+}
+
+/** Grader normaliseret til (−180, 180]. */
+export function normDeg(deg: number): number {
+  let r = (((deg + 180) % 360) + 360) % 360 - 180;
+  if (r === -180) r = 180;
+  return r === 0 ? 0 : r; // ingen −0
+}
+
+function sub(p: Point, q: Point): Point {
+  return { x: p.x - q.x, y: p.y - q.y };
+}
+
+function len(p: Point): number {
+  return Math.hypot(p.x, p.y);
+}
+
+/** Enhedsnormal til CB i den retning, A ligger når mirror = false. */
+function normal(rotationDeg: number): Point {
+  const r = rotationDeg * RAD;
+  return { x: -Math.sin(r), y: Math.cos(r) };
+}
+
+// ---- form ----
+
+export function defaultShape(): RightTriangleShape {
+  // A lodret over C, B vandret til højre for C (klassisk tegning), 4 × 3 cm.
+  return { a: 40, b: 30, rotation: 0, mirror: true };
+}
+
+export function vertices(shape: RightTriangleShape): Record<"A" | "B" | "C", Point> {
+  const r = shape.rotation * RAD;
+  const s = shape.mirror ? -1 : 1;
+  return {
+    C: { x: 0, y: 0 },
+    B: { x: shape.a * Math.cos(r), y: shape.a * Math.sin(r) },
+    A: { x: -shape.b * Math.sin(r) * s, y: shape.b * Math.cos(r) * s },
+  };
+}
+
+export function bounds(shape: RightTriangleShape): Bounds {
+  const v = vertices(shape);
+  const xs = [v.A.x, v.B.x, v.C.x];
+  const ys = [v.A.y, v.B.y, v.C.y];
+  return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
+}
+
+/** Sider i cm og vinkler i grader, uafrundet. */
+export function compute(shape: RightTriangleShape): Record<string, number> {
+  const a = shape.a / 10;
+  const b = shape.b / 10;
+  const A = Math.atan2(a, b) / RAD;
+  return { a, b, c: Math.hypot(a, b), A, B: 90 - A, C: 90 };
+}
+
+// ---- hjørnetræk ----
+
+/**
+ * Træk i et hjørne. `local` er pointeren relativt til ankeret (C) ved trækkets
+ * start, og `shape` er formen ved trækkets start.
+ * - B: a = |p| (snappet, clampet), rotation = retningen C→p (evt. vinkelsnap).
+ * - A: b = |projektionen af p på normalen til CB|; skifter projektionen fortegn, spejles figuren.
+ * - C: A og B ligger fast; C projiceres på Thales-cirklen over AB, så c og 90° bevares.
+ *   Kateterne holdes inden for min/max ved at standse C på cirklen. Ankeret flyttes (offset).
+ */
+export function dragVertex(
+  shape: RightTriangleShape,
+  vertex: string,
+  local: Point,
+  opts: DragOpts,
+): DragResult<RightTriangleShape> {
+  const none = { x: 0, y: 0 };
+  if (!Number.isFinite(local.x) || !Number.isFinite(local.y)) return { shape, offset: none };
+
+  if (vertex === "B") {
+    const d = len(local);
+    const a = clampSide(snapTo(d, opts.snapMm));
+    let rotation = d > EPS ? Math.atan2(local.y, local.x) / RAD : shape.rotation;
+    if (opts.snapDeg) rotation = snapTo(rotation, opts.degStep && opts.degStep > 0 ? opts.degStep : 1);
+    return { shape: { ...shape, a, rotation: normDeg(rotation) }, offset: none };
+  }
+
+  if (vertex === "A") {
+    const n = normal(shape.rotation);
+    const t = local.x * n.x + local.y * n.y;
+    const mirror = t < 0 ? true : t > 0 ? false : shape.mirror;
+    const b = clampSide(snapTo(Math.abs(t), opts.snapMm));
+    return { shape: { ...shape, b, mirror }, offset: none };
+  }
+
+  if (vertex === "C") {
+    const v = vertices(shape);
+    const ab = sub(v.B, v.A);
+    const c = len(ab);
+    const m = { x: (v.A.x + v.B.x) / 2, y: (v.A.y + v.B.y) / 2 };
+    const d = sub(local, m);
+    const dl = len(d);
+    if (dl < EPS || c < EPS) return { shape, offset: none };
+    // Projektion på Thales-cirklen giver de rå kateter.
+    const proj = { x: m.x + (d.x * c) / 2 / dl, y: m.y + (d.y * c) / 2 / dl };
+    let a = len(sub(v.B, proj));
+    // Hold kateterne inden for grænserne (C standser på cirklen).
+    if (a < MIN_SIDE_MM) a = MIN_SIDE_MM;
+    else if (a > MAX_SIDE_MM) a = MAX_SIDE_MM;
+    let b = Math.sqrt(Math.max(0, c * c - a * a));
+    if (b < MIN_SIDE_MM) {
+      b = MIN_SIDE_MM;
+      a = Math.sqrt(Math.max(0, c * c - b * b));
+    } else if (b > MAX_SIDE_MM) {
+      b = MAX_SIDE_MM;
+      a = Math.sqrt(Math.max(0, c * c - b * b));
+    }
+    if (a < MIN_SIDE_MM - EPS || a > MAX_SIDE_MM + EPS || b < MIN_SIDE_MM - EPS || b > MAX_SIDE_MM + EPS) {
+      return { shape, offset: none }; // umuligt inden for grænserne: afvis trækket
+    }
+    // Placér C' med |AC'| = b og |BC'| = a på den side af AB, hvor pointeren er.
+    const u = { x: ab.x / c, y: ab.y / c };
+    const w = { x: -u.y, y: u.x };
+    const side = (local.x - v.A.x) * w.x + (local.y - v.A.y) * w.y;
+    const oldSide = (0 - v.A.x) * w.x + (0 - v.A.y) * w.y;
+    const s = side > 0 ? 1 : side < 0 ? -1 : oldSide >= 0 ? 1 : -1;
+    const along = (b * b) / c;
+    const perp = (a * b) / c;
+    const cNew = { x: v.A.x + u.x * along + w.x * s * perp, y: v.A.y + u.y * along + w.y * s * perp };
+    const toB = sub(v.B, cNew);
+    const rotation = normDeg(Math.atan2(toB.y, toB.x) / RAD);
+    const toA = sub(v.A, cNew);
+    const n = normal(rotation);
+    const mirror = toA.x * n.x + toA.y * n.y < 0;
+    return { shape: { a, b, rotation, mirror }, offset: cNew };
+  }
+
+  return { shape, offset: none };
+}
+
+export function validateShape(raw: unknown): RightTriangleShape | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const { a, b, rotation, mirror } = r;
+  if (typeof a !== "number" || !Number.isFinite(a)) return null;
+  if (typeof b !== "number" || !Number.isFinite(b)) return null;
+  if (typeof rotation !== "number" || !Number.isFinite(rotation)) return null;
+  if (typeof mirror !== "boolean") return null;
+  return { a: clampSide(a), b: clampSide(b), rotation: normDeg(rotation), mirror };
+}
+
+// ---- Find X ----
+
+type Rule = {
+  given: string[];
+  /** Højreside med {param} for parametre og {inv:fn} for inverse trig-funktioner. */
+  rhs: string;
+  value: (v: Record<string, number>) => number;
+};
+
+const sin = (deg: number) => Math.sin(deg * RAD);
+const cos = (deg: number) => Math.cos(deg * RAD);
+const tan = (deg: number) => Math.tan(deg * RAD);
+const unit = (x: number) => (x < -1 ? -1 : x > 1 ? 1 : x);
+const deg = (rad: number) => rad / RAD;
+
+/** Regeltabel i prioriteret rækkefølge: den første, hvis givne alle er synlige, bruges. */
+const RULES: Record<string, Rule[]> = {
+  c: [
+    { given: ["a", "b"], rhs: "√({a}² + {b}²)", value: (v) => Math.hypot(v.a, v.b) },
+    { given: ["A", "a"], rhs: "{a} / sin {A}", value: (v) => v.a / sin(v.A) },
+    { given: ["A", "b"], rhs: "{b} / cos {A}", value: (v) => v.b / cos(v.A) },
+    { given: ["B", "b"], rhs: "{b} / sin {B}", value: (v) => v.b / sin(v.B) },
+    { given: ["B", "a"], rhs: "{a} / cos {B}", value: (v) => v.a / cos(v.B) },
+  ],
+  a: [
+    { given: ["b", "c"], rhs: "√({c}² − {b}²)", value: (v) => Math.sqrt(Math.max(0, v.c * v.c - v.b * v.b)) },
+    { given: ["A", "c"], rhs: "{c} · sin {A}", value: (v) => v.c * sin(v.A) },
+    { given: ["A", "b"], rhs: "{b} · tan {A}", value: (v) => v.b * tan(v.A) },
+    { given: ["B", "c"], rhs: "{c} · cos {B}", value: (v) => v.c * cos(v.B) },
+    { given: ["B", "b"], rhs: "{b} / tan {B}", value: (v) => v.b / tan(v.B) },
+  ],
+  b: [
+    { given: ["a", "c"], rhs: "√({c}² − {a}²)", value: (v) => Math.sqrt(Math.max(0, v.c * v.c - v.a * v.a)) },
+    { given: ["A", "c"], rhs: "{c} · cos {A}", value: (v) => v.c * cos(v.A) },
+    { given: ["A", "a"], rhs: "{a} / tan {A}", value: (v) => v.a / tan(v.A) },
+    { given: ["B", "c"], rhs: "{c} · sin {B}", value: (v) => v.c * sin(v.B) },
+    { given: ["B", "a"], rhs: "{a} · tan {B}", value: (v) => v.a * tan(v.B) },
+  ],
+  A: [
+    { given: ["B", "C"], rhs: "180° − {B} − {C}", value: (v) => 180 - v.B - v.C },
+    { given: ["a", "b"], rhs: "{inv:tan}({a}/{b})", value: (v) => deg(Math.atan2(v.a, v.b)) },
+    { given: ["a", "c"], rhs: "{inv:sin}({a}/{c})", value: (v) => deg(Math.asin(unit(v.a / v.c))) },
+    { given: ["b", "c"], rhs: "{inv:cos}({b}/{c})", value: (v) => deg(Math.acos(unit(v.b / v.c))) },
+  ],
+  B: [
+    { given: ["A", "C"], rhs: "180° − {A} − {C}", value: (v) => 180 - v.A - v.C },
+    { given: ["b", "a"], rhs: "{inv:tan}({b}/{a})", value: (v) => deg(Math.atan2(v.b, v.a)) },
+    { given: ["b", "c"], rhs: "{inv:sin}({b}/{c})", value: (v) => deg(Math.asin(unit(v.b / v.c))) },
+    { given: ["a", "c"], rhs: "{inv:cos}({a}/{c})", value: (v) => deg(Math.acos(unit(v.a / v.c))) },
+  ],
+  C: [{ given: ["A", "B"], rhs: "180° − {A} − {B}", value: (v) => 180 - v.A - v.B }],
+};
+
+/** Mulige sæt af givne parametre for target, i prioriteret rækkefølge. */
+export function solvableFrom(target: string): string[][] {
+  const rules = Object.prototype.hasOwnProperty.call(RULES, target) ? RULES[target] : [];
+  return rules.map((r) => [...r.given]);
+}
+
+function fill(rhs: string, param: (key: string) => string, inv: (fn: string) => string): string {
+  return rhs.replace(/\{inv:(\w+)\}|\{(\w+)\}/g, (_m, fn: string | undefined, key: string | undefined) =>
+    fn ? inv(fn) : param(key ?? ""),
+  );
+}
+
+/**
+ * Find target ud fra de SYNLIGE parametre. C regnes kun som kendt, når C er synlig
+ * (retvinkelmarkeringen tegnes kun da). Returnerer null, hvis target selv er synlig,
+ * eller ingen regel kan bruges.
+ */
+export function solve(
+  target: string,
+  visible: ReadonlySet<string>,
+  values: Record<string, number>,
+  names: Record<string, string>,
+  fmt: Fmt,
+  settings: DocSettings,
+): Solution | null {
+  if (!Object.prototype.hasOwnProperty.call(RULES, target) || visible.has(target)) return null;
+  const rule = RULES[target].find((r) => r.given.every((g) => visible.has(g)));
+  if (!rule) return null;
+  const v: Record<string, number> = { ...values, C: 90 };
+  if (rule.given.some((g) => !Number.isFinite(v[g]))) return null;
+  const value = rule.value(v);
+  if (!Number.isFinite(value)) return null;
+
+  const name = (key: string) => {
+    const n = names[key];
+    return typeof n === "string" && n.trim() !== "" ? n.trim() : key;
+  };
+  const inv = (fn: string) => (settings.inverseNotation === "arc" ? `arc${fn}` : `${fn}⁻¹`);
+  const shown = (key: string) => (KIND[key] === "angle" ? fmt.ang(v[key]) : fmt.num(v[key], 1));
+  const kind = KIND[target];
+
+  return {
+    target,
+    formula: `${name(target)} = ${fill(rule.rhs, name, inv)}`,
+    substituted: fill(rule.rhs, shown, inv),
+    result: kind === "angle" ? fmt.ang(value) : fmt.len(value),
+    value,
+    kind,
+  };
+}
+
+export const rightTriangle: FigureDef<RightTriangleShape> = {
+  type: "rightTriangle",
+  name: "Retvinklet trekant",
+  params: PARAMS,
+  defaultShape,
+  vertices,
+  compute,
+  solve,
+  solvableFrom,
+  dragVertex,
+  validateShape,
+  bounds,
+};
