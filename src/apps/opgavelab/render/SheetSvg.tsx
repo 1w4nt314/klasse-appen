@@ -17,6 +17,7 @@ import {
 } from "../model/figures";
 import { PAGE } from "../model/types";
 import type {
+  Bounds,
   CalcObject,
   Document as SheetDoc,
   FigureObject,
@@ -49,12 +50,6 @@ const add = (p: Point, q: Point, k = 1): Point => ({ x: p.x + q.x * k, y: p.y + 
 const sub = (p: Point, q: Point): Point => ({ x: p.x - q.x, y: p.y - q.y });
 
 type Anchor = "start" | "middle" | "end";
-
-/** Placerer en etiket ved punktet p, så den ligger på den side af p som retningen n peger mod. */
-function labelPos(p: Point, n: Point, size: number): { x: number; y: number; anchor: Anchor } {
-  const anchor: Anchor = n.x > 0.4 ? "start" : n.x < -0.4 ? "end" : "middle";
-  return { x: r2(p.x), y: r2(p.y + size * (0.35 + 0.5 * n.y)), anchor };
-}
 
 type TextProps = {
   x: number;
@@ -121,14 +116,167 @@ function renderCalc(doc: SheetDoc, obj: CalcObject, mode: SheetMode, number: str
 
 // ---- retvinklet trekant ----
 
+function arcRadius(v: Point, p: Point, q: Point, radius: number): number {
+  return Math.min(radius, 0.4 * Math.min(Math.hypot(p.x - v.x, p.y - v.y), Math.hypot(q.x - v.x, q.y - v.y)));
+}
+
 function arcPath(v: Point, p: Point, q: Point, radius: number): string {
   const u = unit(sub(p, v));
   const w = unit(sub(q, v));
-  const r = Math.min(radius, 0.4 * Math.min(Math.hypot(p.x - v.x, p.y - v.y), Math.hypot(q.x - v.x, q.y - v.y)));
+  const r = arcRadius(v, p, q, radius);
   const s = add(v, u, r);
   const e = add(v, w, r);
   const sweep = u.x * w.y - u.y * w.x > 0 ? 1 : 0;
   return `M ${r2(s.x)} ${r2(s.y)} A ${r2(r)} ${r2(r)} 0 0 ${sweep} ${r2(e.x)} ${r2(e.y)}`;
+}
+
+/** En placeret etiket: tekstens centrum (c) og halve mål, i figurens lokale mm. */
+type Label = {
+  key: string;
+  text: string;
+  c: Point;
+  hw: number;
+  hh: number;
+  bold?: boolean;
+  fill: string;
+  data: Record<`data-${string}`, string>;
+};
+
+const LABEL_GAP = 1; // mm luft mellem etiket og linje
+/** Halv højde af en tekstlinje (versaler/cifre) i forhold til skriftstørrelsen. */
+const HALF_H = 0.37;
+
+function labelBox(text: string, measure: Measure, bold = false): { hw: number; hh: number } {
+  return { hw: measure(text, LABEL_MM / PT_MM, bold) / 2 + 0.3, hh: LABEL_MM * HALF_H + 0.2 };
+}
+
+/** Centrum for en boks, der ligger på n-siden af p med `gap` mm luft (n er en enhedsvektor). */
+function besides(p: Point, n: Point, gap: number, hw: number, hh: number): Point {
+  return add(p, n, gap + Math.abs(n.x) * hw + Math.abs(n.y) * hh);
+}
+
+function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode: SheetMode, measure: Measure): Label[] {
+  const def = getFigureDef(fig.figure)!;
+  const v = def.vertices(shape) as Record<"A" | "B" | "C", Point>;
+  const values = def.compute(shape);
+  const vis = visibleParams(fig);
+  const answer = mode === "svarark";
+  const shown = (k: string) => answer || vis.has(k);
+  const color = (k: string) => (answer && !vis.has(k) ? BRAND : INK);
+  const out: Label[] = [];
+  const neighbors: Record<"A" | "B" | "C", [Point, Point]> = {
+    A: [v.B, v.C],
+    B: [v.A, v.C],
+    C: [v.A, v.B],
+  };
+
+  for (const k of ["A", "B", "C"] as const) {
+    const [p, q] = neighbors[k];
+    // Vinkelhalveringslinjen ind i trekanten; hjørnenavnet står modsat (udad).
+    const bis = unit(add(unit(sub(p, v[k])), unit(sub(q, v[k]))));
+    const name = displayName(fig, k);
+    const nb = labelBox(name, measure, true);
+    const outward = { x: -bis.x, y: -bis.y };
+    const nameC = besides(v[k], outward, 1.6, nb.hw, nb.hh);
+    out.push({
+      key: `name${k}`,
+      text: name,
+      c: nameC,
+      ...nb,
+      bold: true,
+      fill: INK,
+      data: { "data-ol-name": k },
+    });
+
+    if (!shown(k)) continue;
+    // Vinkelværdien står på halveringslinjen så langt inde, at boksen hverken rammer
+    // siderne, vinkelbuen eller retvinkel-kvadratet.
+    const text = FMT.ang(values[k]);
+    const { hw, hh } = labelBox(text, measure);
+    const along = Math.abs(bis.x) * hw + Math.abs(bis.y) * hh;
+    const across = Math.abs(bis.y) * hw + Math.abs(bis.x) * hh;
+    const theta = (values[k] * Math.PI) / 360; // halv vinkel
+    const dSides = along + (LABEL_GAP + across * Math.cos(theta)) / Math.max(Math.sin(theta), 0.02);
+    const inner = k === "C" ? (shown("C") ? 3 * Math.SQRT2 : 0) : arcRadius(v[k], p, q, 5);
+    const dInner = along + inner + 0.6;
+    const minSide = Math.min(Math.hypot(p.x - v[k].x, p.y - v[k].y), Math.hypot(q.x - v[k].x, q.y - v[k].y));
+    const want = Math.max(dSides, dInner);
+    // Er der ikke plads inde i vinklen (små figurer), står værdien udenfor, efter hjørnenavnet.
+    const c =
+      want <= 0.6 * minSide
+        ? add(v[k], bis, want)
+        : besides(nameC, outward, 0.8 + Math.abs(bis.x) * nb.hw + Math.abs(bis.y) * nb.hh, hw, hh);
+    out.push({ key: `ang${k}`, text, c, hw, hh, fill: color(k), data: { "data-ol-param": k } });
+  }
+
+  // Sider: a = BC (modstående A), b = AC (modstående B), c = AB (modstående C).
+  const sides: { key: "a" | "b" | "c"; p: Point; q: Point; opp: Point }[] = [
+    { key: "a", p: v.B, q: v.C, opp: v.A },
+    { key: "b", p: v.A, q: v.C, opp: v.B },
+    { key: "c", p: v.A, q: v.B, opp: v.C },
+  ];
+  for (const s of sides) {
+    const mid: Point = { x: (s.p.x + s.q.x) / 2, y: (s.p.y + s.q.y) / 2 };
+    const dir = unit(sub(s.q, s.p));
+    let n: Point = { x: -dir.y, y: dir.x };
+    const away = sub(mid, s.opp);
+    if (n.x * away.x + n.y * away.y < 0) n = { x: -n.x, y: -n.y };
+    const name = displayName(fig, s.key);
+    const text = shown(s.key) ? `${name} = ${FMT.len(values[s.key])}` : name;
+    const { hw, hh } = labelBox(text, measure);
+    out.push({
+      key: `side${s.key}`,
+      text,
+      c: besides(mid, n, LABEL_GAP + 0.6, hw, hh),
+      hw,
+      hh,
+      fill: color(s.key),
+      data: { "data-ol-param": s.key },
+    });
+  }
+  return out;
+}
+
+function labelsBounds(labels: Label[], base: Bounds): Bounds {
+  const b = { ...base };
+  for (const l of labels) {
+    b.minX = Math.min(b.minX, l.c.x - l.hw);
+    b.maxX = Math.max(b.maxX, l.c.x + l.hw);
+    b.minY = Math.min(b.minY, l.c.y - l.hh);
+    b.maxY = Math.max(b.maxY, l.c.y + l.hh);
+  }
+  return b;
+}
+
+/** Opgavenummerets placering (lokale mm): til venstre for etiketterne, øverst. Ens i begge modes. */
+function numberBox(fig: FigureObject, number: string, measure: Measure): { x: number; baseline: number; box: Bounds } {
+  const def = getFigureDef(fig.figure)!;
+  // Svararket viser alle værdier, så dets etiketter er de bredeste: placér ud fra dem.
+  const ext = labelsBounds(rightTriangleLabels(fig, fig.shape, "svarark", measure), def.bounds(fig.shape));
+  const w = measure(number, NUMBER_MM / PT_MM, true);
+  const x = ext.minX - 3.5 - w;
+  const top = ext.minY;
+  return { x, baseline: top + NUMBER_MM * 0.73, box: { minX: x, minY: top, maxX: x + w, maxY: top + NUMBER_MM * 0.75 } };
+}
+
+/**
+ * Hele figurens udstrækning på ARKET inkl. etiketter (som på svararket) og opgavenummer.
+ * Editoren holder denne boks inden for arkets margen.
+ */
+export function figureExtent(fig: FigureObject, number: string, measure: Measure = measureText): Bounds {
+  const def = getFigureDef(fig.figure);
+  if (!def) return { minX: fig.x, minY: fig.y, maxX: fig.x, maxY: fig.y };
+  let b = labelsBounds(rightTriangleLabels(fig, fig.shape, "svarark", measure), def.bounds(fig.shape));
+  if (number) {
+    const nb = numberBox(fig, number, measure).box;
+    b = {
+      minX: Math.min(b.minX, nb.minX),
+      minY: Math.min(b.minY, nb.minY),
+      maxX: Math.max(b.maxX, nb.maxX),
+      maxY: Math.max(b.maxY, nb.maxY),
+    };
+  }
+  return { minX: fig.x + b.minX, minY: fig.y + b.minY, maxX: fig.x + b.maxX, maxY: fig.y + b.maxY };
 }
 
 function renderRightTriangle(
@@ -139,12 +287,10 @@ function renderRightTriangle(
 ): ReactNode {
   const def = getFigureDef(fig.figure)!;
   const v = def.vertices(shape) as Record<"A" | "B" | "C", Point>;
-  const values = def.compute(shape);
   const vis = visibleParams(fig);
   const answer = mode === "svarark";
   const shown = (k: string) => answer || vis.has(k);
   const color = (k: string) => (answer && !vis.has(k) ? BRAND : INK);
-  const G: Point = { x: (v.A.x + v.B.x + v.C.x) / 3, y: (v.A.y + v.B.y + v.C.y) / 3 };
   const out: ReactNode[] = [];
 
   out.push(
@@ -181,66 +327,19 @@ function renderRightTriangle(
     );
   }
 
-  // Hjørnenavne (alias ?? nøgle), 4 mm udad fra tyngdepunktet.
-  for (const k of ["A", "B", "C"] as const) {
-    const n = unit(sub(v[k], G));
-    const lp = labelPos(add(v[k], n, 4), n, LABEL_MM);
-    out.push(
-      <T key={`name${k}`} x={lp.x} y={lp.y} size={LABEL_MM} anchor={lp.anchor} bold data-ol-name={k}>
-        {displayName(fig, k)}
-      </T>,
-    );
-  }
-
-  // Vinkelværdier, indad langs vinkelhalveringslinjen (længere ind ved spidse vinkler).
-  const neighbors: Record<"A" | "B" | "C", [Point, Point]> = {
-    A: [v.B, v.C],
-    B: [v.A, v.C],
-    C: [v.A, v.B],
-  };
-  for (const k of ["A", "B", "C"] as const) {
-    if (!shown(k)) continue;
-    const [p, q] = neighbors[k];
-    const bis = unit(add(unit(sub(p, v[k])), unit(sub(q, v[k]))));
-    const text = FMT.ang(values[k]);
-    const half = measure(text, LABEL_MM / PT_MM) / 2 + 0.8;
-    const theta = (values[k] * Math.PI) / 360; // halv vinkel
-    const maxD = 0.55 * Math.min(Math.hypot(p.x - v[k].x, p.y - v[k].y), Math.hypot(q.x - v[k].x, q.y - v[k].y));
-    const d = Math.max(7, Math.min(half / Math.max(Math.tan(theta), 0.05), Math.max(7, maxD)));
-    const pos = add(v[k], bis, d);
+  for (const l of rightTriangleLabels(fig, shape, mode, measure)) {
     out.push(
       <T
-        key={`ang${k}`}
-        x={pos.x}
-        y={pos.y + LABEL_MM * 0.35}
+        key={l.key}
+        x={l.c.x}
+        y={l.c.y + LABEL_MM * HALF_H}
         size={LABEL_MM}
         anchor="middle"
-        fill={color(k)}
-        data-ol-param={k}
+        bold={l.bold}
+        fill={l.fill}
+        {...l.data}
       >
-        {text}
-      </T>,
-    );
-  }
-
-  // Sider: a = BC (modstående A), b = AC (modstående B), c = AB (modstående C).
-  const sides: { key: "a" | "b" | "c"; p: Point; q: Point; opp: Point }[] = [
-    { key: "a", p: v.B, q: v.C, opp: v.A },
-    { key: "b", p: v.A, q: v.C, opp: v.B },
-    { key: "c", p: v.A, q: v.B, opp: v.C },
-  ];
-  for (const s of sides) {
-    const mid: Point = { x: (s.p.x + s.q.x) / 2, y: (s.p.y + s.q.y) / 2 };
-    const dir = unit(sub(s.q, s.p));
-    let n: Point = { x: -dir.y, y: dir.x };
-    const away = sub(mid, s.opp);
-    if (n.x * away.x + n.y * away.y < 0) n = { x: -n.x, y: -n.y };
-    const lp = labelPos(add(mid, n, 3.2), n, LABEL_MM);
-    const name = displayName(fig, s.key);
-    const text = shown(s.key) ? `${name} = ${FMT.len(values[s.key])}` : name;
-    out.push(
-      <T key={`side${s.key}`} x={lp.x} y={lp.y} size={LABEL_MM} anchor={lp.anchor} fill={color(s.key)} data-ol-param={s.key}>
-        {text}
+        {l.text}
       </T>,
     );
   }
@@ -250,7 +349,7 @@ function renderRightTriangle(
 function renderFigure(fig: FigureObject, mode: SheetMode, number: string, measure: Measure) {
   const def = getFigureDef(fig.figure);
   if (!def) return null;
-  const b = def.bounds(fig.shape);
+  const nb = number ? numberBox(fig, number, measure) : null;
   return (
     <g
       key={fig.id}
@@ -259,8 +358,8 @@ function renderFigure(fig: FigureObject, mode: SheetMode, number: string, measur
       data-ol-type="figure"
     >
       {renderRightTriangle(fig, fig.shape, mode, measure)}
-      {number && (
-        <T x={b.minX - 10} y={b.minY + NUMBER_MM * 0.3} size={NUMBER_MM} bold data-ol-role="number">
+      {nb && (
+        <T x={nb.x} y={nb.baseline} size={NUMBER_MM} bold data-ol-role="number">
           {number}
         </T>
       )}

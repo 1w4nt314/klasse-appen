@@ -8,6 +8,7 @@ import { makeCalc, makeFigure, makeText, newDocument, newId } from "../model/doc
 import type {
   CalcObject,
   Document as SheetDoc,
+  FigureShape,
   DocSettings,
   FigureKind,
   FigureObject,
@@ -41,6 +42,7 @@ export type DocAction =
   | { type: "addCalc"; id: string; figureId: string; param: string }
   | { type: "update"; id: string; patch: Patch; key?: string }
   | { type: "move"; id: string; x: number; y: number }
+  | { type: "reshape"; id: string; shape: FigureShape; x: number; y: number }
   | { type: "commit" }
   | { type: "cancel" }
   | { type: "remove"; id: string }
@@ -103,6 +105,21 @@ export function reducer(s: DocState, a: DocAction): DocState {
         ...s,
         pending: s.pending ?? s.doc,
         doc: mapObject(s.doc, a.id, (x) => ({ ...x, x: a.x, y: a.y })),
+      };
+    }
+    case "reshape": {
+      // Hjørnetræk: som "move" lægges ændringen i det igangværende træk (ét fortryd-trin ved commit).
+      const fig = s.doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === a.id);
+      if (!fig) return s;
+      const same =
+        fig.x === a.x &&
+        fig.y === a.y &&
+        (Object.keys(a.shape) as (keyof FigureShape)[]).every((k) => fig.shape[k] === a.shape[k]);
+      if (same) return s;
+      return {
+        ...s,
+        pending: s.pending ?? s.doc,
+        doc: mapObject(s.doc, a.id, (o) => ({ ...(o as FigureObject), shape: a.shape, x: a.x, y: a.y })),
       };
     }
     case "commit": {
@@ -173,6 +190,7 @@ export function useDocument() {
       addCalc: (figureId: string, param: string) => dispatch({ type: "addCalc", id: newId("c"), figureId, param }),
       update: (id: string, patch: Patch, key?: string) => dispatch({ type: "update", id, patch, key }),
       move: (id: string, x: number, y: number) => dispatch({ type: "move", id, x, y }),
+      reshape: (id: string, shape: FigureShape, x: number, y: number) => dispatch({ type: "reshape", id, shape, x, y }),
       commit: () => dispatch({ type: "commit" }),
       cancel: () => dispatch({ type: "cancel" }),
       remove: (id: string) => dispatch({ type: "remove", id }),

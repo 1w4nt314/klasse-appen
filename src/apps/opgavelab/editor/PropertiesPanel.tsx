@@ -4,7 +4,7 @@
 
 import { FMT } from "../core/format";
 import { displayName, getFigureDef } from "../model/figures";
-import type { Document as SheetDoc, SheetObject } from "../model/types";
+import type { DocSettings, Document as SheetDoc, SheetObject } from "../model/types";
 import type { ObjectPatch } from "./useDocument";
 
 export function PropertiesPanel({
@@ -12,11 +12,13 @@ export function PropertiesPanel({
   selected,
   onUpdate,
   onRemove,
+  onSettings,
 }: {
   doc: SheetDoc;
   selected: SheetObject | null;
   onUpdate: (id: string, patch: ObjectPatch, key?: string) => void;
   onRemove: (id: string) => void;
+  onSettings: (patch: Partial<DocSettings>) => void;
 }) {
   if (!selected) {
     return (
@@ -54,6 +56,30 @@ export function PropertiesPanel({
             ))}
           </tbody>
         </table>
+      )}
+      {selected.type === "figure" && (
+        <fieldset className="ol-snap">
+          <legend>Træk i hjørnerne</legend>
+          <label className="ol-check">
+            <input
+              type="checkbox"
+              data-ol-setting="snapCm"
+              checked={doc.settings.snapCm > 0}
+              onChange={(e) => onSettings({ snapCm: e.target.checked ? 0.5 : 0 })}
+            />
+            <span>Snap til 0,5 cm</span>
+          </label>
+          <label className="ol-check">
+            <input
+              type="checkbox"
+              data-ol-setting="snapDeg"
+              checked={doc.settings.snapDeg}
+              onChange={(e) => onSettings({ snapDeg: e.target.checked })}
+            />
+            <span>Hele grader</span>
+          </label>
+          <p className="ol-hint">Hold Shift for at dreje i trin på 15°. Piletaster flytter 1 mm (Shift: 5 mm).</p>
+        </fieldset>
       )}
       {selected.type === "calc" && (
         <p className="ol-hint">Regnestykke for {selected.param} (se figuren).</p>

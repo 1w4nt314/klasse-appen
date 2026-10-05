@@ -75,10 +75,11 @@ export default function Opgavelab({ userKey }: AppProps) {
           measure={measure}
           onSelect={d.select}
           onMove={d.move}
+          onReshape={d.reshape}
           onCommit={d.commit}
         />
       </main>
-      <PropertiesPanel doc={d.doc} selected={d.selected} onUpdate={d.update} onRemove={d.remove} />
+      <PropertiesPanel doc={d.doc} selected={d.selected} onUpdate={d.update} onRemove={d.remove} onSettings={d.setSettings} />
     </div>
   );
 }

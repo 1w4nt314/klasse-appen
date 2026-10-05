@@ -1,39 +1,82 @@
 "use client";
 
-// Opgavelab — midterfeltet: arket skaleret til at passe, markering, håndtag og
-// flyt af objekter med pointer events. Overlayet sendes som `children` til
-// SheetSvg og findes derfor aldrig i eksport-træet.
+// Opgavelab — midterfeltet: arket skaleret til at passe, markering, håndtag,
+// flyt af objekter og hjørnetræk med pointer events. Overlayet sendes som
+// `children` til SheetSvg og findes derfor aldrig i eksport-træet.
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { numberDocument } from "../core/numbering";
-import { figureBoundsOnSheet, getFigureDef } from "../model/figures";
+import { dragOpts, figureBoundsOnSheet, getFigureDef } from "../model/figures";
 import { PAGE } from "../model/types";
-import type { Bounds, Document as SheetDoc, FigureObject, SheetObject } from "../model/types";
-import { SheetSvg } from "../render/SheetSvg";
+import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
+import { SheetSvg, figureExtent } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
 import { toSvg } from "./pointer";
 
 const BRAND = "#1a4f8b";
-/** Plads til tal og sidetekster uden for figurens bounding box (mm). */
-const FIGURE_PAD = { l: 12, t: 8, r: 12, b: 6 };
 const DRAG_THRESHOLD_MM = 1;
+/** Piletaster flytter det markerede objekt så mange mm (Shift: NUDGE_BIG). */
+const NUDGE = 1;
+const NUDGE_BIG = 5;
 
-type Drag = {
+type MoveDrag = {
+  kind: "move";
   pointerId: number;
   id: string;
-  start: { x: number; y: number };
-  origin: { x: number; y: number };
+  start: Point;
+  origin: Point;
   box: Bounds;
-  pad: { l: number; t: number; r: number; b: number };
   active: boolean;
 };
 
-function padFor(o: SheetObject) {
-  return o.type === "figure" ? FIGURE_PAD : { l: 0, t: 0, r: 0, b: 0 };
+type VertexDrag = {
+  kind: "vertex";
+  pointerId: number;
+  id: string;
+  vertex: string;
+  start: Point;
+  /** Figurens anker og form ved trækkets start (dragVertex regner altid ud fra dem). */
+  anchor: Point;
+  shape: FigureShape;
+  /** Hjørnets position minus pointerens ved start, så hjørnet ikke springer til pointeren. */
+  grab: Point;
+  /** Seneste lokale punkt, der gav en figur inden for margenen. */
+  lastLocal: Point;
+  active: boolean;
+};
+
+type Drag = MoveDrag | VertexDrag;
+
+/** Objektets udstrækning på arket; for figurer inkl. etiketter og opgavenummer. */
+function boxFor(o: SheetObject, doc: SheetDoc, numbering: ReadonlyMap<string, string>, measure: Measure): Bounds {
+  return o.type === "figure" ? figureExtent(o, numbering.get(o.id) ?? "", measure) : objectBox(o, doc, numbering, measure);
 }
 
 function clampRange(v: number, lo: number, hi: number): number {
   return hi < lo ? lo : Math.min(Math.max(v, lo), hi);
+}
+
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+/** Forskydning (dx, dy) begrænset, så boksen bliver inden for arkets margen. */
+function clampDelta(box: Bounds, dx: number, dy: number): Point {
+  const m = PAGE.margin;
+  return {
+    x: clampRange(dx, m - box.minX, PAGE.w - m - box.maxX),
+    y: clampRange(dy, m - box.minY, PAGE.h - m - box.maxY),
+  };
+}
+
+/** Ligger boksen inden for arkets margen? */
+function fitsSheet(b: Bounds): boolean {
+  const m = PAGE.margin;
+  const e = 1e-6;
+  return b.minX >= m - e && b.minY >= m - e && b.maxX <= PAGE.w - m + e && b.maxY <= PAGE.h - m + e;
+}
+
+function isTyping(t: EventTarget | null): boolean {
+  if (!(t instanceof HTMLElement)) return false;
+  return t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT";
 }
 
 export function SheetEditor({
@@ -42,6 +85,7 @@ export function SheetEditor({
   measure,
   onSelect,
   onMove,
+  onReshape,
   onCommit,
 }: {
   doc: SheetDoc;
@@ -49,6 +93,7 @@ export function SheetEditor({
   measure: Measure;
   onSelect: (id: string | null) => void;
   onMove: (id: string, x: number, y: number) => void;
+  onReshape: (id: string, shape: FigureShape, x: number, y: number) => void;
   onCommit: () => void;
 }) {
   const stageRef = useRef<HTMLDivElement>(null);
@@ -56,6 +101,7 @@ export function SheetEditor({
   const drag = useRef<Drag | null>(null);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [activeHandle, setActiveHandle] = useState<string | null>(null);
 
   useEffect(() => {
     const el = stageRef.current;
@@ -75,13 +121,67 @@ export function SheetEditor({
 
   const selected = doc.objects.find((o) => o.id === selectedId) ?? null;
 
+  // Piletaster flytter det markerede objekt (1 mm, Shift = 5 mm); hvert tryk er ét fortryd-trin.
+  const latest = useRef({ doc, selected, numbering, measure, onMove, onCommit });
+  useEffect(() => {
+    latest.current = { doc, selected, numbering, measure, onMove, onCommit };
+  });
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+      const dir: Record<string, Point> = {
+        ArrowLeft: { x: -1, y: 0 },
+        ArrowRight: { x: 1, y: 0 },
+        ArrowUp: { x: 0, y: -1 },
+        ArrowDown: { x: 0, y: 1 },
+      };
+      const v = dir[e.key];
+      const cur = latest.current;
+      const obj = cur.selected;
+      if (!v || !obj || drag.current) return;
+      e.preventDefault();
+      const step = e.shiftKey ? NUDGE_BIG : NUDGE;
+      const box = boxFor(obj, cur.doc, cur.numbering, cur.measure);
+      const d = clampDelta(box, v.x * step, v.y * step);
+      if (d.x === 0 && d.y === 0) return;
+      cur.onMove(obj.id, r2(obj.x + d.x), r2(obj.y + d.y));
+      cur.onCommit();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   function endDrag(e: ReactPointerEvent<SVGSVGElement>) {
     const d = drag.current;
     if (!d || d.pointerId !== e.pointerId) return;
     drag.current = null;
     setDragging(false);
+    setActiveHandle(null);
     if (svgRef.current?.hasPointerCapture(e.pointerId)) svgRef.current.releasePointerCapture(e.pointerId);
     onCommit();
+  }
+
+  function startVertexDrag(e: ReactPointerEvent<SVGSVGElement>, svg: SVGSVGElement, vertex: string) {
+    if (!selected || selected.type !== "figure") return;
+    const def = getFigureDef(selected.figure);
+    const pt = toSvg(svg, e);
+    const p = def?.vertices(selected.shape)[vertex];
+    if (!def || !pt || !p) return;
+    svg.setPointerCapture(e.pointerId);
+    drag.current = {
+      kind: "vertex",
+      pointerId: e.pointerId,
+      id: selected.id,
+      vertex,
+      start: pt,
+      anchor: { x: selected.x, y: selected.y },
+      shape: selected.shape,
+      grab: { x: selected.x + p.x - pt.x, y: selected.y + p.y - pt.y },
+      lastLocal: { x: p.x, y: p.y },
+      active: false,
+    };
+    setDragging(true);
+    setActiveHandle(vertex);
   }
 
   function onPointerDown(e: ReactPointerEvent<SVGSVGElement>) {
@@ -89,8 +189,11 @@ export function SheetEditor({
     const svg = svgRef.current;
     if (!svg || drag.current) return;
     const target = e.target as Element;
-    // Håndtag får funktion i punkt 4; indtil videre gør de ingenting.
-    if (target.closest("[data-ol-handle]")) return;
+    const handle = target.closest("[data-ol-handle]")?.getAttribute("data-ol-handle");
+    if (handle) {
+      startVertexDrag(e, svg, handle);
+      return;
+    }
     const hit = target.closest("[data-ol-hit]");
     const id = hit?.getAttribute("data-ol-hit") ?? null;
     onSelect(id);
@@ -100,15 +203,61 @@ export function SheetEditor({
     if (!obj || !pt) return;
     svg.setPointerCapture(e.pointerId);
     drag.current = {
+      kind: "move",
       pointerId: e.pointerId,
       id,
       start: pt,
       origin: { x: obj.x, y: obj.y },
-      box: objectBox(obj, doc, numbering, measure),
-      pad: padFor(obj),
+      box: boxFor(obj, doc, numbering, measure),
       active: false,
     };
     setDragging(true);
+  }
+
+  /** Figuren efter et hjørnetræk til `local` (ankerets koordinater ved start), eller null hvis den ikke kan være på arket. */
+  function reshapeAt(d: VertexDrag, fig: FigureObject, local: Point, coarse: boolean): FigureObject | null {
+    const def = getFigureDef(fig.figure);
+    if (!def) return null;
+    const res = def.dragVertex(d.shape, d.vertex, local, dragOpts(doc.settings, coarse));
+    const next: FigureObject = {
+      ...fig,
+      shape: res.shape,
+      // Ikke afrundet: ved C-træk skal A og B blive præcis, hvor de var.
+      x: d.anchor.x + res.offset.x,
+      y: d.anchor.y + res.offset.y,
+    };
+    return fitsSheet(figureExtent(next, numbering.get(fig.id) ?? "", measure)) ? next : null;
+  }
+
+  function moveVertex(d: VertexDrag, pt: Point, coarse: boolean) {
+    const fig = doc.objects.find((o): o is FigureObject => o.id === d.id && o.type === "figure");
+    if (!fig) return;
+    const local = { x: pt.x + d.grab.x - d.anchor.x, y: pt.y + d.grab.y - d.anchor.y };
+    let next = reshapeAt(d, fig, local, coarse);
+    if (next) {
+      d.lastLocal = local;
+    } else {
+      // Uden for margenen: find det yderste punkt på vejen fra sidste gyldige punkt, der stadig passer.
+      let lo = 0;
+      let hi = 1;
+      const at = (t: number) => ({
+        x: d.lastLocal.x + (local.x - d.lastLocal.x) * t,
+        y: d.lastLocal.y + (local.y - d.lastLocal.y) * t,
+      });
+      for (let i = 0; i < 14; i++) {
+        const mid = (lo + hi) / 2;
+        if (reshapeAt(d, fig, at(mid), coarse)) lo = mid;
+        else hi = mid;
+      }
+      if (lo === 0) {
+        next = reshapeAt(d, fig, d.lastLocal, coarse);
+      } else {
+        d.lastLocal = at(lo);
+        next = reshapeAt(d, fig, d.lastLocal, coarse);
+      }
+      if (!next) return;
+    }
+    onReshape(fig.id, next.shape, next.x, next.y);
   }
 
   function onPointerMove(e: ReactPointerEvent<SVGSVGElement>) {
@@ -117,16 +266,18 @@ export function SheetEditor({
     if (!d || !svg || d.pointerId !== e.pointerId) return;
     const pt = toSvg(svg, e);
     if (!pt) return;
-    let dx = pt.x - d.start.x;
-    let dy = pt.y - d.start.y;
+    const dx = pt.x - d.start.x;
+    const dy = pt.y - d.start.y;
     if (!d.active) {
       if (Math.hypot(dx, dy) < DRAG_THRESHOLD_MM) return;
       d.active = true;
     }
-    const m = PAGE.margin;
-    dx = clampRange(dx, m + d.pad.l - d.box.minX, PAGE.w - m - d.pad.r - d.box.maxX);
-    dy = clampRange(dy, m + d.pad.t - d.box.minY, PAGE.h - m - d.pad.b - d.box.maxY);
-    onMove(d.id, Math.round((d.origin.x + dx) * 100) / 100, Math.round((d.origin.y + dy) * 100) / 100);
+    if (d.kind === "vertex") {
+      moveVertex(d, pt, e.shiftKey);
+      return;
+    }
+    const c = clampDelta(d.box, dx, dy);
+    onMove(d.id, r2(d.origin.x + c.x), r2(d.origin.y + c.y));
   }
 
   return (
@@ -152,7 +303,7 @@ export function SheetEditor({
               onLostPointerCapture: endDrag,
             }}
           >
-            <Overlay doc={doc} selected={selected} numbering={numbering} measure={measure} />
+            <Overlay doc={doc} selected={selected} numbering={numbering} measure={measure} activeHandle={activeHandle} />
           </SheetSvg>
         </div>
       )}
@@ -177,11 +328,13 @@ function Overlay({
   selected,
   numbering,
   measure,
+  activeHandle,
 }: {
   doc: SheetDoc;
   selected: SheetObject | null;
   numbering: ReadonlyMap<string, string>;
   measure: Measure;
+  activeHandle: string | null;
 }) {
   return (
     <g data-ol-overlay="">
@@ -199,7 +352,9 @@ function Overlay({
           />
         );
       })}
-      {selected && <Selection obj={selected} doc={doc} numbering={numbering} measure={measure} />}
+      {selected && (
+        <Selection obj={selected} doc={doc} numbering={numbering} measure={measure} activeHandle={activeHandle} />
+      )}
     </g>
   );
 }
@@ -219,14 +374,16 @@ function Selection({
   doc,
   numbering,
   measure,
+  activeHandle,
 }: {
   obj: SheetObject;
   doc: SheetDoc;
   numbering: ReadonlyMap<string, string>;
   measure: Measure;
+  activeHandle: string | null;
 }) {
-  const b = objectBox(obj, doc, numbering, measure);
-  const pad = obj.type === "figure" ? 3 : 1.5;
+  const b = boxFor(obj, doc, numbering, measure);
+  const pad = 1.5;
   const def = obj.type === "figure" ? getFigureDef(obj.figure) : null;
   const verts = obj.type === "figure" && def ? def.vertices(obj.shape) : null;
   return (
@@ -242,12 +399,22 @@ function Selection({
         strokeDasharray="2 1.5"
       />
       {verts &&
-        Object.entries(verts).map(([k, p]) => (
-          <g key={k} transform={`translate(${obj.x + p.x} ${obj.y + p.y})`}>
-            <circle r={1.5} fill="#ffffff" stroke={BRAND} strokeWidth={0.5} />
-            <circle r={4} fill="transparent" data-ol-handle={k} pointerEvents="all" style={{ cursor: "grab", touchAction: "none" }} />
-          </g>
-        ))}
+        Object.entries(verts).map(([k, p]) => {
+          const active = activeHandle === k;
+          return (
+            <g key={k} transform={`translate(${obj.x + p.x} ${obj.y + p.y})`} data-ol-handle-active={active || undefined}>
+              {active && <circle r={3.2} fill={BRAND} fillOpacity={0.18} />}
+              <circle r={active ? 2 : 1.5} fill={active ? BRAND : "#ffffff"} stroke={BRAND} strokeWidth={0.5} />
+              <circle
+                r={4}
+                fill="transparent"
+                data-ol-handle={k}
+                pointerEvents="all"
+                style={{ cursor: active ? "grabbing" : "grab", touchAction: "none" }}
+              />
+            </g>
+          );
+        })}
     </g>
   );
 }
