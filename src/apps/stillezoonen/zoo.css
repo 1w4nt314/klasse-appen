@@ -213,7 +213,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  [class*="zoo-fx-"] {
+  [class*="zoo-fx-"],
+  .zoo-wing {
     animation: none;
   }
 }
