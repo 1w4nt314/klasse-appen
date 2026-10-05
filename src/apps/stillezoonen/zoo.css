@@ -1310,6 +1310,14 @@
   text-shadow: 0 0 6px rgb(111 245 210 / 0.7), 0 0 18px rgb(111 245 210 / 0.35);
 }
 
+/* Dino-dalen: stentavle */
+.mb-window[data-theme="dino"] {
+  --mb-ink: #3d2c1c;
+  border: 3px solid #8a7356;
+  background: linear-gradient(180deg, #e9dcc3, #d6c4a3);
+  box-shadow: inset 0 0 0 3px rgb(255 255 255 / 0.25), inset 0 -6px 0 rgb(120 95 65 / 0.25), 0 10px 24px rgb(60 40 20 / 0.3);
+}
+
 /* ---------- Samling (pote-knap, "Nyt dyr!", oversigt) ---------- */
 .zoo-paw {
   cursor: pointer;
