@@ -296,11 +296,11 @@ const babyKraken: CreatureSpec = {
       <g className="zoo-fx-wave" style={{ ...fx("0s", "50% 100%"), animationDuration: "1.2s" }}>{sejlskib}</g>
       {/* Bobler stiger op. */}
       <g fill="none" stroke="#e0f7ff" strokeWidth="1.8">
-        <g className="zoo-fx-rise"><circle cx="40" cy="28" r="3.6" /></g>
-        <g className="zoo-fx-rise" style={fx("0.8s")}><circle cx="28" cy="16" r="2.6" /></g>
-        <g className="zoo-fx-rise" style={fx("1.6s")}><circle cx="104" cy="6" r="3" /></g>
-        <g className="zoo-fx-rise" style={fx("1.2s")}><circle cx="116" cy="-6" r="2.2" /></g>
-        <g className="zoo-fx-rise" style={fx("2s")}><circle cx="52" cy="12" r="2.2" /></g>
+        <g className="zoo-fx-rise" style={fx("0s", "50% 100%")}><rect x="40" y="-1.7" width="0.1" height="26.1" fill="none" stroke="none" /><circle cx="40" cy="28" r="3.6" /></g>
+        <g className="zoo-fx-rise" style={fx("0.8s", "50% 100%")}><rect x="28" y="-14.2" width="0.1" height="27.6" fill="none" stroke="none" /><circle cx="28" cy="16" r="2.6" /></g>
+        <g className="zoo-fx-rise" style={fx("1.6s", "50% 100%")}><rect x="104" y="-15.5" width="0.1" height="18.5" fill="none" stroke="none" /><circle cx="104" cy="6" r="3" /></g>
+        <g className="zoo-fx-rise" style={fx("1.2s", "50% 100%")}><rect x="116" y="-19.5" width="0.1" height="11.3" fill="none" stroke="none" /><circle cx="116" cy="-6" r="2.2" /></g>
+        <g className="zoo-fx-rise" style={fx("2s", "50% 100%")}><rect x="52" y="-15.7" width="0.1" height="25.5" fill="none" stroke="none" /><circle cx="52" cy="12" r="2.2" /></g>
       </g>
     </>
   ),
@@ -413,9 +413,9 @@ const lanternFish: CreatureSpec = {
       {/* Lysende plankton danser i skæret. */}
       <g className="zoo-fx-sparkle" style={fx("0.3s")}>{GLIMT(122, 16, 3, "#fffbe0")}</g>
       <g className="zoo-fx-sparkle" style={fx("0.9s")}>{GLIMT(154, 46, 2.6, "#a7f3d0")}</g>
-      <g className="zoo-fx-rise" style={fx("0.5s")}><circle cx="116" cy="50" r="1.8" fill="#a7f3d0" /></g>
-      <g className="zoo-fx-rise" style={fx("1.4s")}><circle cx="152" cy="56" r="1.6" fill={LF_GLOED} /></g>
-      <g className="zoo-fx-rise" style={fx("2s")}><circle cx="126" cy="44" r="1.4" fill="#a7f3d0" /></g>
+      <g className="zoo-fx-rise" style={fx("0.5s", "50% 100%")}><rect x="116" y="18.5" width="0.1" height="29.7" fill="none" stroke="none" /><circle cx="116" cy="50" r="1.8" fill="#a7f3d0" /></g>
+      <g className="zoo-fx-rise" style={fx("1.4s", "50% 100%")}><rect x="152" y="24.3" width="0.1" height="30.1" fill="none" stroke="none" /><circle cx="152" cy="56" r="1.6" fill={LF_GLOED} /></g>
+      <g className="zoo-fx-rise" style={fx("2s", "50% 100%")}><rect x="126" y="12.1" width="0.1" height="30.5" fill="none" stroke="none" /><circle cx="126" cy="44" r="1.4" fill="#a7f3d0" /></g>
     </>
   ),
 };

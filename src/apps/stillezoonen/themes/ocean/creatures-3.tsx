@@ -44,7 +44,7 @@ const pukkelKrop = "M60 56 C 90 40, 120 28, 150 26 C 180 24, 210 28, 236 40 C 25
 
 const humpbackWhale: CreatureSpec = {
   name: "Pukkelhval",
-  height: 30,
+  height: 24,
   aspect: 262 / 122,
   gait: "swim",
   pace: 0.5,
@@ -205,7 +205,6 @@ const seaOtter: CreatureSpec = {
   viewBox: "0 0 170 84",
   art: (
     <>
-      <path d="M8 78 q 10 -5 20 0 t 20 0 t 20 0 M96 80 q 10 -5 20 0 t 20 0" stroke="#d7eef8" strokeWidth="2.4" fill="none" strokeLinecap="round" opacity="0.8" />
       <path d="M30 58 C 18 56, 8 58, 2 62 C 8 68, 20 66, 32 64 Z" fill="#6b4228" />
       <path d="M22 52 C 14 42, 18 30, 27 30 C 34 32, 38 42, 34 52 Z" fill="#6b4228" />
       <path d="M32 54 C 26 44, 30 34, 38 34 C 44 36, 46 44, 42 54 Z" fill="#7d4f31" />
