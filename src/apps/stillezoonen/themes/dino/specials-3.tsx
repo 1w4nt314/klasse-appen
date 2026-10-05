@@ -276,21 +276,25 @@ const KP_STOEV = "#fff4b8";
 const kometHale = (
   <>
     {/* Tre lysstriber, der spidser til langt bag den (som et stjerneskud). */}
-    <path d="M88 76 C 50 70, 0 62, -40 58 C 0 70, 50 84, 88 86 Z" fill="#b9c8ff" />
-    <path d="M88 84 C 60 104, 10 110, -26 112 C 14 100, 60 90, 88 92 Z" fill="#e2c8ff" />
-    <path d="M88 79 C 50 78, 0 82, -46 86 C 0 90, 50 92, 88 90 Z" fill="#ffe08a" />
-    <path d="M88 82 C 60 82, 30 84, 0 86 C 30 87, 60 88, 88 88 Z" fill="#fffbe6" />
+    <path d="M88 76 C 34 70, -38 62, -95 58 C -38 70, 34 84, 88 86 Z" fill="#b9c8ff" />
+    <path d="M88 84 C 48 104, -24 110, -75 112 C -16 100, 48 90, 88 92 Z" fill="#e2c8ff" />
+    <path d="M88 79 C 34 78, -38 82, -104 86 C -38 90, 34 92, 88 90 Z" fill="#ffe08a" />
+    <path d="M88 82 C 48 82, 5 84, -38 86 C 5 87, 48 88, 88 88 Z" fill="#fffbe6" />
     <g fill="#ffffff">
-      <circle cx="-20" cy="66" r="1.8" />
-      <circle cx="-34" cy="96" r="2" />
-      <circle cx="10" cy="104" r="1.6" />
-      <circle cx="30" cy="70" r="1.6" />
-      <circle cx="-4" cy="76" r="1.4" />
+      <circle cx="-56" cy="65" r="1.8" />
+      <circle cx="-80" cy="97" r="2" />
+      <circle cx="-14" cy="104" r="1.6" />
+      <circle cx="26" cy="71" r="1.6" />
+      <circle cx="-26" cy="76" r="1.4" />
+      <circle cx="-96" cy="78" r="1.6" />
+      <circle cx="-44" cy="106" r="1.4" />
     </g>
     <g stroke="#b45309" strokeWidth="0.8" strokeLinejoin="round">
-      {STJERNE(-12, 86, 5, KP_STOEV)}
-      {STJERNE(40, 98, 3.6, "#ffffff")}
-      {STJERNE(18, 70, 3.2, "#ffffff")}
+      {STJERNE(-62, 86, 5, KP_STOEV)}
+      {STJERNE(-8, 86, 4, KP_STOEV)}
+      {STJERNE(36, 98, 3.6, "#ffffff")}
+      {STJERNE(4, 70, 3.2, "#ffffff")}
+      {STJERNE(-84, 70, 3.2, "#ffffff")}
     </g>
   </>
 );
@@ -395,17 +399,17 @@ const cometPteranodon: CreatureSpec = {
   name: "Komet-pteranodonen",
   rarity: "legendary",
   height: 12.9,
-  aspect: 370 / 140,
+  aspect: 440 / 140,
   gait: "float",
   zone: "open",
   pace: 1.05,
-  viewBox: "-50 -10 370 140",
+  viewBox: "-120 -10 440 140",
   art: (
     <>
       {kometHale}
-      <g className="zoo-fx-sparkle">{GLIMT(-26, 80, 4.5)}</g>
-      <g className="zoo-fx-sparkle" style={fx("0.5s")}>{GLIMT(20, 92, 3.6, KP_STOEV)}</g>
-      <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(-40, 106, 3.2)}</g>
+      <g className="zoo-fx-sparkle">{GLIMT(-70, 78, 4.5)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.5s")}>{GLIMT(-20, 94, 3.6, KP_STOEV)}</g>
+      <g className="zoo-fx-sparkle" style={fx("1s")}>{GLIMT(-92, 100, 3.2)}</g>
       <g className="zoo-wing" style={{ "--flap": "0.6s" } as CSSProperties}>{kometVingeBag}</g>
       {kometFoedder}
       <g className="zoo-torso">{kometKrop}</g>
@@ -432,7 +436,7 @@ const cometPteranodon: CreatureSpec = {
         {kometVingeFor}
         {kometHoved}
       </g>
-      <g className="zoo-fx-sparkle" style={fx("0.4s")}>{GLIMT(-26, 80, 4.5)}</g>
+      <g className="zoo-fx-sparkle" style={fx("0.4s")}>{GLIMT(-70, 78, 4.5)}</g>
       <g className="zoo-fx-sparkle" style={fx("1.1s")}>{GLIMT(40, 36, 4)}</g>
       {/* Stjernestøv drysser fra næbbet hen til hjertet. */}
       <g className="zoo-fx-sparkle" style={fx("0.2s")}>{GLIMT(205, 50, 3.4, KP_STOEV)}</g>
