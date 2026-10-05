@@ -89,8 +89,10 @@ const fern = (x: number, y: number, s: number, c1: string, c2: string, key: stri
 
 type Bark = { base: string; lys: string; skygge: string; mærke: string };
 
-const BARK_NÆR: Bark = { base: "#c4c9c2", lys: "#dde1da", skygge: "#a9b0a8", mærke: "#8f978e" };
-const BARK_MIDT: Bark = { base: "#ccd1c9", lys: "#e0e4dc", skygge: "#b4bab2", mærke: "#9ea59c" };
+// Bøgens bark er glat og grå med et let grønligt skær (ikke hvid som birkens).
+const BARK_NÆR: Bark = { base: "#b6bcb3", lys: "#cbd1c7", skygge: "#9da49b", mærke: "#a0a79d" };
+const BARK_MIDT: Bark = { base: "#c3c9bf", lys: "#d5dacf", skygge: "#adb4aa", mærke: "#aeb5ab" };
+const BARK_FJERN: Bark = { base: "#d0d7cb", lys: "#dde2d6", skygge: "#c1c9bc", mærke: "#c1c9bc" };
 
 /**
  * Bøgestamme: glat og lysegrå, let udsvajet ved roden. Basen ligger ved (x, yb),
@@ -108,7 +110,7 @@ const stamme = (x: number, yb: number, yt: number, wb: number, bark: Bark, key: 
   const mærker = øjne
     .map((y, i) => {
       const cx = x + (i % 2 ? -Math.round(wb * 0.12) : Math.round(wb * 0.1));
-      return `M${cx - 7} ${y} q 7 -6 14 0 q -7 3 -14 0`;
+      return `M${cx - 10} ${y} q 10 -5 20 0 q -10 3 -20 0`;
     })
     .join(" ");
   return (
@@ -177,16 +179,17 @@ const anemoner = (liste: readonly Cirkel[], key: string) => {
   );
 };
 
-/** Skovmærke: små kranse af blade med en prik af hvide blomster. Alle i to stier. */
+/**
+ * Skovmærke set fra siden: en kort stilk med to flade bladkranse og en lille
+ * skærm af hvide blomster i toppen. Alle planter bliver tre stier.
+ */
 const skovmærke = (liste: readonly (readonly [x: number, y: number])[], s: number, key: string) => {
   const k = (n: number) => Math.round(n * s);
-  const kranse = liste
-    .map(([x, y]) => `M${x} ${y - k(8)}V${y + k(8)}M${x - k(8)} ${y - k(4)}L${x + k(8)} ${y + k(4)}M${x + k(8)} ${y - k(4)}L${x - k(8)} ${y + k(4)}`)
-    .join("");
   return (
     <g key={key}>
-      <path d={kranse} stroke="#5f9f43" strokeWidth={k(3)} strokeLinecap="round" />
-      <path d={cirkler(liste.map(([x, y]) => [x, y - k(4), k(3)] as const))} fill="#ffffff" />
+      <path d={liste.map(([x, y]) => `M${x} ${y}V${y - k(18)}`).join("")} stroke="#5f9f43" strokeWidth={k(2)} strokeLinecap="round" />
+      <path d={ellipser(liste.flatMap(([x, y]) => [[x, y - k(4), k(11), k(3)], [x, y - k(12), k(8), k(2)]] as const))} fill="#6fae4a" />
+      <path d={cirkler(liste.flatMap(([x, y]) => [[x - k(3), y - k(19), k(2)], [x + k(3), y - k(19), k(2)], [x, y - k(22), k(2)]] as const))} fill="#ffffff" />
     </g>
   );
 };
@@ -309,8 +312,8 @@ const SKOVMÆRKE_BAG = [
   [1360, 660],
   [1338, 674],
   [1384, 680],
-  [700, 640],
-  [940, 650],
+  [596, 650],
+  [1120, 650],
 ] as const;
 
 // Få, langsomme animationer: tre skyer, to lysstråle-grupper, søens glimt og to blade der daler.
@@ -391,18 +394,18 @@ export function Background({ className, animated = true }: Props) {
       {cloud(620, 330, 0.55, "c3", "zoo-skov-cloud zoo-skov-cloud-2")}
 
       {/* Fjern, diset skov: stammer der forsvinder op i en blød løvvæg */}
-      <rect x="0" y="470" width="1600" height="140" fill="#d5e8c4" />
-      <path d={FJERN_STAMMER} fill="#e6eeda" />
+      <rect x="0" y="440" width="1600" height="170" fill="#d5e8c4" />
+      <path d={FJERN_STAMMER} fill="#c9dbbd" />
       <path d={cirkler(FJERN_KRONER)} fill="#d5e8c4" />
 
       {/* Blegt løv længere inde i skoven */}
       <path d={cirkler(KRONE_BAG)} fill="#c3e3a0" />
 
       {/* Mellemste bøgestammer */}
-      {stamme(520, 598, 120, 24, BARK_MIDT, "s-m1")}
-      {stamme(640, 598, 0, 16, BARK_MIDT, "s-m2")}
-      {stamme(990, 598, 0, 18, BARK_MIDT, "s-m3")}
-      {stamme(1100, 598, 120, 26, BARK_MIDT, "s-m4")}
+      {stamme(520, 598, 120, 24, BARK_FJERN, "s-m1")}
+      {stamme(640, 598, 0, 16, BARK_FJERN, "s-m2")}
+      {stamme(990, 598, 0, 18, BARK_FJERN, "s-m3")}
+      {stamme(1100, 598, 120, 26, BARK_FJERN, "s-m4")}
 
       {/* Lysstråler der falder skråt ind mellem træerne */}
       <path className="zoo-skov-ray" fill="url(#skov-ray)" d="M520 0 L576 0 L860 610 L770 610 Z M640 0 L716 0 L1060 610 L930 610 Z" />
@@ -428,8 +431,12 @@ export function Background({ className, animated = true }: Props) {
       <path d={cirkler([...KRONE_V_LYS, ...spejl(KRONE_V_LYS, 14)])} fill="#bde597" />
 
       {/* To blade der daler langsomt ned fra kronerne (kun når scenen er animeret) */}
-      <path className="zoo-skov-leaf" transform="translate(330 260)" d={BLAD} fill="#9ccf68" />
-      <path className="zoo-skov-leaf zoo-skov-leaf-2" transform="translate(1220 270)" d={BLAD} fill="#b4dc80" />
+      <g transform="translate(330 270)">
+        <path className="zoo-skov-leaf" d={BLAD} fill="#9ccf68" />
+      </g>
+      <g transform="translate(1230 290)">
+        <path className="zoo-skov-leaf zoo-skov-leaf-2" d={BLAD} fill="#b4dc80" />
+      </g>
 
       {/* Skovsøen */}
       <path
@@ -477,7 +484,7 @@ export function Background({ className, animated = true }: Props) {
         strokeLinecap="round"
         opacity="0.7"
       />
-      <path d={ellipser(LYSPLETTER)} fill="#eef7c9" opacity="0.6" />
+      <path d={ellipser(LYSPLETTER)} fill="#eef7c9" opacity="0.3" />
 
       {/* Skovstien der snor sig ind mellem træerne */}
       <path
@@ -503,7 +510,7 @@ export function Background({ className, animated = true }: Props) {
 
       {/* Anemoner og skovmærke */}
       {anemoner(ANEMONER_BAG, "anemoner")}
-      {skovmærke(SKOVMÆRKE_BAG, 1, "skovmærke")}
+      {skovmærke(SKOVMÆRKE_BAG, 1.2, "skovmærke")}
 
       {/* Græstotter i skovbunden */}
       <g opacity="0.7">
