@@ -5,6 +5,7 @@ import { evenMore } from "./creatures-3";
 import { yetMore } from "./creatures-4";
 import { specials } from "./specials";
 import { specialsTwo } from "./specials-2";
+import { specialsThree } from "./specials-3";
 import { variants } from "./variants";
 
 /**
@@ -375,4 +376,5 @@ export const creatures: Record<string, CreatureSpec> = {
   ...variants,
   ...specials,
   ...specialsTwo,
+  ...specialsThree,
 };
