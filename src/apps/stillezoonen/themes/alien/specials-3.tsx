@@ -464,7 +464,7 @@ const galaxyCat: CreatureSpec = {
           <ellipse cx="64" cy="64" rx="36" ry="19" transform="rotate(16 66 66)" />
           <g transform="translate(-6 6) rotate(6 106 40)">{katHovedForm}</g>
         </>
-      ))}
+      ), { bund: 100 })}
       {/* Halen står op og vifter. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.2s", "50% 100%"), animationDuration: "0.8s" }}>
         {gloedKant((w) => <path d={KAT_HALE_LEG} fill="none" strokeWidth={9 + w} />)}
@@ -493,9 +493,9 @@ const galaxyCat: CreatureSpec = {
       </g>
       {/* Ringplaneten hopper og snurrer mellem poterne. */}
       <g className="zoo-fx-bob" style={{ ...fx("0.3s"), animationDuration: "0.5s" }}>
-        <rect x="139" y="-150" width="0.1" height="246" fill="none" />
+        <rect x="137" y="-150" width="0.1" height="246" fill="none" />
         <g className="zoo-fx-spin" style={{ animationDuration: "1.6s" } as CSSProperties}>
-          <g transform="translate(139 74) rotate(-20) scale(1.9)">{ringPlanet}</g>
+          <g transform="translate(137 74) rotate(-20) scale(1.9)">{ringPlanet}</g>
         </g>
       </g>
       {/* Stjerner funkler omkring legen. */}
