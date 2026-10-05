@@ -154,7 +154,7 @@ const lamb: CreatureSpec = {
 
 const chick: CreatureSpec = {
   name: "Kylling",
-  height: 4,
+  height: 5,
   aspect: 64 / 60,
   gait: "hop",
   pace: 1.3,
@@ -319,7 +319,7 @@ const goatKid: CreatureSpec = {
 
 const duckling: CreatureSpec = {
   name: "Ælling",
-  height: 4,
+  height: 5,
   aspect: 68 / 56,
   gait: "walk",
   pace: 1.2,

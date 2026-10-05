@@ -1,4 +1,4 @@
-import { EYE } from "../shared";
+import { EYE, Klip } from "../shared";
 import type { CreatureSpec } from "../types";
 
 /**
@@ -232,11 +232,6 @@ const saddlebackPig: CreatureSpec = {
   viewBox: "0 0 170 110",
   art: (
     <>
-      <defs>
-        <clipPath id="sadelgris-krop">
-          <ellipse cx="82" cy="58" rx="58" ry="36" />
-        </clipPath>
-      </defs>
       <path d="M30 52 C 14 44, 12 62, 24 58 C 16 68, 32 70, 30 62" stroke="#2a272d" strokeWidth="4" fill="none" strokeLinecap="round" />
       <g className="zoo-leg zoo-leg-a">
         <rect x="104" y="78" width="18" height="32" rx="7" fill="#e6e2da" />
@@ -249,9 +244,9 @@ const saddlebackPig: CreatureSpec = {
       <g className="zoo-torso">
         <ellipse cx="82" cy="58" rx="58" ry="36" fill="#2f2d34" />
         <ellipse cx="82" cy="78" rx="40" ry="12" fill="#45424b" opacity="0.7" />
-        <g clipPath="url(#sadelgris-krop)">
+        <Klip form={<ellipse cx="82" cy="58" rx="58" ry="36" />}>
           <path d="M82 16 L 112 16 L 134 100 L 100 100 Z" fill="#f8f5ee" />
-        </g>
+        </Klip>
       </g>
       <g className="zoo-leg zoo-leg-b">
         <rect x="118" y="80" width="19" height="30" rx="7" fill="#f8f5ee" />
@@ -358,6 +353,17 @@ const KNAB_PLETTER: ReadonlyArray<readonly [number, number, number]> = [
   [182, 56, 3.5], [144, 94, 3], [42, 80, 4], [118, 84, 3.5],
 ];
 
+/** Krop og hoved, som pletterne klippes til. */
+const KNAB_KROP = (
+  <>
+    <ellipse cx="108" cy="104" rx="72" ry="34" />
+    <path d="M138 84 C 148 54, 166 36, 190 28 L 218 50 C 200 62, 192 84, 184 114 Z" />
+  </>
+);
+const KNAB_HOVED = (
+  <path d="M186 24 C 200 16, 216 22, 224 36 C 232 48, 246 64, 244 74 C 240 82, 228 80, 220 74 C 208 68, 198 60, 190 50 C 184 42, 182 32, 186 24 Z" />
+);
+
 const knabstrupper: CreatureSpec = {
   name: "Knabstrupper",
   rarity: "uncommon",
@@ -368,15 +374,6 @@ const knabstrupper: CreatureSpec = {
   viewBox: "0 0 250 210",
   art: (
     <>
-      <defs>
-        <clipPath id="knab-krop">
-          <ellipse cx="108" cy="104" rx="72" ry="34" />
-          <path d="M138 84 C 148 54, 166 36, 190 28 L 218 50 C 200 62, 192 84, 184 114 Z" />
-        </clipPath>
-        <clipPath id="knab-hoved">
-          <path d="M186 24 C 200 16, 216 22, 224 36 C 232 48, 246 64, 244 74 C 240 82, 228 80, 220 74 C 208 68, 198 60, 190 50 C 184 42, 182 32, 186 24 Z" />
-        </clipPath>
-      </defs>
       <path d="M44 96 C 22 98, 12 128, 18 162 C 28 144, 34 128, 50 112 Z" fill="#d8ccb2" />
       <path d="M40 104 C 26 112, 22 134, 24 152 C 30 138, 36 124, 46 112 Z" fill="#bcae92" />
       <g className="zoo-leg zoo-leg-a">
@@ -395,11 +392,11 @@ const knabstrupper: CreatureSpec = {
         <ellipse cx="108" cy="104" rx="72" ry="34" fill="#f6f2ea" />
         <path d="M138 84 C 148 54, 166 36, 190 28 L 218 50 C 200 62, 192 84, 184 114 Z" fill="#f6f2ea" />
         <ellipse cx="108" cy="124" rx="48" ry="10" fill="#ebe4d6" opacity="0.7" />
-        <g clipPath="url(#knab-krop)">
+        <Klip form={KNAB_KROP}>
           {KNAB_PLETTER.map(([x, y, r], i) => (
             <circle key={i} cx={x} cy={y} r={r} fill={i % 3 === 2 ? "#8a5a3a" : "#3a2b25"} />
           ))}
-        </g>
+        </Klip>
         <path d="M130 86 C 138 54, 158 32, 190 22 L 192 36 C 172 44, 160 60, 152 92 Z" fill="#d8ccb2" />
         <path d="M136 84 C 144 58, 160 40, 186 28" stroke="#bcae92" strokeWidth="3" fill="none" strokeLinecap="round" />
       </g>
@@ -419,14 +416,14 @@ const knabstrupper: CreatureSpec = {
         <path d="M192 26 L 194 6 L 204 24 Z" fill="#f6f2ea" />
         <path d="M195 22 L 196 11 L 201 22 Z" fill="#e2a58a" />
         <path d="M186 24 C 200 16, 216 22, 224 36 C 232 48, 246 64, 244 74 C 240 82, 228 80, 220 74 C 208 68, 198 60, 190 50 C 184 42, 182 32, 186 24 Z" fill="#f6f2ea" />
-        <g clipPath="url(#knab-hoved)">
+        <Klip form={KNAB_HOVED}>
           <circle cx="216" cy="34" r="4" fill="#3a2b25" />
           <circle cx="226" cy="50" r="3.5" fill="#8a5a3a" />
           <circle cx="212" cy="56" r="4" fill="#3a2b25" />
           <circle cx="234" cy="66" r="3" fill="#3a2b25" />
           <circle cx="196" cy="46" r="3.5" fill="#8a5a3a" />
           <circle cx="222" cy="68" r="2.6" fill="#3a2b25" />
-        </g>
+        </Klip>
         <ellipse cx="238" cy="74" rx="8" ry="6" fill="#d9b3a0" />
         <circle cx="234" cy="72" r="1.4" fill="#6b4a36" />
         <circle cx="236" cy="78" r="1.2" fill="#6b4a36" />

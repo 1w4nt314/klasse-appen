@@ -9,7 +9,7 @@ import type { CreatureSpec } from "../types";
 
 const mouse: CreatureSpec = {
   name: "Mus",
-  height: 3.5,
+  height: 4.5,
   aspect: 100 / 56,
   gait: "walk",
   pace: 1.3,
@@ -113,7 +113,7 @@ const hedgehog: CreatureSpec = {
 
 const mole: CreatureSpec = {
   name: "Muldvarp",
-  height: 4,
+  height: 5,
   aspect: 112 / 60,
   gait: "walk",
   pace: 0.7,
@@ -218,7 +218,7 @@ const swallow: CreatureSpec = {
 
 const honeyBee: CreatureSpec = {
   name: "Honningbi",
-  height: 3,
+  height: 4,
   aspect: 72 / 54,
   gait: "float",
   zone: "open",
@@ -256,7 +256,7 @@ const honeyBee: CreatureSpec = {
 
 const snail: CreatureSpec = {
   name: "Snegl",
-  height: 4,
+  height: 5,
   aspect: 110 / 66,
   gait: "slither",
   pace: 0.4,
