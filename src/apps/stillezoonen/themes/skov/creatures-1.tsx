@@ -14,7 +14,7 @@ const roeDeer: CreatureSpec = {
   aspect: 180 / 150,
   gait: "walk",
   pace: 1,
-  viewBox: "0 0 180 150",
+  viewBox: "19 0 180 150",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">

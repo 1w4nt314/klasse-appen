@@ -330,7 +330,7 @@ const blackbird: CreatureSpec = {
 
 const robin: CreatureSpec = {
   name: "Rødhals",
-  height: 3.5,
+  height: 4.5,
   aspect: 92 / 92,
   gait: "hop",
   pace: 1.3,
@@ -366,7 +366,7 @@ const robin: CreatureSpec = {
 
 const greatTit: CreatureSpec = {
   name: "Musvit",
-  height: 3.5,
+  height: 4.5,
   aspect: 92 / 92,
   gait: "hop",
   pace: 1.3,

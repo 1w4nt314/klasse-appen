@@ -97,7 +97,7 @@ const hedgehog: CreatureSpec = {
 
 const woodMouse: CreatureSpec = {
   name: "Skovmus",
-  height: 3.5,
+  height: 4.5,
   aspect: 122 / 56,
   gait: "walk",
   pace: 1.3,
@@ -155,7 +155,7 @@ const woodMouse: CreatureSpec = {
 
 const dormouse: CreatureSpec = {
   name: "Hasselmus",
-  height: 3.5,
+  height: 4.5,
   aspect: 100 / 58,
   gait: "walk",
   pace: 0.9,
@@ -214,7 +214,7 @@ const dormouse: CreatureSpec = {
 
 const shrew: CreatureSpec = {
   name: "Spidsmus",
-  height: 3,
+  height: 4,
   aspect: 120 / 48,
   gait: "walk",
   pace: 1.4,
@@ -332,7 +332,7 @@ const newtKrop =
 
 const newt: CreatureSpec = {
   name: "Lille vandsalamander",
-  height: 3,
+  height: 4,
   aspect: 130 / 46,
   gait: "walk",
   pace: 0.8,
@@ -387,7 +387,7 @@ const newt: CreatureSpec = {
 
 const lizard: CreatureSpec = {
   name: "Skovfirben",
-  height: 3,
+  height: 4,
   aspect: 150 / 46,
   gait: "walk",
   pace: 1.2,

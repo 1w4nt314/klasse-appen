@@ -13,7 +13,7 @@ export const skov: Theme = {
   nounDefinite: "dyrene",
   place: "i skoven",
   backdrop: "#cfe8d2",
-  showcase: ["squirrel", "hedgehog", "roeDeer"],
+  showcase: ["roeDeer", "squirrel", "hedgehog"],
   Background,
   Foreground,
 };

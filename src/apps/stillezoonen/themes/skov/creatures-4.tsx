@@ -160,7 +160,7 @@ const brimstone: CreatureSpec = {
 
 const bumblebee: CreatureSpec = {
   name: "Humlebi",
-  height: 3.5,
+  height: 4.5,
   aspect: 84 / 66,
   gait: "float",
   zone: "open",
@@ -278,7 +278,7 @@ const MYRE_FJERN = "#5c4038";
 
 const woodAnt: CreatureSpec = {
   name: "Rød skovmyre",
-  height: 2.5,
+  height: 4,
   aspect: 100 / 60,
   gait: "walk",
   pace: 1.2,
@@ -386,7 +386,7 @@ const EDDER_FJERN = "#4f3520";
 
 const crossSpider: CreatureSpec = {
   name: "Korsedderkop",
-  height: 3,
+  height: 4,
   aspect: 110 / 66,
   gait: "walk",
   pace: 0.8,
@@ -445,7 +445,7 @@ const GLOD = "#c8f03c";
 
 const glowWorm: CreatureSpec = {
   name: "Sankthansorm",
-  height: 2.5,
+  height: 4,
   aspect: 120 / 56,
   gait: "walk",
   pace: 0.7,
