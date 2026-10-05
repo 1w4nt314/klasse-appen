@@ -91,7 +91,7 @@ const ringBue = (cx: number, cy: number, rx: number, ry: number, halvdel: "bag" 
 };
 
 /** Halsens bue: midtpunkt C, ydre radius (rutsjebanen) og indre radius. */
-const BC = { x: 172, y: 254 };
+const BC = { x: 150, y: 254 };
 const B_R = 92;
 const B_RI = 56;
 
@@ -133,7 +133,7 @@ const rutsjeUnge = (f: UngeFarver) => (
 );
 
 /** Rammen om ungen, når den sidder øverst på buen (sæde i (BC.x, BC.y - B_R), skaleret 1.2). */
-const UNGE_RAMME: Ramme = [128, 106, 84, 150];
+const UNGE_RAMME: Ramme = [106, 106, 84, 150];
 
 /**
  * En unge, der kører rundt om buens midte (zoo-fx-spin). Klippet skjuler den
@@ -154,10 +154,12 @@ const slideBrachio: CreatureSpec = {
   rarity: "rare",
   height: 36,
   // Som `brachiosaurus` (226 × 300), men bredere, så rutsjebanen og dammen kan være der.
-  aspect: 340 / 300,
+  // Boksen er symmetrisk om den gående figur (x 4–210, midt 106), så den ikke
+  // hopper sidelæns, når den vender, og skyggen ligger under den.
+  aspect: 420 / 300,
   gait: "walk",
   pace: 0.5,
-  viewBox: "0 0 340 300",
+  viewBox: "-104 0 420 300",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
@@ -201,9 +203,9 @@ const slideBrachio: CreatureSpec = {
       {/* Stjerner og glimt på himlen. */}
       {funkel(52, 92, 9, "0s", "stjerne", "#ffd84a")}
       {funkel(118, 58, 6, "0.6s", "stjerne", "#ff9fc8")}
-      {funkel(246, 92, 8, "1.1s", "stjerne", "#ffd84a")}
-      {funkel(300, 150, 6, "0.3s", "glimt", "#fff")}
-      {funkel(196, 40, 5, "0.9s", "glimt", "#fff")}
+      {funkel(224, 92, 8, "1.1s", "stjerne", "#ffd84a")}
+      {funkel(282, 150, 6, "0.3s", "glimt", "#fff")}
+      {funkel(174, 40, 5, "0.9s", "glimt", "#fff")}
       {funkel(24, 150, 5, "1.3s", "glimt", "#fff3a8")}
       {/* Fjerne ben og halen. */}
       <rect x="126" y="226" width="26" height="74" rx="12" fill={B_MOERK} />
@@ -224,19 +226,19 @@ const slideBrachio: CreatureSpec = {
         })}
       </g>
       {/* Baderingens bagerste halvdel flyder bag hovedet. */}
-      {ringBue(303, 266, 22, 6, "bag")}
+      {ringBue(281, 266, 22, 6, "bag")}
       {/* Hovedet titter op af vandet og nikker glad. */}
-      <g className="zoo-fx-nod" style={fxv("0s", drej([276, 210, 60, 70], 304, 272), "1.1s")}>
-        {ramme([276, 210, 60, 70])}
-        <path d="M290 276 C 289 262, 291 252, 296 246 L 316 246 C 317 256, 317 266, 318 276 Z" fill={B_KROP} />
-        <g transform="translate(122 198)">
+      <g className="zoo-fx-nod" style={fxv("0s", drej([254, 210, 60, 70], 282, 272), "1.1s")}>
+        {ramme([254, 210, 60, 70])}
+        <path d="M268 276 C 267 262, 269 252, 274 246 L 294 246 C 295 256, 295 266, 296 276 Z" fill={B_KROP} />
+        <g transform="translate(100 198)">
           {brachioHoved}
           <path d="M194 48 Q 203 60 212 45 Z" fill={B_MUND} />
           <path d="M199 53 Q 204 55 208 51" stroke="#ff9aa0" strokeWidth="2.4" fill="none" strokeLinecap="round" />
         </g>
       </g>
       {/* To unger på skift: grøn og orange, en halv omgang fra hinanden. */}
-      <Klip form={<path d="M0 0 H340 V296 H210 V200 H0 Z" />}>
+      <Klip form={<path d="M-104 0 H316 V296 H188 V200 H-104 Z" />}>
         {rutsjer(GROEN_UNGE, "0s")}
         {rutsjer(ORANGE_UNGE, "2s")}
       </Klip>
@@ -253,18 +255,18 @@ const slideBrachio: CreatureSpec = {
       <rect x="52" y="236" width="28" height="64" rx="12" fill={B_KROP} />
       <ellipse cx="66" cy="295" rx="17" ry="5" fill={B_LYS} />
       {/* Dammen foran. */}
-      <ellipse cx="276" cy="282" rx="62" ry="16" fill={VAND} />
-      <ellipse cx="282" cy="281" rx="46" ry="9" fill={VAND_LYS} />
-      <path d="M232 284 q 8 -4 16 0 M300 290 q 8 -4 16 0" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.8" />
-      {ringBue(303, 266, 22, 6, "for")}
+      <ellipse cx="254" cy="282" rx="62" ry="16" fill={VAND} />
+      <ellipse cx="260" cy="281" rx="46" ry="9" fill={VAND_LYS} />
+      <path d="M210 284 q 8 -4 16 0 M278 290 q 8 -4 16 0" stroke="#fff" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.8" />
+      {ringBue(281, 266, 22, 6, "for")}
       {/* Plask, hver gang en unge rammer vandet. */}
       <g className="zoo-fx-sparkle" style={fxv("1.56s", "50% 100%", "2s")}>
-        <circle cx="252" cy="256" r="3.4" fill={VAND_LYS} />
-        <circle cx="258" cy="246" r="4" fill={VAND_LYS} />
-        <circle cx="270" cy="244" r="3.4" fill={VAND_LYS} />
-        <circle cx="280" cy="252" r="3" fill={VAND_LYS} />
-        <path d="M248 266 q 18 -10 36 0" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" />
-        {GLIMT(264, 236, 5)}
+        <circle cx="230" cy="256" r="3.4" fill={VAND_LYS} />
+        <circle cx="236" cy="246" r="4" fill={VAND_LYS} />
+        <circle cx="248" cy="244" r="3.4" fill={VAND_LYS} />
+        <circle cx="258" cy="252" r="3" fill={VAND_LYS} />
+        <path d="M226 266 q 18 -10 36 0" stroke="#fff" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+        {GLIMT(242, 236, 5)}
       </g>
     </>
   ),

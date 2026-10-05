@@ -22,28 +22,35 @@ const cloud = (x: number, y: number, s: number, key: string, cls?: string) => (
 );
 
 /**
- * Ét bregneblad: en stilk op ad -y med småblade på begge sider, der bliver
- * mindre mod spidsen. Basen ligger i (0,0); `rot` drejer hele bladet.
+ * Ét bregneblad tegnet som ÉN sti: stilken med småbladene som takker i omridset,
+ * der bliver mindre mod spidsen. Basen ligger i (0,0); `rot` drejer hele bladet.
+ * (Én sti pr. blad holder antallet af SVG-elementer nede, så animationerne kører glat.)
  */
 const frond = (len: number, rot: number, color: string, key: string, slank = 1) => {
   const n = Math.max(4, Math.round(len / 17));
   const blade = Array.from({ length: n }, (_, i) => {
     const t = (i + 1) / (n + 1);
     const w = Math.max(4, Math.round(len * 0.16 * (1 - t * 0.65)));
-    return { y: -Math.round(len * t), w, h: Math.max(2.5, r2(w * 0.38 * slank)) };
+    const h = Math.max(2, Math.round(w * 0.38 * slank));
+    return {
+      y: -Math.round(len * t),
+      h,
+      tx: Math.round(w * 1.7) + 2, // spidsen af småbladet
+      ty: -Math.round(len * t) - Math.round(w * 0.95),
+      lx: Math.round(w * 1.1), // kontrolpunkt for underkanten
+      ux: Math.round(w * 0.75), // kontrolpunkt for overkanten
+      uy: -Math.round(len * t) - Math.round(w * 0.95) - Math.round(h * 0.9),
+    };
   });
-  return (
-    <g key={key} transform={`rotate(${rot})`} fill={color}>
-      <path d={`M-3 0 L 0 ${-len - 4} L 3 0 Z`} />
-      <ellipse cx="0" cy={-len - 4} rx="4" ry="9" />
-      {blade.map(({ y, w, h }, i) => (
-        <g key={`${key}-${i}`}>
-          <ellipse cx={w} cy={y} rx={w} ry={h} transform={`rotate(-30 0 ${y})`} />
-          <ellipse cx={-w} cy={y} rx={w} ry={h} transform={`rotate(30 0 ${y})`} />
-        </g>
-      ))}
-    </g>
-  );
+  const højre = blade
+    .map((b) => `L 2 ${b.y + b.h} Q ${b.lx} ${b.y + b.h} ${b.tx} ${b.ty} Q ${b.ux} ${b.uy} 2 ${b.y - b.h}`)
+    .join(" ");
+  const venstre = [...blade]
+    .reverse()
+    .map((b) => `L -2 ${b.y - b.h} Q ${-b.ux} ${b.uy} ${-b.tx} ${b.ty} Q ${-b.lx} ${b.y + b.h} -2 ${b.y + b.h}`)
+    .join(" ");
+  const top = `L 2 ${-len} Q 6 ${-len - 8} 0 ${-len - 14} Q -6 ${-len - 8} -2 ${-len}`;
+  return <path key={key} transform={`rotate(${rot})`} fill={color} d={`M-3 0 L 3 0 ${højre} ${top} ${venstre} L -3 0 Z`} />;
 };
 
 /** Bregnebusk: en vifte af bregneblade fra samme rod. */
@@ -69,21 +76,20 @@ const horsetail = (x: number, y: number, s: number, h: number, color: string, da
     y: -30 * (i + 1),
     l: Math.round(26 * (1 - (i / n) * 0.6)),
   }));
+  const nåle = led
+    .map(({ y: ly, l }) => {
+      const a = Math.round(l / 2);
+      const b = Math.round(l * 0.6);
+      const c = Math.round(l * 0.8);
+      return `M-5 ${ly} q ${-a} 2 ${-l} ${b} M5 ${ly} q ${a} 2 ${l} ${b} M-3 ${ly} q -5 6 -9 ${c} M3 ${ly} q 5 6 9 ${c}`;
+    })
+    .join(" ");
+  const ringe = led.map(({ y: ly }) => `M-6 ${ly} H 6`).join(" ");
   return (
     <g key={key} transform={`translate(${x} ${y}) scale(${s})`}>
+      <path d={nåle} stroke={color} strokeWidth="3" fill="none" strokeLinecap="round" />
       <rect x="-6" y={-h} width="12" height={h} rx="6" fill={color} />
-      {led.map(({ y: ly, l }, i) => (
-        <g key={`${key}-${i}`}>
-          <path
-            d={`M-5 ${ly} q ${-l * 0.5} 2 ${-l} ${Math.round(l * 0.6)} M5 ${ly} q ${l * 0.5} 2 ${l} ${Math.round(l * 0.6)} M-3 ${ly} q -5 6 -9 ${Math.round(l * 0.8)} M3 ${ly} q 5 6 9 ${Math.round(l * 0.8)}`}
-            stroke={color}
-            strokeWidth="3"
-            fill="none"
-            strokeLinecap="round"
-          />
-          <rect x="-7" y={ly - 2} width="14" height="4" rx="2" fill={dark} />
-        </g>
-      ))}
+      <path d={ringe} stroke={dark} strokeWidth="4" strokeLinecap="round" />
       <ellipse cx="0" cy={-h - 10} rx="7" ry="14" fill="#c99a5b" />
       <path d={`M-5 ${-h - 14} H 5 M-6 ${-h - 7} H 6`} stroke="#a87a43" strokeWidth="2" />
     </g>
@@ -159,23 +165,6 @@ const footprint = (x: number, y: number, s: number, rot: number, color: string, 
   </g>
 );
 
-/** Lille guldsmed. Den yderste gruppe placerer, den inderste flyver (animation). */
-const dragonfly = (x: number, y: number, s: number, body: string, key: string, delay: number, cls = "zoo-dino-fly") => (
-  <g key={key} transform={`translate(${x} ${y}) scale(${s})`}>
-    <g className={cls} style={{ animationDelay: `${delay}s` }}>
-      <g fill="#f4fbff" opacity="0.9">
-        <ellipse cx="-4" cy="-10" rx="5" ry="15" transform="rotate(-62 -4 -10)" />
-        <ellipse cx="-4" cy="10" rx="5" ry="15" transform="rotate(62 -4 10)" />
-        <ellipse cx="6" cy="-9" rx="4.5" ry="13" transform="rotate(-50 6 -9)" />
-        <ellipse cx="6" cy="9" rx="4.5" ry="13" transform="rotate(50 6 9)" />
-      </g>
-      <rect x="-30" y="-2.5" width="34" height="5" rx="2.5" fill={body} />
-      <circle cx="8" cy="0" r="5.5" fill={body} />
-      <circle cx="10" cy="-2" r="1.6" fill="#fff" />
-    </g>
-  </g>
-);
-
 const tuft = (x: number, y: number, s: number, color: string, key: string) => (
   <path
     key={key}
@@ -193,46 +182,36 @@ const sprout = (x: number, y: number, s: number, color: string, key: string) => 
   </g>
 );
 
-/** Røgpuffer over vulkanen: [x, y, radius, forsinkelse]. De overlapper, så de ligner én blød sky. */
+/** Røgpuffer over vulkanen: [x, y, radius]. De overlapper, så de ligner én blød sky. */
 const SMOKE = [
-  [1084, 288, 18, 0],
-  [1094, 264, 24, 1.4],
-  [1080, 246, 18, 2.8],
-  [1110, 236, 28, 0.6],
-  [1098, 212, 24, 2.2],
-  [1136, 204, 32, 1],
-  [1122, 180, 26, 3],
-  [1164, 172, 36, 1.8],
-  [1150, 146, 28, 0.4],
-  [1204, 152, 34, 2.6],
-  [1190, 124, 26, 1.2],
-  [1240, 132, 28, 3.4],
+  [1084, 288, 18],
+  [1094, 264, 24],
+  [1080, 246, 18],
+  [1110, 236, 28],
+  [1098, 212, 24],
+  [1136, 204, 32],
+  [1122, 180, 26],
+  [1164, 172, 36],
+  [1150, 146, 28],
+  [1204, 152, 34],
+  [1190, 124, 26],
+  [1240, 132, 28],
 ] as const;
 
+// Få, store animerede grupper: sol-glød, skyer, røgskyen (som én gruppe) og søens glimt.
 const CSS = `
 @keyframes zoo-dino-drift { from { transform: translateX(-20px); } to { transform: translateX(20px); } }
 @keyframes zoo-dino-glow { from { opacity: 0.8; } to { opacity: 1; } }
-@keyframes zoo-dino-puff { from { transform: translate(0, 6px) scale(0.93); } to { transform: translate(4px, -8px) scale(1.06); } }
+@keyframes zoo-dino-smoke { from { transform: translate(-10px, 4px) scale(0.97); } to { transform: translate(12px, -6px) scale(1.03); } }
 @keyframes zoo-dino-shimmer { from { opacity: 0.25; } to { opacity: 0.85; } }
-@keyframes zoo-dino-fly {
-  0% { transform: translate(0, 0); }
-  25% { transform: translate(38px, -14px); }
-  50% { transform: translate(74px, 2px); }
-  75% { transform: translate(36px, 12px); }
-  100% { transform: translate(0, 0); }
-}
 [data-animated] .zoo-dino-cloud { animation: zoo-dino-drift 28s ease-in-out infinite alternate; }
 [data-animated] .zoo-dino-cloud-2 { animation-duration: 36s; animation-direction: alternate-reverse; }
 [data-animated] .zoo-dino-glow { animation: zoo-dino-glow 5s ease-in-out infinite alternate; }
-[data-animated] .zoo-dino-smoke { animation: zoo-dino-drift 18s ease-in-out infinite alternate; }
-[data-animated] .zoo-dino-puff { transform-box: fill-box; transform-origin: 50% 50%; animation: zoo-dino-puff 6s ease-in-out infinite alternate; }
+[data-animated] .zoo-dino-smoke { transform-box: fill-box; transform-origin: 0% 100%; animation: zoo-dino-smoke 12s ease-in-out infinite alternate; }
 [data-animated] .zoo-dino-shimmer { animation: zoo-dino-shimmer 3.5s ease-in-out infinite alternate; }
-[data-animated] .zoo-dino-fly { animation: zoo-dino-fly 12s ease-in-out infinite; }
-[data-animated] .zoo-dino-fly-2 { animation: zoo-dino-fly 15s ease-in-out infinite reverse; }
 @media (prefers-reduced-motion: reduce) {
   [data-animated] .zoo-dino-cloud, [data-animated] .zoo-dino-glow, [data-animated] .zoo-dino-smoke,
-  [data-animated] .zoo-dino-puff, [data-animated] .zoo-dino-shimmer, [data-animated] .zoo-dino-fly,
-  [data-animated] .zoo-dino-fly-2 { animation: none; }
+  [data-animated] .zoo-dino-shimmer { animation: none; }
 }
 `;
 
@@ -316,15 +295,8 @@ export function Background({ className, animated = true }: Props) {
         <ellipse cx="1085" cy="306" rx="26" ry="6" fill="#9d84b2" />
         <ellipse cx="1085" cy="305" rx="16" ry="3" fill="#ffc79a" opacity="0.8" />
         <g className="zoo-dino-smoke" fill="#fffaf2" opacity="0.92">
-          {SMOKE.map(([x, y, rad, d], i) => (
-            <circle
-              key={`smoke-${i}`}
-              className="zoo-dino-puff"
-              cx={x}
-              cy={y}
-              r={rad}
-              style={{ animationDelay: `${d}s` }}
-            />
+          {SMOKE.map(([x, y, rad], i) => (
+            <circle key={`smoke-${i}`} cx={x} cy={y} r={rad} />
           ))}
         </g>
       </g>
@@ -422,11 +394,6 @@ export function Background({ className, animated = true }: Props) {
       {horsetail(1240, 632, 0.62, 160, "#86b552", "#5a8a34", "ht-h2")}
       {fern(1580, 654, 1.05, "#4a9443", "#5aa64e", "bregne-h", true)}
       {fern(1440, 646, 0.6, "#5aa64e", "#6ab85a", "bregne-h2")}
-
-      {/* Guldsmede over søen */}
-      {dragonfly(650, 540, 0.9, "#2f9fc4", "gs-1", 0)}
-      {dragonfly(830, 512, 0.8, "#e0785a", "gs-2", 3, "zoo-dino-fly-2")}
-      {dragonfly(430, 548, 0.75, "#7b6bd0", "gs-3", 6)}
 
       {/* Jorden */}
       <path
