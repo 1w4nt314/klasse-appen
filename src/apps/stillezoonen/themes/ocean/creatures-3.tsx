@@ -23,13 +23,13 @@ const dolphin: CreatureSpec = {
       <g className="zoo-tail">
         <path d="M48 49 C 36 44, 24 34, 6 28 C 12 40, 14 46, 12 49 C 14 54, 12 60, 6 70 C 24 64, 36 56, 48 51 Z" fill="#5f84a8" />
       </g>
-      <path d="M126 70 C 122 82, 114 90, 98 92 C 114 90, 132 84, 140 70 Z" fill="#5f84a8" />
       <path d="M130 18 C 122 8, 106 2, 88 0 C 94 10, 92 18, 86 22 Z" fill="#5f84a8" />
       <path d={dolphinKrop} fill="#7a9fc0" />
       <Klip form={<path d={dolphinKrop} />}>
         <path d="M200 50 C 172 52, 152 60, 120 66 C 90 68, 60 60, 34 50 L 34 100 L 200 100 Z" fill="#e4eff6" />
         <path d="M50 40 C 80 20, 118 14, 146 24 C 120 22, 84 28, 56 46 Z" fill="#a3c2dc" opacity="0.7" />
       </Klip>
+      <path d="M124 66 C 120 78, 112 86, 98 90 C 116 88, 134 82, 142 66 Z" fill="#5f84a8" />
       <path d="M196 50 C 188 54, 178 54, 170 50" stroke="#3b5a78" strokeWidth="2.2" fill="none" strokeLinecap="round" />
       <path d="M170 50 q -3 -1 -4 -4" stroke="#3b5a78" strokeWidth="2.2" fill="none" strokeLinecap="round" />
       {EYE(158, 38, 4.6)}
@@ -295,7 +295,7 @@ const beluga: CreatureSpec = {
 
 /* ---------- Klumpfisk ---------- */
 
-const klumpKrop = "M74 22 C 108 16, 138 44, 138 78 C 138 112, 108 138, 74 134 Z";
+const klumpKrop = "M74 22 C 108 16, 138 44, 138 78 C 138 112, 108 138, 74 134 C 62 126, 58 118, 52 110 C 60 104, 46 96, 52 90 C 44 82, 54 76, 48 70 C 56 62, 46 56, 52 50 C 54 40, 62 30, 74 22 Z";
 
 const sunfish: CreatureSpec = {
   name: "Klumpfisk",
@@ -308,9 +308,6 @@ const sunfish: CreatureSpec = {
     <>
       <path d="M86 26 C 70 14, 52 8, 34 2 C 30 22, 34 40, 46 54 Z" fill="#7d8e9b" />
       <path d="M86 130 C 70 142, 52 146, 34 148 C 30 128, 34 110, 46 100 Z" fill="#7d8e9b" />
-      <g className="zoo-tail">
-        <path d="M76 40 C 58 42, 54 52, 44 56 C 54 62, 42 70, 48 76 C 40 82, 52 86, 46 94 C 54 100, 62 106, 76 108 Z" fill="#9aabb8" />
-      </g>
       <path d={klumpKrop} fill="#a4b3be" />
       <Klip form={<path d={klumpKrop} />}>
         <path d="M40 98 C 80 92, 120 96, 150 88 L 150 150 L 40 150 Z" fill="#e2e9ee" />

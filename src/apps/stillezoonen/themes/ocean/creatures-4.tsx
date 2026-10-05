@@ -101,9 +101,9 @@ const HUMMER_BEN = "#1d4352";
 const hummerBen = (x: number, key: string, cls: string) => (
   <g key={key} className={`zoo-leg ${cls}`}>
     <path
-      d={`M${x} 60 L ${x + 8} 74 L ${x + 3} 87.8`}
+      d={`M${x} 60 L ${x + 8} 74 L ${x + 3} 87.5`}
       stroke={HUMMER_BEN}
-      strokeWidth="4"
+      strokeWidth="5"
       fill="none"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -131,10 +131,12 @@ const lobster: CreatureSpec = {
       </g>
       <g className="zoo-torso">
         {/* Bageste klo (mørkere) */}
-        <path d="M112 54 C 124 62 134 62 142 58" stroke="#1d4352" strokeWidth="9" fill="none" strokeLinecap="round" />
-        <ellipse cx="150" cy="60" rx="12" ry="9" fill="#1d4352" transform="rotate(10 150 60)" />
-        <path d="M156 54 C 164 50 172 52 176 58 C 168 57 162 59 158 62 Z" fill="#1d4352" />
-        <path d="M156 64 C 164 64 172 68 174 76 C 166 72 160 72 154 70 Z" fill="#15374a" />
+        <path d="M112 54 C 124 62 132 64 140 64" stroke="#1d4352" strokeWidth="8" fill="none" strokeLinecap="round" />
+        <g transform="translate(144 64) scale(0.78)">
+          <ellipse cx="6" cy="2" rx="14" ry="11" fill="#1d4352" />
+          <path d="M4 -8 C 18 -18 34 -12 40 -2 C 30 -6 20 -4 10 2 Z" fill="#1d4352" />
+          <path d="M6 8 C 20 6 34 12 36 26 C 28 20 16 18 4 16 Z" fill="#15374a" />
+        </g>
         {/* Hale */}
         <path d="M62 38 C 44 36 28 42 20 52 L 22 70 C 34 72 50 70 63 65 Z" fill="#2d5f6e" />
         <path d="M33 44 C 35 52 35 62 33 71 M44 40 C 46 50 46 62 44 71 M54 38 C 56 48 56 60 55 68" stroke="#1d4352" strokeWidth="2.2" fill="none" strokeLinecap="round" />
@@ -144,11 +146,13 @@ const lobster: CreatureSpec = {
         <path d="M64 38 C 76 28 98 28 112 34 C 98 34 76 36 64 44 Z" fill="#3a7886" />
         <path d="M60 56 C 80 66 110 64 122 54 C 118 62 100 68 80 68 C 70 68 62 62 60 56 Z" fill="#8fbcb4" opacity="0.8" />
         {/* Store klo (forrest) */}
-        <path d="M116 46 C 128 50 138 48 144 42" stroke="#2d5f6e" strokeWidth="10" fill="none" strokeLinecap="round" />
-        <ellipse cx="152" cy="38" rx="14" ry="11" fill="#3a7886" transform="rotate(-15 152 38)" />
-        <path d="M157 29 C 166 22 180 25 187 33 C 177 31 168 33 160 39 Z" fill="#3a7886" />
-        <path d="M159 43 C 169 41 181 45 185 55 C 175 51 167 53 157 51 Z" fill="#2d5f6e" />
-        <path d="M144 32 C 148 28 154 28 158 30" stroke="#6fb0b8" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.8" />
+        <path d="M116 46 C 126 50 134 46 140 40" stroke="#2d5f6e" strokeWidth="10" fill="none" strokeLinecap="round" />
+        <g transform="translate(144 36)">
+          <path d="M6 8 C 20 6 34 12 36 26 C 28 20 16 18 4 16 Z" fill="#2d5f6e" />
+          <path d="M4 -8 C 18 -18 34 -12 40 -2 C 30 -6 20 -4 10 2 Z" fill="#3a7886" />
+          <ellipse cx="6" cy="2" rx="14" ry="11" fill="#3a7886" />
+          <path d="M-3 -2 C -1 -6 3 -8 7 -8" stroke="#6fb0b8" strokeWidth="2.2" fill="none" strokeLinecap="round" opacity="0.8" />
+        </g>
       </g>
       <g className="zoo-head">
         <path d="M120 30 C 140 14 162 10 186 6 M122 34 C 146 26 168 20 188 20" stroke="#3a7886" strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -174,14 +178,14 @@ const shrimp: CreatureSpec = {
   art: (
     <>
       <g className="zoo-tail">
-        <path d="M20 50 L 36 50 L 38 66 L 30 62 L 24 70 L 18 62 Z" fill="#f08f92" opacity="0.92" />
-        <path d="M27 52 L 28 64" stroke="#fbd2cc" strokeWidth="1.6" strokeLinecap="round" />
+        <path d="M17 53 L 35 53 C 38 60 37 68 32 73 L 26 67 L 20 73 C 15 67 14 59 17 53 Z" fill="#f08f92" opacity="0.95" />
+        <path d="M26 55 L 21 69 M26 55 L 26 65 M26 55 L 31 69" stroke="#fde0da" strokeWidth="1.5" strokeLinecap="round" />
       </g>
       <g className="zoo-torso">
         {/* Følehorn */}
         <path d="M102 30 C 118 14 134 12 148 18 M104 34 C 124 30 138 36 146 46" stroke="#e98f92" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         {/* Små ben under bugen */}
-        <path d="M58 26 l -2 9 M68 28 l -2 9 M78 31 l -1 9 M88 36 l 1 9" stroke="#e98f92" strokeWidth="2.2" strokeLinecap="round" />
+        <path d="M58 22 l -2 11 M68 23 l -2 11 M78 26 l -1 11 M88 32 l 1 11" stroke="#e98f92" strokeWidth="2.2" strokeLinecap="round" />
         {/* Krop: gennemsigtigt rør med ringe */}
         <path d="M100 38 C 98 14 54 6 36 26 C 26 38 24 46 26 54" stroke="#f6b4b0" strokeWidth="17" fill="none" strokeLinecap="round" opacity="0.94" />
         <path d="M100 38 C 98 14 54 6 36 26 C 26 38 24 46 26 54" stroke="#e98f92" strokeWidth="17" fill="none" strokeDasharray="1.6 9" opacity="0.7" />
@@ -361,8 +365,7 @@ const nudibranch: CreatureSpec = {
 
 /* ---------------------------------------------------------------------- ål */
 
-const AAL_A = "M178 32 C 164 32 156 46 136 46 C 116 46 108 22 88 22";
-const AAL_B = "M88 22 C 72 22 66 40 50 40";
+const AAL_AB = "M178 32 C 164 32 156 46 136 46 C 116 46 108 22 88 22 C 72 22 66 40 50 40";
 const AAL_C = "M50 40 C 38 40 32 26 14 28";
 
 const eel: CreatureSpec = {
@@ -375,21 +378,18 @@ const eel: CreatureSpec = {
   art: (
     <>
       <g className="zoo-tail">
-        <path d={AAL_C} stroke="#566330" strokeWidth="8" fill="none" strokeLinecap="round" />
-        <path d={AAL_C} stroke="#dfe0a0" strokeWidth="2.6" fill="none" strokeLinecap="round" transform="translate(0 2)" />
+        <path d={AAL_C} stroke="#566330" strokeWidth="9" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-torso">
-        <path d={AAL_B} stroke="#6c7a3a" strokeWidth="11" fill="none" strokeLinecap="round" />
-        <path d={AAL_B} stroke="#dfe0a0" strokeWidth="4.4" fill="none" strokeLinecap="round" transform="translate(0 3)" />
-        <path d={AAL_A} stroke="#6c7a3a" strokeWidth="14" fill="none" strokeLinecap="round" />
-        <path d={AAL_A} stroke="#566330" strokeWidth="3" fill="none" strokeLinecap="round" transform="translate(0 -4.5)" opacity="0.7" />
-        <path d={AAL_A} stroke="#dfe0a0" strokeWidth="5.4" fill="none" strokeLinecap="round" transform="translate(0 3.6)" />
-        <path d="M168 36 C 160 40 156 44 152 40 C 156 34 162 32 168 34 Z" fill="#8c9a4c" />
+        <path d={AAL_AB} stroke="#6c7a3a" strokeWidth="15" fill="none" strokeLinecap="round" />
+        <path d={AAL_AB} stroke="#566330" strokeWidth="2.6" fill="none" strokeLinecap="round" transform="translate(0 -4.6)" opacity="0.75" />
+        <path d={AAL_AB} stroke="#dfe0a0" strokeWidth="5.2" fill="none" strokeLinecap="round" transform="translate(0 3.4)" />
+        <path d="M168 37 C 160 42 155 46 150 42 C 155 35 162 33 168 35 Z" fill="#8c9a4c" />
       </g>
       <g className="zoo-head">
-        <ellipse cx="181" cy="32" rx="12" ry="9" fill="#6c7a3a" />
-        <ellipse cx="183" cy="36" rx="9.5" ry="4.4" fill="#dfe0a0" />
-        {EYE(185, 28, 3.4)}
+        <ellipse cx="181" cy="32" rx="13" ry="10" fill="#6c7a3a" />
+        <ellipse cx="183" cy="37" rx="10" ry="4.6" fill="#dfe0a0" />
+        {EYE(185, 28, 3.8)}
         <path d="M186 37 q 3 2.4 6 0" stroke="#3d4a1e" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         <circle cx="176" cy="36" r="2.8" fill="#ff9a8a" opacity="0.55" />
       </g>
@@ -400,7 +400,7 @@ const eel: CreatureSpec = {
 /* ----------------------------------------------------------------- axolotl */
 
 /** En gællefjer: stilk fra (bx,by) til (tx,ty) med små fjergrene. */
-const gaele = (bx: number, by: number, tx: number, ty: number, key: string) => {
+const gaele = (bx: number, by: number, tx: number, ty: number, key: string, farve: string) => {
   const dx = tx - bx;
   const dy = ty - by;
   const l = Math.sqrt(dx * dx + dy * dy);
@@ -411,15 +411,15 @@ const gaele = (bx: number, by: number, tx: number, ty: number, key: string) => {
   const grene = [0.4, 0.65, 0.9].map((f, i) => {
     const mx = bx + dx * f;
     const my = by + dy * f;
-    const len = 7 - i * 1.4;
+    const len = 6.5 - i * 1.3;
     return `M${r2(mx + px * len + ux * 3)} ${r2(my + py * len + uy * 3)} L ${r2(mx)} ${r2(my)} L ${r2(mx - px * len + ux * 3)} ${r2(my - py * len + uy * 3)}`;
   });
   return (
     <path
       key={key}
       d={`M${bx} ${by} L ${tx} ${ty} ${grene.join(" ")}`}
-      stroke="#e2587f"
-      strokeWidth="2.8"
+      stroke={farve}
+      strokeWidth="3.2"
       fill="none"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -451,10 +451,10 @@ const axolotl: CreatureSpec = {
         <path d="M30 50 C 20 42 12 42 8 47" stroke="#fcd5df" strokeWidth="3" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-torso">
-        {/* Baggælle-sæt */}
-        {gaele(104, 32, 82, 14, "g1")}
-        {gaele(108, 30, 98, 6, "g2")}
-        {gaele(112, 30, 116, 3, "g3")}
+        {/* Gællekrone: fjerneste sæt */}
+        {gaele(106, 32, 80, 22, "g1", "#ee7f9c")}
+        {gaele(108, 32, 88, 8, "g2", "#ee7f9c")}
+        {gaele(110, 32, 102, 3, "g3", "#ee7f9c")}
         <path d="M20 48 C 40 34 90 34 114 38 L 114 66 C 90 70 40 68 20 58 Z" fill="#f7b2c4" />
         <path d="M30 46 C 50 38 88 38 110 41 C 88 42 50 44 32 52 Z" fill="#fcd5df" opacity="0.85" />
         <path d="M26 58 C 50 66 90 68 112 62 L 114 66 C 90 70 40 68 20 58 Z" fill="#e48aa4" opacity="0.5" />
@@ -462,14 +462,14 @@ const axolotl: CreatureSpec = {
         {molbenX(112, "#f7b2c4", "l4", "zoo-leg-b")}
       </g>
       <g className="zoo-head">
-        <ellipse cx="122" cy="46" rx="26" ry="19" fill="#f7b2c4" />
-        <ellipse cx="124" cy="38" rx="16" ry="7" fill="#fcd5df" opacity="0.7" />
-        {gaele(110, 36, 94, 24, "g4")}
-        {gaele(114, 34, 106, 16, "g5")}
-        {gaele(118, 33, 122, 12, "g6")}
-        {EYE(134, 38, 3.4)}
-        <path d="M122 50 C 130 60 142 60 148 48" stroke="#a8435e" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-        <circle cx="142" cy="44" r="1.3" fill="#a8435e" />
+        <ellipse cx="122" cy="46" rx="28" ry="21" fill="#f7b2c4" />
+        <ellipse cx="124" cy="37" rx="17" ry="7" fill="#fcd5df" opacity="0.7" />
+        {gaele(116, 32, 96, 24, "g4", "#e2587f")}
+        {gaele(118, 30, 106, 10, "g5", "#e2587f")}
+        {gaele(121, 30, 120, 5, "g6", "#e2587f")}
+        {EYE(135, 38, 4)}
+        <path d="M122 51 C 130 62 143 62 149 49" stroke="#a8435e" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+        <circle cx="144" cy="43" r="1.3" fill="#a8435e" />
         <circle cx="123" cy="55" r="3.8" fill="#ff7a96" opacity="0.5" />
       </g>
     </>

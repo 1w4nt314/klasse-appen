@@ -163,12 +163,15 @@ const kArm = (d: string, farve: string, bredde: number) => (
   <path d={d} stroke={farve} strokeWidth={bredde} fill="none" strokeLinecap="round" strokeLinejoin="round" />
 );
 
+/** Afrunder til 2 decimaler. */
+const rund = (v: number) => +v.toFixed(2);
+
 /** Lysende turkis prik med glorie. */
 const lysPrik = (x: number, y: number, r: number) => (
   <>
-    <circle cx={x} cy={y} r={r * 2.1} fill={KR_TURKIS} opacity="0.28" />
+    <circle cx={x} cy={y} r={rund(r * 2.1)} fill={KR_TURKIS} opacity="0.28" />
     <circle cx={x} cy={y} r={r} fill={KR_TURKIS} />
-    <circle cx={x - r * 0.3} cy={y - r * 0.3} r={r * 0.4} fill="#f0fdfa" />
+    <circle cx={rund(x - r * 0.3)} cy={rund(y - r * 0.3)} r={rund(r * 0.4)} fill="#f0fdfa" />
   </>
 );
 
