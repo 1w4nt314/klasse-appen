@@ -554,7 +554,8 @@ const tigerHoved = (
     <ellipse cx="184" cy="66" rx="16" ry="11" fill={GULD_LYS} />
     <path d="M188 58 l 8 0 l -4 5 z" fill="#a8641a" />
     <path d="M164 36 q 4 6 0 12 M178 32 q 3 5 0 10" stroke={GULD_STRIBE} strokeWidth="3.5" strokeLinecap="round" fill="none" />
-    {EYE(180, 49, 3.8)}
+    {EYE(176, 49, 3.8)}
+    {EYE(191, 48, 3.3)}
   </>
 );
 

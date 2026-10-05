@@ -224,7 +224,7 @@ const redPanda: CreatureSpec = {
         <ellipse cx="178" cy="60" rx="7" ry="6" fill="#fbf1e4" />
         <ellipse cx="182" cy="57" rx="4.6" ry="3.8" fill="#2b1d16" />
         <path
-          d="M157 58 q 2 8 -1 12"
+          d="M148 58 q 2 8 -1 12"
           stroke="#9b3a22"
           strokeWidth="3"
           fill="none"
@@ -237,7 +237,8 @@ const redPanda: CreatureSpec = {
           fill="none"
           strokeLinecap="round"
         />
-        {EYE(160, 53, 3.8)}
+        {EYE(151, 52, 3.8)}
+        {EYE(168, 50, 3.3)}
       </g>
     </>
   ),

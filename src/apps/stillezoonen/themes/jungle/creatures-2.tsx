@@ -68,7 +68,8 @@ const leopard: CreatureSpec = {
         <circle cx="166" cy="42" r="2.4" fill="#4a3320" /><circle cx="172" cy="36" r="2.4" fill="#4a3320" />
         <circle cx="164" cy="54" r="2.4" fill="#4a3320" /><circle cx="170" cy="62" r="2.4" fill="#4a3320" />
         <path d="M174 66 q 6 5 12 1" stroke="#4a3320" strokeWidth="2" fill="none" strokeLinecap="round" />
-        {EYE(180, 49, 3.8)}
+        {EYE(176, 49, 3.8)}
+        {EYE(191, 48, 3.3)}
       </g>
     </>
   ),
@@ -120,7 +121,8 @@ const jaguar: CreatureSpec = {
         <circle cx="163" cy="44" r="3" fill="#3b281a" /><circle cx="170" cy="36" r="3" fill="#3b281a" />
         <circle cx="162" cy="58" r="3" fill="#3b281a" /><circle cx="170" cy="66" r="3" fill="#3b281a" />
         <path d="M175 68 q 6 5 13 1" stroke="#3b281a" strokeWidth="2" fill="none" strokeLinecap="round" />
-        {EYE(180, 49, 4)}
+        {EYE(176, 49, 4)}
+        {EYE(191.5, 48, 3.4)}
       </g>
     </>
   ),
