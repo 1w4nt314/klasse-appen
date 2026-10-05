@@ -7,9 +7,13 @@ import type { CreatureSpec } from "../types";
  * profil mod højre, fødderne på viewBox' bund, ben i zoo-leg-a/b.
  */
 
+/** Afrunder beregnede SVG-tal, så server og browser giver identisk markup (ingen hydreringsfejl). */
+const afrund = (n: number): number => Math.round(n * 100) / 100;
+
 /** En tilspidset hårtot der hænger nedad (højlandskoens pjuskede pels). */
 function tot(x: number, y: number, w: number, l: number, hæld = 0): string {
-  return `M${x - w / 2} ${y} Q${x - w / 2 + hæld * 0.3} ${y + l * 0.6} ${x + hæld} ${y + l} Q${x + w / 2 + hæld * 0.3} ${y + l * 0.6} ${x + w / 2} ${y} Z`;
+  const [a, b, c, d, e, f, g] = [x - w / 2, x - w / 2 + hæld * 0.3, y + l * 0.6, x + hæld, y + l, x + w / 2 + hæld * 0.3, x + w / 2].map(afrund);
+  return `M${a} ${y} Q${b} ${c} ${d} ${e} Q${f} ${c} ${g} ${y} Z`;
 }
 
 const HÅR_FARVER = ["#8a3a18", "#b85a28", "#7e3416", "#a84e20"] as const;
@@ -24,11 +28,12 @@ function totRække(xs: number[], y: number, l: number, w: number, forskyd = 0, t
 }
 
 /** Y for toppen af højlandskoens krop ved et givet x (ellipsen cx100 cy72 rx72 ry42). */
-const højlandToppen = (x: number) => 72 - 42 * Math.sqrt(Math.max(0, 1 - ((x - 100) / 72) ** 2)) + 3;
+const højlandToppen = (x: number) => afrund(72 - 42 * Math.sqrt(Math.max(0, 1 - ((x - 100) / 72) ** 2)) + 3);
 
 /** En krøllet, hængende lokke der ender i en lille krølle (d = +1/-1 for krøllens retning). */
 function lokke(x: number, y: number, l: number, d = 1): string {
-  return `M${x} ${y} C ${x + 6 * d} ${y + l * 0.25}, ${x - 6 * d} ${y + l * 0.5}, ${x} ${y + l * 0.72} a 5.5 5.5 0 1 ${d > 0 ? 1 : 0} ${-8 * d} ${-2}`;
+  const [a, b, c, e] = [y + l * 0.25, y + l * 0.5, y + l * 0.72, x + 6 * d].map(afrund);
+  return `M${x} ${y} C ${e} ${a}, ${afrund(x - 6 * d)} ${b}, ${x} ${c} a 5.5 5.5 0 1 ${d > 0 ? 1 : 0} ${-8 * d} ${-2}`;
 }
 
 /* ---------- Jerseyko: ensfarvet karamel, lys ring om mulen, store øjne ---------- */
@@ -118,7 +123,7 @@ const highlandCow: CreatureSpec = {
         {totRække([44, 58, 72, 86, 100, 114, 128, 142, 156], 64, 40, 15, 7)}
         {Array.from({ length: 14 }, (_, i) => {
           const x = 40 + i * 9;
-          const yb = 72 + 42 * Math.sqrt(1 - ((x - 100) / 72) ** 2);
+          const yb = afrund(72 + 42 * Math.sqrt(1 - ((x - 100) / 72) ** 2));
           return <path key={`b${i}`} d={tot(x, yb - 12, 11, 20 + ((i * 5) % 3) * 4, -3)} fill={HÅR_FARVER[(i + 1) % 4]} />;
         })}
       </g>
@@ -276,7 +281,7 @@ const saddlebackPig: CreatureSpec = {
 function dunKant(cx: number, cy: number, rx: number, ry: number, antal: number, r: number, start = 0) {
   return Array.from({ length: antal }, (_, i) => {
     const v = start + (i / antal) * Math.PI * 2;
-    return <circle key={i} cx={cx + rx * Math.cos(v)} cy={cy + ry * Math.sin(v)} r={r} fill={i % 2 ? "#ffffff" : "#f6f3fb"} stroke="#e1dbef" strokeWidth="1" />;
+    return <circle key={i} cx={afrund(cx + rx * Math.cos(v))} cy={afrund(cy + ry * Math.sin(v))} r={r} fill={i % 2 ? "#ffffff" : "#f6f3fb"} stroke="#e1dbef" strokeWidth="1" />;
   });
 }
 
@@ -511,7 +516,7 @@ const angoraGoat: CreatureSpec = {
           {LOKKE_RÆKKER.map(([y, l, forskyd], r) =>
             Array.from({ length: 9 }, (_, i) => {
               const x = 32 + i * 11.5 + forskyd;
-              const top = 76 - 32 * Math.sqrt(Math.max(0, 1 - ((x - 84) / 56) ** 2)) + 5;
+              const top = afrund(76 - 32 * Math.sqrt(Math.max(0, 1 - ((x - 84) / 56) ** 2)) + 5);
               const yy = Math.max(y, top);
               const d = i % 2 ? 1 : -1;
               const ll = l + ((i * 5 + r) % 3) * 3;
