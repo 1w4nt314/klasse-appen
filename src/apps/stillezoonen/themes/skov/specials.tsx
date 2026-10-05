@@ -40,9 +40,9 @@ const draabe = (x: number, y: number, s = 1) => (
 /** Regn: dråber over bladet, der blinker i forskudt takt, så det ligner regn. */
 const REGN: ReadonlyArray<readonly [number, number, string]> = [
   [18, -52, "0s"],
-  [44, -62, "0.35s"],
+  [44, -58, "0.35s"],
   [72, -56, "0.7s"],
-  [100, -64, "0.2s"],
+  [100, -58, "0.2s"],
   [126, -50, "0.55s"],
   [58, -40, "0.9s"],
   [112, -36, "1.1s"],
