@@ -19,26 +19,26 @@ const calf: CreatureSpec = {
       <path d="M24 46 C 12 52, 12 70, 16 82" stroke="#3b3532" strokeWidth="3.5" fill="none" strokeLinecap="round" />
       <ellipse cx="16" cy="86" rx="4.5" ry="7" fill="#3b3532" />
       <g className="zoo-leg zoo-leg-a">
-        <rect x="86" y="76" width="13" height="42" rx="6" fill="#d9d3c8" />
+        <rect x="86" y="66" width="13" height="52" rx="6" fill="#d9d3c8" />
         <rect x="86" y="109" width="13" height="9" rx="4" fill="#4a3f3a" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="28" y="76" width="13" height="42" rx="6" fill="#d9d3c8" />
+        <rect x="28" y="66" width="13" height="52" rx="6" fill="#d9d3c8" />
         <rect x="28" y="109" width="13" height="9" rx="4" fill="#4a3f3a" />
       </g>
       <g className="zoo-torso">
         <ellipse cx="66" cy="60" rx="46" ry="28" fill="#f7f4ee" />
         <ellipse cx="50" cy="46" rx="17" ry="11" fill="#3b3532" />
         <ellipse cx="88" cy="70" rx="12" ry="9" fill="#3b3532" />
-        <ellipse cx="38" cy="72" rx="8" ry="6" fill="#3b3532" />
+        <ellipse cx="31" cy="62" rx="7" ry="6" fill="#3b3532" />
         <ellipse cx="76" cy="36" rx="9" ry="5" fill="#3b3532" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="100" y="78" width="14" height="40" rx="6" fill="#f7f4ee" />
+        <rect x="100" y="66" width="14" height="52" rx="6" fill="#f7f4ee" />
         <rect x="100" y="109" width="14" height="9" rx="4" fill="#4a3f3a" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <rect x="42" y="78" width="14" height="40" rx="6" fill="#f7f4ee" />
+        <rect x="42" y="66" width="14" height="52" rx="6" fill="#f7f4ee" />
         <rect x="42" y="109" width="14" height="9" rx="4" fill="#4a3f3a" />
       </g>
       <g className="zoo-head">
@@ -77,14 +77,13 @@ const piglet: CreatureSpec = {
       </g>
       <g className="zoo-torso">
         <ellipse cx="54" cy="42" rx="38" ry="26" fill="#f9c4cd" />
-        <ellipse cx="54" cy="56" rx="26" ry="8" fill="#fcd8dd" opacity="0.7" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="76" y="56" width="13" height="20" rx="6" fill="#f9c4cd" />
+        <rect x="76" y="38" width="13" height="38" rx="6" fill="#f9c4cd" />
         <rect x="76" y="70" width="13" height="6" rx="3" fill="#c9788a" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <rect x="34" y="56" width="13" height="20" rx="6" fill="#f9c4cd" />
+        <rect x="34" y="38" width="13" height="38" rx="6" fill="#f9c4cd" />
         <rect x="34" y="70" width="13" height="6" rx="3" fill="#c9788a" />
       </g>
       <g className="zoo-head">
@@ -163,10 +162,10 @@ const chick: CreatureSpec = {
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M26 50 V 57 M21 58.5 H 31 M26 57 L 21 59 M26 57 L 31 59" stroke="#f0a02a" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M22 50 V 57 M17 58.5 H 27 M22 57 L 17 59 M22 57 L 27 59" stroke="#f0a02a" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M37 50 V 57 M32 58.5 H 42 M37 57 L 32 59 M37 57 L 42 59" stroke="#d98a1c" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M38 50 V 57 M33 58.5 H 43 M38 57 L 33 59 M38 57 L 43 59" stroke="#d98a1c" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-torso">
         <path d="M10 40 L 4 36 L 12 34 Z" fill="#f5c82c" />
@@ -195,10 +194,9 @@ const rooster: CreatureSpec = {
   art: (
     <>
       <g className="zoo-tail">
-        <path d="M44 92 C 8 94, 2 56, 16 22 C 28 40, 42 60, 54 80 Z" fill="#26302c" />
-        <path d="M44 90 C 14 76, 14 50, 30 30 C 38 48, 46 62, 56 78 Z" fill="#3f7d5a" />
-        <path d="M44 96 C 12 108, 2 90, 6 66 C 22 74, 36 82, 54 88 Z" fill="#b4491f" />
-        <path d="M46 88 C 26 78, 28 58, 40 46 C 44 60, 50 70, 58 80 Z" fill="#e49b2b" />
+        <path d="M46 88 C 20 88, 6 64, 10 38 C 12 28, 20 24, 22 30 C 20 50, 32 68, 56 80 Z" fill="#26302c" />
+        <path d="M46 92 C 22 98, 4 84, 4 62 C 4 54, 10 52, 12 58 C 14 72, 28 82, 54 86 Z" fill="#3f7d5a" />
+        <path d="M48 84 C 30 76, 26 54, 36 40 C 40 36, 44 38, 43 44 C 42 58, 50 68, 60 76 Z" fill="#b4491f" />
       </g>
       <g className="zoo-leg zoo-leg-a">
         <path d="M70 112 V 143 M62 146 H 80 M70 143 L 62 147 M70 143 L 80 147 M70 128 L 76 126" stroke="#e9a21f" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -211,7 +209,6 @@ const rooster: CreatureSpec = {
         <circle cx="98" cy="68" r="22" fill="#e49b2b" />
         <ellipse cx="62" cy="96" rx="26" ry="15" transform="rotate(-14 62 96)" fill="#8f3a1a" />
         <path d="M44 100 C 58 108, 76 106, 88 96" stroke="#26302c" strokeWidth="5" fill="none" strokeLinecap="round" />
-        <ellipse cx="98" cy="88" rx="16" ry="10" fill="#5a3a22" opacity="0.35" />
       </g>
       <g className="zoo-head">
         <circle cx="106" cy="42" r="16" fill="#e49b2b" />
@@ -249,15 +246,15 @@ const foal: CreatureSpec = {
         <ellipse cx="86" cy="78" rx="46" ry="25" fill="#a9693a" />
         <path d="M112 70 C 120 48, 130 34, 146 26 L 170 44 C 158 54, 152 70, 144 94 Z" fill="#a9693a" />
         <path d="M106 66 C 114 42, 126 26, 144 16 L 150 28 C 138 34, 130 48, 124 68 Z" fill="#5a3722" />
-        <ellipse cx="82" cy="96" rx="32" ry="7" fill="#c88b57" opacity="0.65" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="134" y="92" width="12" height="78" rx="5" fill="#a9693a" />
+        <rect x="134" y="72" width="12" height="98" rx="5" fill="#a9693a" />
         <rect x="134" y="152" width="12" height="6" fill="#f6efe2" />
         <rect x="134" y="160" width="12" height="10" rx="3" fill="#3a2a22" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <rect x="64" y="92" width="12" height="78" rx="5" fill="#a9693a" />
+        <rect x="64" y="68" width="12" height="102" rx="5" fill="#a9693a" />
+        <rect x="64" y="152" width="12" height="6" fill="#f6efe2" />
         <rect x="64" y="160" width="12" height="10" rx="3" fill="#3a2a22" />
       </g>
       <g className="zoo-head">
@@ -295,20 +292,19 @@ const goatKid: CreatureSpec = {
       <g className="zoo-torso">
         <ellipse cx="56" cy="52" rx="34" ry="20" fill="#efe6d4" />
         <path d="M72 44 C 80 32, 86 28, 92 28 L 100 54 C 92 56, 86 64, 82 74 Z" fill="#efe6d4" />
-        <ellipse cx="46" cy="64" rx="22" ry="6" fill="#e0d4bc" opacity="0.7" />
         <path d="M36 38 C 46 32, 60 34, 70 42" stroke="#d8c8ae" strokeWidth="7" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="82" y="64" width="9" height="36" rx="4" fill="#efe6d4" />
+        <rect x="82" y="46" width="9" height="54" rx="4" fill="#efe6d4" />
         <rect x="82" y="93" width="9" height="7" rx="3" fill="#4a3f3a" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <rect x="40" y="64" width="9" height="36" rx="4" fill="#efe6d4" />
+        <rect x="40" y="44" width="9" height="56" rx="4" fill="#efe6d4" />
         <rect x="40" y="93" width="9" height="7" rx="3" fill="#4a3f3a" />
       </g>
       <g className="zoo-head">
-        <path d="M90 28 C 88 20, 90 16, 94 14 C 96 20, 96 24, 96 28 Z" fill="#a08a72" />
-        <path d="M98 27 C 98 19, 102 15, 106 14 C 106 20, 105 24, 104 28 Z" fill="#8a7560" />
+        <path d="M90 28 C 89 24, 91 21, 94 20 C 96 23, 96 26, 96 28 Z" fill="#a08a72" />
+        <path d="M98 27 C 98 23, 101 20, 105 20 C 105 23, 105 26, 104 28 Z" fill="#8a7560" />
         <ellipse cx="82" cy="40" rx="11" ry="5" transform="rotate(28 82 40)" fill="#d8c8ae" />
         <ellipse cx="98" cy="38" rx="16" ry="14" fill="#efe6d4" />
         <ellipse cx="111" cy="46" rx="11" ry="9" fill="#efe6d4" />
@@ -380,7 +376,6 @@ const goose: CreatureSpec = {
       </g>
       <g className="zoo-head">
         <path d="M92 74 C 110 66, 104 40, 112 24" stroke="#fbfbf8" strokeWidth="15" fill="none" strokeLinecap="round" />
-        <path d="M98 70 C 112 62, 108 44, 114 30" stroke="#e8ebec" strokeWidth="4" fill="none" strokeLinecap="round" opacity="0.7" />
         <ellipse cx="117" cy="18" rx="13" ry="11" fill="#fbfbf8" />
         <path d="M126 14 C 135 13, 144 17, 144 21 C 142 26, 133 27, 126 25 Z" fill="#f5821e" />
         <circle cx="128" cy="14" r="2.4" fill="#d96e12" />

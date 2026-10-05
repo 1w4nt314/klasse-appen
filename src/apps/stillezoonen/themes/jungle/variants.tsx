@@ -379,7 +379,8 @@ function totter(cx: number, cy: number, r: number, antal: number, tr: number, fa
     <g fill={farve}>
       {Array.from({ length: antal }, (_, i) => {
         const v = (i / antal) * Math.PI * 2;
-        return <circle key={i} cx={cx + Math.cos(v) * r} cy={cy + Math.sin(v) * r} r={tr} />;
+        // Afrundet, så server og browser giver samme tal (ellers hydreringsfejl).
+        return <circle key={i} cx={+(cx + Math.cos(v) * r).toFixed(2)} cy={+(cy + Math.sin(v) * r).toFixed(2)} r={tr} />;
       })}
     </g>
   );
