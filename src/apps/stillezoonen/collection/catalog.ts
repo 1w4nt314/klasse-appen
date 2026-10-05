@@ -3,6 +3,7 @@ import { creatures as dino } from "../themes/dino/creatures";
 import { creatures as farm } from "../themes/farm/creatures";
 import { creatures as jungle } from "../themes/jungle/creatures";
 import { creatures as ocean } from "../themes/ocean/creatures";
+import { creatures as skov } from "../themes/skov/creatures";
 
 /**
  * Hvilke figurer der findes i hvert tema — så serveren kun gemmer
@@ -14,6 +15,7 @@ const CATALOG: Record<string, ReadonlySet<string>> = {
   ocean: new Set(Object.keys(ocean)),
   alien: new Set(Object.keys(alien)),
   dino: new Set(Object.keys(dino)),
+  skov: new Set(Object.keys(skov)),
 };
 
 export const isKnownCreature = (theme: unknown, creature: unknown) =>
