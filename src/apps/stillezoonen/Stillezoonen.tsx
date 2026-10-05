@@ -29,14 +29,6 @@ export default function Stillezoonen({ userKey }: AppProps) {
   const mic = useMicrophone();
   const collection = useCollection(userKey);
   const [showCollection, setShowCollection] = useState(false);
-  const [toast, setToast] = useState<{
-    id: number;
-    name: string;
-    found: number;
-    total: number;
-    noun: string;
-    collection: string;
-  } | null>(null);
   // Komponenten kører kun i browseren (ssr: false), så localStorage kan læses med det samme.
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [animals, setAnimals] = useState<Animal[]>([]);
@@ -59,32 +51,14 @@ export default function Stillezoonen({ userKey }: AppProps) {
   const spottedRef = useRef<ReadonlySet<string>>(new Set());
   // Kaldes fra animationsløkken, når en figur har været fremme længe nok.
   const onSpotRef = useRef<(kind: string) => void>(() => {});
-  const { record, activeName } = collection;
+  const { record } = collection;
   useEffect(() => {
     spottedRef.current = new Set(spots.keys());
+    // Tælleren på pote-knappen og oversigten opdateres; ingen popup.
     onSpotRef.current = (kind) => {
-      const t = themeRef.current;
-      if (!record(t.id, kind)) return;
-      const name = t.creatures[kind]?.name ?? kind;
-      const now = Object.keys(t.creatures).filter((k) => spottedRef.current.has(k) || k === kind).length;
-      spottedRef.current = new Set([...spottedRef.current, kind]);
-      // Tema og samling huskes fra spot-øjeblikket (de kan skifte, mens toasten vises).
-      setToast({
-        id: Date.now(),
-        name,
-        found: now,
-        total: Object.keys(t.creatures).length,
-        noun: t.noun === "dyr" ? "dyr" : "væsen",
-        collection: activeName,
-      });
+      record(themeRef.current.id, kind);
     };
   });
-  // "Nyt dyr!" forsvinder af sig selv.
-  useEffect(() => {
-    if (!toast) return;
-    const id = window.setTimeout(() => setToast(null), 4500);
-    return () => window.clearTimeout(id);
-  }, [toast]);
 
   // Indstillinger huskes i browseren (pr. lærer-computer).
   useEffect(() => {
@@ -263,6 +237,7 @@ export default function Stillezoonen({ userKey }: AppProps) {
               data-dir={a.dir}
               data-gait={spec.gait}
               data-zone={spec.zone ?? theme.zone}
+              data-special={spec.special ? "" : undefined}
               style={
                 {
                   bottom: `${a.bottom}%`,
@@ -276,7 +251,10 @@ export default function Stillezoonen({ userKey }: AppProps) {
               <div className="zoo-shadow" />
               <div className="zoo-flip">
                 <div className="zoo-body">
-                  <CreatureArt spec={spec} className="zoo-art" />
+                  <CreatureArt spec={spec} className="zoo-art zoo-art-normal" />
+                  {spec.special && (
+                    <CreatureArt spec={spec} pose="special" className="zoo-art zoo-art-special" />
+                  )}
                 </div>
                 <span className="zoo-alarm" aria-hidden="true">
                   !
@@ -393,18 +371,6 @@ export default function Stillezoonen({ userKey }: AppProps) {
             zIndex={(running ? 310 : 410) + (front === "board" ? 1 : 0)}
             onClose={() => setSettings((s) => ({ ...s, board: false }))}
           />
-        </div>
-      )}
-
-      {running && toast && (
-        <div key={toast.id} className="zoo-toast" role="status">
-          <PawMark size={22} />
-          <span>
-            <strong>Nyt {toast.noun} spottet!</strong> {toast.name}
-            <small className="tabular-nums">
-              {toast.found} af {toast.total} · {toast.collection}
-            </small>
-          </span>
         </div>
       )}
 

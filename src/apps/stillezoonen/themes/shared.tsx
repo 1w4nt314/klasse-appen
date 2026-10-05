@@ -13,10 +13,13 @@ export function CreatureArt({
   spec,
   className,
   style,
+  pose = "normal",
 }: {
   spec: CreatureSpec;
   className?: string;
   style?: CSSProperties;
+  /** "special": figurens særlige opførsel (hvis den har en). */
+  pose?: "normal" | "special";
 }) {
   return (
     <svg
@@ -27,7 +30,7 @@ export function CreatureArt({
       aria-label={spec.name}
       overflow="visible"
     >
-      {spec.art}
+      {pose === "special" && spec.special ? spec.special : spec.art}
     </svg>
   );
 }

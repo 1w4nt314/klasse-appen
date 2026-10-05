@@ -129,7 +129,8 @@ export function CollectionOverlay({
             return (
               <li key={k} className="zc-card" data-spotted={!!spot} data-rarity={rarity}>
                 <span className="zc-art-box" aria-hidden="true">
-                  <CreatureArt spec={spec} className="zc-art" />
+                  {/* Spottede figurer med særlig opførsel vises i den positur. */}
+                  <CreatureArt spec={spec} pose={spot ? "special" : "normal"} className="zc-art" />
                 </span>
                 <span className="zc-name">{spot ? spec.name : "???"}</span>
                 {rarity !== "common" && <span className="zc-rarity">{RARITY[rarity].label}</span>}

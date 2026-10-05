@@ -54,6 +54,171 @@
   height: 100%;
 }
 
+/* Særlig opførsel: mens figuren står stille, skiftes til den særlige tegning. */
+.zoo-art-special {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 280ms ease 350ms;
+}
+.zoo-art-normal {
+  transition: opacity 280ms ease 350ms;
+}
+.zoo-animal[data-special][data-mode="idle"] .zoo-art-special {
+  opacity: 1;
+}
+.zoo-animal[data-special][data-mode="idle"] .zoo-art-normal {
+  opacity: 0;
+}
+/* Tilbage til den normale tegning med det samme, når den går eller flygter. */
+.zoo-animal[data-special]:not([data-mode="idle"]) .zoo-art-special,
+.zoo-animal[data-special]:not([data-mode="idle"]) .zoo-art-normal {
+  transition-delay: 0ms;
+  transition-duration: 120ms;
+}
+
+/*
+ * Effekter til særlige opførsler. Sættes på en <g> i tegningen. Drejepunkt
+ * sættes evt. med style={{ transformOrigin: "50% 100%" }} (fill-box = gruppens
+ * egen boks). --d forskyder starten, fx style={{ "--d": "0.4s" }}.
+ *   zoo-fx-talk    mund/kæbe der går op og ned (snakker)
+ *   zoo-fx-flip    side der vendes (bladrer i en bog)
+ *   zoo-fx-wave    arm/pote der vinker
+ *   zoo-fx-nod     hoved der nikker (i takt, læser, lytter)
+ *   zoo-fx-bob     hele figuren vugger let op og ned
+ *   zoo-fx-sparkle stjerne/glimt der tændes og slukkes
+ *   zoo-fx-rise    noder, bobler, zzz der stiger op og forsvinder
+ *   zoo-fx-spin    noget der snurrer rundt (plade, hulahopring)
+ *   zoo-fx-shake   lille ryst (griner, fryser)
+ */
+[class*="zoo-fx-"] {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation-delay: var(--d, 0s);
+}
+.zoo-fx-talk {
+  transform-origin: 50% 0%;
+  animation: zoo-fx-talk 0.32s ease-in-out infinite alternate;
+}
+.zoo-fx-flip {
+  transform-origin: 0% 50%;
+  animation: zoo-fx-flip 2.6s ease-in-out infinite;
+}
+.zoo-fx-wave {
+  transform-origin: 50% 100%;
+  animation: zoo-fx-wave 0.9s ease-in-out infinite alternate;
+}
+.zoo-fx-nod {
+  transform-origin: 50% 100%;
+  animation: zoo-fx-nod 1.1s ease-in-out infinite alternate;
+}
+.zoo-fx-bob {
+  animation: zoo-fx-bob 1.6s ease-in-out infinite alternate;
+}
+.zoo-fx-sparkle {
+  animation: zoo-fx-sparkle 1.4s ease-in-out infinite;
+}
+.zoo-fx-rise {
+  animation: zoo-fx-rise 2.4s ease-out infinite;
+}
+.zoo-fx-spin {
+  animation: zoo-fx-spin 1.8s linear infinite;
+}
+.zoo-fx-shake {
+  animation: zoo-fx-shake 0.4s ease-in-out infinite;
+}
+@keyframes zoo-fx-talk {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes zoo-fx-flip {
+  0%,
+  70% {
+    transform: scaleX(1);
+  }
+  85% {
+    transform: scaleX(0.05);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes zoo-fx-wave {
+  from {
+    transform: rotate(-14deg);
+  }
+  to {
+    transform: rotate(14deg);
+  }
+}
+@keyframes zoo-fx-nod {
+  from {
+    transform: rotate(-4deg);
+  }
+  to {
+    transform: rotate(5deg);
+  }
+}
+@keyframes zoo-fx-bob {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-4%);
+  }
+}
+@keyframes zoo-fx-sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes zoo-fx-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120%) scale(1.1);
+  }
+}
+@keyframes zoo-fx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes zoo-fx-shake {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="zoo-fx-"],
+  .zoo-wing {
+    animation: none;
+  }
+}
+
 .zoo-shadow {
   position: absolute;
   left: 12%;
@@ -143,6 +308,20 @@
 }
 .zoo-animal[data-gait="float"][data-mode="flee"] .zoo-body {
   animation-duration: 260ms;
+}
+/* Vinger (kolibri, sommerfugl): slår hele tiden. --flap = varighed pr. slag. */
+.zoo-wing {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: zoo-flap var(--flap, 0.3s) ease-in-out infinite alternate;
+}
+@keyframes zoo-flap {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(0.25);
+  }
 }
 
 /* Figurer der svæver frit, kaster ingen skygge på jorden. */
@@ -1163,53 +1342,6 @@
   }
 }
 
-.zoo-toast {
-  position: absolute;
-  /* Under topbjælken (lydmålerens kort, menuer), over timer/tavle — den er
-     kort, kan ikke klikkes på og må ikke forsvinde bag et vindue. */
-  z-index: 315;
-  top: 4.25rem;
-  left: 50%;
-  translate: -50% 0;
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.65rem 1.1rem;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--line);
-  background: rgb(255 255 255 / 0.96);
-  box-shadow: var(--shadow-float);
-  color: var(--accent);
-  pointer-events: none;
-  animation: zoo-toast 4.5s ease-in-out both;
-}
-.zoo-toast > span {
-  display: grid;
-  color: var(--ink);
-  font-size: 1.05rem;
-}
-.zoo-toast strong {
-  font-family: var(--font-display);
-  color: var(--accent);
-}
-.zoo-toast small {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-@keyframes zoo-toast {
-  0% {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.96);
-  }
-  8%,
-  85% {
-    opacity: 1;
-    transform: none;
-  }
-  100% {
-    opacity: 0;
-  }
-}
 
 .zc-backdrop {
   position: fixed;

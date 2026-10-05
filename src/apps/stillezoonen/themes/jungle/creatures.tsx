@@ -1,6 +1,10 @@
 import type { CSSProperties } from "react";
 import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
+import { more } from "./creatures-2";
+import { evenMore } from "./creatures-3";
+import { specials } from "./specials";
+import { variants } from "./variants";
 
 /**
  * Jungledyrene i Stillezoonen. Hvert dyr er tegnet i profil, vendt mod højre,
@@ -389,6 +393,7 @@ const snake: CreatureSpec = {
   ),
 };
 
+/** Alle jungledyr (de første 12 her, resten i de øvrige filer i mappen). */
 export const creatures: Record<string, CreatureSpec> = {
   elephant,
   tiger,
@@ -402,4 +407,8 @@ export const creatures: Record<string, CreatureSpec> = {
   sloth,
   tapir,
   snake,
+  ...more,
+  ...evenMore,
+  ...variants,
+  ...specials,
 };
