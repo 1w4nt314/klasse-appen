@@ -33,8 +33,9 @@ const oenskeKrop = (
     {/* Lang, flagrende rygfinne og bugfinner. */}
     <path d="M60 34 C 58 16, 70 2, 88 4 C 82 10, 90 18, 104 27 Z" fill={OF_MOERK} />
     <path d="M66 30 C 66 18, 74 10, 84 9" stroke={OF_LYS} strokeWidth="1.6" fill="none" strokeLinecap="round" />
-    <path d="M68 74 C 60 86, 66 96, 78 96 C 74 90, 78 82, 84 77 Z" fill={OF_MOERK} />
-    <path d="M96 76 C 96 86, 102 90, 108 88 C 106 84, 106 78, 106 72 Z" fill={OF_MOERK} />
+    <path d="M66 72 C 58 82, 50 90, 38 94 C 52 98, 68 92, 80 77 Z" fill={OF_MOERK} />
+    <path d="M62 80 C 56 86, 50 90, 44 92" stroke={OF_LYS} strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    <path d="M92 76 C 88 84, 82 90, 72 92 C 84 95, 96 89, 102 75 Z" fill={OF_MOERK} />
     <ellipse cx="88" cy="50" rx="38" ry="28" fill={OF_GULD} />
     <path d="M51.6 58 A38 28 0 0 0 124.4 58 C 104 68, 72 68, 51.6 58 Z" fill={OF_LYS} opacity="0.85" />
     <path d="M62 36 C 70 28, 82 25, 94 26" stroke={OF_GLANS} strokeWidth="3.5" fill="none" strokeLinecap="round" />
@@ -59,14 +60,13 @@ const oenskeFinne = <path d="M90 54 C 100 56, 106 64, 102 72 C 94 70, 89 63, 90 
 
 /** Lysbuen af ønsker, der strømmer op fra kronen. */
 const ONSKER = [
-  { x: 121, y: 6, form: "stjerne", r: 4.4, farve: "#ffe066" },
-  { x: 120, y: -10, form: "hjerte", r: 4.4, farve: "#f472b6" },
-  { x: 110, y: -23, form: "stjerne", r: 5, farve: "#ffffff" },
-  { x: 93, y: -30, form: "hjerte", r: 5, farve: "#fb7185" },
-  { x: 75, y: -31, form: "stjerne", r: 5, farve: "#a5f3fc" },
-  { x: 57, y: -27, form: "hjerte", r: 4.6, farve: "#f9a8d4" },
-  { x: 42, y: -19, form: "stjerne", r: 4.4, farve: "#ffe066" },
-  { x: 30, y: -9, form: "hjerte", r: 4, farve: "#c4b5fd" },
+  { x: 123, y: 2, form: "stjerne", r: 5.6, farve: "#ffe066" },
+  { x: 119, y: -16, form: "hjerte", r: 5.4, farve: "#f472b6" },
+  { x: 104, y: -28, form: "stjerne", r: 6.4, farve: "#ffffff" },
+  { x: 84, y: -32, form: "hjerte", r: 6, farve: "#fb7185" },
+  { x: 64, y: -29, form: "stjerne", r: 6.2, farve: "#a5f3fc" },
+  { x: 46, y: -21, form: "hjerte", r: 5.4, farve: "#f9a8d4" },
+  { x: 32, y: -9, form: "stjerne", r: 5, farve: "#ffe066" },
 ] as const;
 
 /** Den gyldne fisk fra eventyret — holder den pause, opfylder den et ønske. */
@@ -110,7 +110,8 @@ const wishFish: CreatureSpec = {
       <circle cx="106" cy="56" r="4.4" fill="#ff8a9a" opacity="0.6" />
       {oenskeKrone}
       {/* Den gyldne lysbue, ønskerne strømmer op ad. */}
-      <path d="M116 18 C 126 -2, 114 -26, 90 -30 C 66 -34, 42 -24, 26 -4" stroke="#fff3b0" strokeWidth="7" fill="none" strokeLinecap="round" opacity="0.35" />
+      <path d="M116 18 C 126 -2, 114 -26, 90 -30 C 66 -34, 42 -24, 26 -4" stroke="#fff3b0" strokeWidth="9" fill="none" strokeLinecap="round" opacity="0.18" />
+      <path d="M116 18 C 126 -2, 114 -26, 90 -30 C 66 -34, 42 -24, 26 -4" stroke="#fff7c2" strokeWidth="2.6" strokeDasharray="0.1 6" fill="none" strokeLinecap="round" />
       {ONSKER.map((o, i) => (
         <g key={i} className="zoo-fx-rise" style={fx(`${(i * 0.3).toFixed(1)}s`)}>
           {o.form === "stjerne" ? STJERNE(o.x, o.y, o.r, o.farve) : HJERTE(o.x, o.y, o.r, o.farve)}
@@ -129,6 +130,9 @@ const wishFish: CreatureSpec = {
 /* Lille Kraken (legendarisk)                                               */
 /* ------------------------------------------------------------------------ */
 
+/** Afrunder til 2 decimaler. */
+const rund = (v: number) => +v.toFixed(2);
+
 const KR_KAPPE = "#4a3aa6";
 const KR_LYS = "#6a58cf";
 const KR_BAG = "#2f2680";
@@ -137,18 +141,18 @@ const KR_SUG = "#b9a9f5";
 const KR_TURKIS = "#5eead4";
 
 /** Bageste arme (mørkere), hver med krøllet spids. */
-const KR_BAGARME = [
-  "M50 100 C 30 108, 32 128, 16 136 C 8 140, 8 150, 16 151 C 21 151, 22 146, 18 144",
-  "M84 106 C 84 126, 92 142, 86 158 C 84 164, 90 168, 94 164",
-  "M118 100 C 138 108, 136 128, 152 136 C 160 140, 160 150, 152 151 C 147 151, 146 146, 150 144",
+const KR_BAGARME: [string, string][] = [
+  ["M50 100 C 30 108, 32 128, 18 136", "M18 136 C 6 142, 6 156, 16 156 C 24 156, 25 146, 18 146"],
+  ["M84 106 C 84 124, 90 138, 86 152", "M86 152 C 82 162, 88 170, 95 167 C 100 164, 98 157, 93 158"],
+  ["M118 100 C 138 108, 136 128, 150 136", "M150 136 C 162 142, 162 156, 152 156 C 144 156, 143 146, 150 146"],
 ];
 
 /** Forreste arme fra venstre mod højre. */
-const KR_ARME = [
-  "M56 104 C 46 124, 58 142, 42 158 C 36 164, 42 172, 48 168 C 52 165, 49 160, 46 162",
-  "M74 108 C 70 128, 80 146, 68 162 C 64 168, 70 174, 75 170",
-  "M96 108 C 100 128, 90 146, 102 162 C 106 168, 100 174, 95 170",
-  "M114 104 C 124 124, 112 142, 128 158 C 134 164, 128 172, 122 168 C 118 165, 121 160, 124 162",
+const KR_ARME: [string, string][] = [
+  ["M56 104 C 46 124, 58 140, 44 154", "M44 154 C 34 162, 38 174, 47 172 C 54 170, 52 161, 46 163"],
+  ["M74 108 C 70 126, 80 142, 70 156", "M70 156 C 64 164, 68 174, 76 172 C 82 170, 80 162, 75 164"],
+  ["M96 108 C 100 126, 90 142, 100 156", "M100 156 C 106 164, 102 174, 94 172 C 88 170, 90 162, 95 164"],
+  ["M114 104 C 124 124, 112 140, 126 154", "M126 154 C 136 162, 132 174, 123 172 C 116 170, 118 161, 124 163"],
 ];
 
 /** Sugekopper på de forreste arme (samme rækkefølge som KR_ARME). */
@@ -159,12 +163,13 @@ const KR_SUGEKOPPER: [number, number][][] = [
   [[119, 124], [120, 142]],
 ];
 
-const kArm = (d: string, farve: string, bredde: number) => (
-  <path d={d} stroke={farve} strokeWidth={bredde} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+/** Arm med tyk rod og tyndere, krøllet spids. */
+const kArm = ([d, kroel]: [string, string], farve: string, bredde: number) => (
+  <g stroke={farve} fill="none" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} strokeWidth={bredde} />
+    <path d={kroel} strokeWidth={rund(bredde * 0.6)} />
+  </g>
 );
-
-/** Afrunder til 2 decimaler. */
-const rund = (v: number) => +v.toFixed(2);
 
 /** Lysende turkis prik med glorie. */
 const lysPrik = (x: number, y: number, r: number) => (
@@ -260,7 +265,7 @@ const babyKraken: CreatureSpec = {
       ))}
       {/* Venstre forarm løftet og vinker til klassen. */}
       <g className="zoo-fx-wave" style={{ ...fx("0.4s", "100% 100%"), animationDuration: "0.7s" }}>
-        {kArm("M54 100 C 36 98, 26 84, 24 68 C 23 60, 18 56, 14 60", KR_ARM, 11)}
+        {kArm(["M54 100 C 36 98, 26 84, 24 70", "M24 70 C 22 60, 14 56, 10 62 C 7 67, 13 71, 15 66"], KR_ARM, 11)}
         <circle cx="31" cy="88" r="2.1" fill={KR_SUG} />
       </g>
       {/* De to midterste arme svajer med. */}
@@ -273,7 +278,7 @@ const babyKraken: CreatureSpec = {
         </g>
       ))}
       {/* Højre forarm strakt op med sejlskibet på spidsen. */}
-      {kArm("M116 98 C 138 100, 150 86, 150 66 C 150 56, 152 49, 156 45", KR_ARM, 11)}
+      {kArm(["M116 98 C 138 100, 150 86, 150 66", "M150 66 C 150 56, 152 49, 156 44"], KR_ARM, 11)}
       <circle cx="141" cy="92" r="2.1" fill={KR_SUG} />
       <circle cx="150" cy="72" r="2.1" fill={KR_SUG} />
       {krakenHoved(true)}
@@ -389,7 +394,8 @@ const lanternFish: CreatureSpec = {
       </g>
       <path d="M137 70 v 24" stroke="#b8402f" strokeWidth="1.5" />
       {/* Brystfinnen holder bogen. */}
-      <path d="M66 74 C 82 74, 104 84, 122 88 C 118 94, 100 96, 84 92 C 74 90, 66 84, 66 74 Z" fill={LF_LYS} />
+      {lygteBrystfinne}
+      <path d="M98 88 C 106 84, 116 84, 123 89 C 119 95, 107 97, 98 93 Z" fill={LF_LYS} />
       {/* Lygten lyser stærkt og pulserer. */}
       <circle cx="140" cy="28" r="11" fill={LF_GLOED} opacity="0.5" />
       <g className="zoo-fx-sparkle" style={{ animationDuration: "2.2s" }}><circle cx="140" cy="28" r="19" fill={LF_GLOED} opacity="0.45" /></g>
