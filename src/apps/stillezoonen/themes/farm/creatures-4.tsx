@@ -132,7 +132,7 @@ const mole: CreatureSpec = {
         <ellipse cx="46" cy="28" rx="22" ry="9" fill="#4c4755" opacity="0.8" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <ellipse cx="76" cy="52" rx="12" ry="8" fill="#f0b5b0" />
+        <ellipse cx="74" cy="52" rx="12" ry="8" fill="#f0b5b0" />
         <ellipse cx="42" cy="55" rx="12" ry="5" fill="#f0b5b0" />
       </g>
       <g className="zoo-head">
@@ -142,9 +142,9 @@ const mole: CreatureSpec = {
         {EYE(88, 28, 2.4)}
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <ellipse cx="88" cy="48" rx="15" ry="10" transform="rotate(-24 88 48)" fill="#f7c4bf" />
-        <path d="M98 40 L 107 42 M100 46 L 110 49 M98 52 L 107 57" stroke="#fff6e8" strokeWidth="3.4" strokeLinecap="round" />
-        <path d="M80 52 C 88 56, 96 54, 100 50" stroke="#d98e8c" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <ellipse cx="86" cy="51" rx="13" ry="8" transform="rotate(-8 86 51)" fill="#f7c4bf" />
+        <path d="M95 46 L 105 47 M97 51 L 108 53 M95 56 L 105 58" stroke="#fff6e8" strokeWidth="3" strokeLinecap="round" />
+        <path d="M76 52 C 82 56, 90 56, 94 53" stroke="#d98e8c" strokeWidth="1.6" fill="none" strokeLinecap="round" />
       </g>
     </>
   ),
@@ -182,7 +182,6 @@ const stork: CreatureSpec = {
         <path d="M105 31 L 158 41 L 106 47 Z" fill="#e0483a" />
         <path d="M105 40 L 158 41 L 106 47 Z" fill="#c23a2e" />
         {EYE(101, 33, 3.2)}
-        <path d="M94 29 L 108 27" stroke="#2b2b30" strokeWidth="1.8" strokeLinecap="round" />
       </g>
     </>
   ),
@@ -199,8 +198,8 @@ const swallow: CreatureSpec = {
   art: (
     <>
       <g className="zoo-wing" style={{ "--flap": "0.12s" } as CSSProperties}>
-        <path d="M70 36 C 62 18, 44 6, 24 2 C 32 18, 44 32, 62 44 Z" fill="#1b2f5e" />
-        <path d="M74 34 C 72 20, 62 8, 46 0 C 46 16, 54 30, 68 42 Z" fill="#2c4a8c" />
+        <path d="M80 40 C 72 20, 48 6, 14 2 C 28 16, 36 32, 52 46 Z" fill="#1b2f5e" />
+        <path d="M82 38 C 80 22, 66 8, 44 0 C 46 16, 54 30, 68 44 Z" fill="#2c4a8c" />
       </g>
       <path d="M40 44 L 4 36 L 22 46 L 6 62 L 42 52 Z" fill="#1f3668" />
       <g className="zoo-torso">
@@ -233,16 +232,12 @@ const honeyBee: CreatureSpec = {
       </g>
       <path d="M26 48 L 24 53 M36 49 L 36 54 M46 47 L 48 52" stroke="#3a2a1c" strokeWidth="2.2" strokeLinecap="round" />
       <g className="zoo-torso">
-        <clipPath id="honningbi-krop">
-          <ellipse cx="32" cy="32" rx="24" ry="18" />
-        </clipPath>
         <ellipse cx="32" cy="32" rx="24" ry="18" fill="#f5c52e" />
-        <g clipPath="url(#honningbi-krop)">
-          <rect x="16" y="10" width="7" height="44" fill="#3a2a1c" />
-          <rect x="30" y="10" width="7" height="44" fill="#3a2a1c" />
-          <rect x="1" y="10" width="6" height="44" fill="#3a2a1c" />
-          <ellipse cx="30" cy="22" rx="20" ry="6" fill="#fbe27a" opacity="0.7" />
-        </g>
+        <ellipse cx="30" cy="22" rx="20" ry="6" fill="#fbe27a" opacity="0.6" />
+        {/* Striber, der følger kroppens omrids. */}
+        <path d="M16 18.6 A 24 18 0 0 1 23 15.3 L 23 48.7 A 24 18 0 0 1 16 45.4 Z" fill="#3a2a1c" />
+        <path d="M30 14.1 A 24 18 0 0 1 37 14.4 L 37 49.6 A 24 18 0 0 1 30 49.9 Z" fill="#3a2a1c" />
+        <path d="M8 31.5 A 24 18 0 0 1 7 32 L 7 32 A 24 18 0 0 1 8 32.5 Z" fill="#3a2a1c" />
         <circle cx="8.5" cy="33" r="2.4" fill="#3a2a1c" />
       </g>
       <g className="zoo-head">
@@ -297,7 +292,7 @@ const snail: CreatureSpec = {
 const kaalVinger = (
   <>
     <path d="M46 40 C 40 22, 48 4, 68 4 C 80 6, 76 24, 58 40 Z" fill="#fbfbf6" />
-    <path d="M48 41 C 30 38, 14 24, 20 16 C 30 12, 46 24, 54 40 Z" fill="#f1f0d6" />
+    <path d="M48 41 C 30 38, 14 24, 20 16 C 30 12, 46 24, 54 40 Z" fill="#f2f2e4" />
     <path d="M52 8 C 58 2, 74 2, 77 10 C 72 14, 58 13, 52 8 Z" fill="#33323a" />
     <circle cx="60" cy="25" r="3.2" fill="#33323a" />
     <path d="M46 40 C 44 34, 44 30, 46 26" stroke="#d9d7b8" strokeWidth="1.5" fill="none" />
