@@ -243,6 +243,7 @@
 }
 
 .ol-stage {
+  position: relative;
   display: grid;
   flex: 1;
   min-width: 0;
@@ -347,4 +348,201 @@
   height: 18px;
   margin: 0;
   accent-color: var(--brand);
+}
+
+/* ---------- Visning: Opgave / Svarark ---------- */
+
+.ol-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--canvas);
+}
+.ol-view-label {
+  padding: 0 6px 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-view-btn {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-view-btn:hover {
+  background: var(--brand-soft);
+}
+.ol-view-btn[aria-pressed="true"] {
+  background: var(--brand);
+  color: #fff;
+}
+@media (pointer: coarse) {
+  .ol-view-btn {
+    min-height: 40px;
+  }
+}
+
+.ol-viewnote {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 1;
+  max-width: calc(100% - 24px);
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-strong);
+  text-align: center;
+}
+
+/* ---------- Parametertabel ---------- */
+
+.ol-values {
+  border-collapse: separate;
+}
+.ol-values tbody tr {
+  display: grid;
+  grid-template-columns: 3.2em minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+.ol-values tbody th,
+.ol-values tbody td {
+  padding: 0;
+  border: 0;
+}
+.ol-values tbody th {
+  width: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1rem;
+}
+.ol-rename {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 6px;
+}
+.ol-alias {
+  width: 5.2em;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+.ol-alias::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.ol-find {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 10px;
+}
+.ol-find-why {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.ol-vis .ol-check {
+  font-size: 0.875rem;
+}
+
+.ol-subtitle {
+  margin-bottom: 4px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.ol-calc-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ol-link {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--brand);
+  text-align: left;
+  cursor: pointer;
+}
+.ol-link:hover {
+  background: var(--brand-soft);
+}
+
+/* ---------- Advarsel, regnestykke-info, bekræftelse ---------- */
+
+.ol-warn {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #e0b340;
+  border-left-width: 4px;
+  border-radius: var(--radius-control);
+  background: #fff6dc;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #5c4208;
+}
+
+.ol-calc-info {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.ol-calc-info dt {
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-calc-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.ol-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+}
+.ol-confirm-q {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.ol-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }

@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 
+export type View = "opgave" | "svarark";
+
 export function TopBar({
+  view,
+  onView,
   name,
   onName,
   canUndo,
@@ -10,6 +14,8 @@ export function TopBar({
   onNew,
   dirty,
 }: {
+  view: View;
+  onView: (view: View) => void;
   name: string;
   onName: (name: string) => void;
   canUndo: boolean;
@@ -36,6 +42,23 @@ export function TopBar({
           onChange={(e) => onName(e.target.value)}
         />
       </label>
+      <div className="ol-view" role="group" aria-label="Visning af arket">
+        <span className="ol-view-label" aria-hidden="true">
+          Vis:
+        </span>
+        {(["opgave", "svarark"] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            className="ol-view-btn"
+            data-ol-view={v}
+            aria-pressed={view === v}
+            onClick={() => onView(v)}
+          >
+            {v === "opgave" ? "Opgave" : "Svarark"}
+          </button>
+        ))}
+      </div>
       {dirty && <span className="ol-dirty">Ikke gemt</span>}
       <div className="ol-top-actions">
         <button type="button" className="ol-btn" onClick={onNew}>

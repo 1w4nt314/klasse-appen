@@ -1,6 +1,7 @@
 // Opgavelab — figur-registry. En ny figur (fri trekant, rektangel, cirkel …)
 // tilføjes som én ny FigureDef her. Denne fil må gerne importere runtime fra core.
 
+import { FMT } from "../core/format";
 import { rightTriangle } from "../core/rightTriangle";
 import type {
   Bounds,
@@ -11,6 +12,7 @@ import type {
   FigureObject,
   FigureShape,
   ParamState,
+  Solution,
 } from "./types";
 
 export type {
@@ -77,4 +79,33 @@ export function dragOpts(settings: DocSettings, coarse = false): DragOpts {
     snapDeg: settings.snapDeg || coarse,
     degStep: coarse ? 15 : 1,
   };
+}
+
+/** Løsning af "Find <param>" ud fra figurens synlige størrelser (null = kan ikke findes). */
+export function solveParam(fig: FigureObject, param: string, settings: DocSettings): Solution | null {
+  const def = getFigureDef(fig.figure);
+  if (!def) return null;
+  return def.solve(param, visibleParams(fig), def.compute(fig.shape), displayNames(fig), FMT, settings);
+}
+
+/** "a og b" / "A, B og C". */
+function joinNames(names: string[]): string {
+  return names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} og ${names[names.length - 1]}`;
+}
+
+/**
+ * Dansk forklaring, hvis et regnestykke ikke kan udregnes ud fra de synlige størrelser
+ * (ellers null). Foreslår det givne-sæt, der kræver færrest nye synlige størrelser.
+ */
+export function calcProblem(fig: FigureObject, param: string, settings: DocSettings): string | null {
+  const def = getFigureDef(fig.figure);
+  if (!def || solveParam(fig, param, settings)) return null;
+  const name = displayName(fig, param);
+  if (fig.params[param]?.visible) return `${name} er synlig på figuren — skjul den for at kunne finde den`;
+  const vis = visibleParams(fig);
+  const sets = def.solvableFrom(param);
+  let best: string[] | null = null;
+  for (const s of sets) if (!best || s.filter((k) => !vis.has(k)).length < best.filter((k) => !vis.has(k)).length) best = s;
+  const hint = best ? ` — vis fx ${joinNames(best.map((k) => displayName(fig, k)))}` : "";
+  return `${name} kan ikke findes ud fra de synlige størrelser${hint}`;
 }

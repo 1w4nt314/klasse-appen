@@ -6,14 +6,16 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { numberDocument } from "../core/numbering";
-import { dragOpts, figureBoundsOnSheet, getFigureDef } from "../model/figures";
+import { calcProblem, dragOpts, figureBoundsOnSheet, getFigureDef } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
-import { SheetSvg, figureExtent } from "../render/SheetSvg";
+import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
 import { toSvg } from "./pointer";
 
 const BRAND = "#1a4f8b";
+const WARN = "#b7791f";
+const WARN_FILL = "rgba(245, 190, 60, 0.22)";
 const DRAG_THRESHOLD_MM = 1;
 /** Piletaster flytter det markerede objekt så mange mm (Shift: NUDGE_BIG). */
 const NUDGE = 1;
@@ -81,6 +83,7 @@ function isTyping(t: EventTarget | null): boolean {
 
 export function SheetEditor({
   doc,
+  mode,
   selectedId,
   measure,
   onSelect,
@@ -89,6 +92,8 @@ export function SheetEditor({
   onCommit,
 }: {
   doc: SheetDoc;
+  /** "svarark" er en skrivebeskyttet forhåndsvisning (vælg, men ikke flyt). */
+  mode: SheetMode;
   selectedId: string | null;
   measure: Measure;
   onSelect: (id: string | null) => void;
@@ -122,9 +127,9 @@ export function SheetEditor({
   const selected = doc.objects.find((o) => o.id === selectedId) ?? null;
 
   // Piletaster flytter det markerede objekt (1 mm, Shift = 5 mm); hvert tryk er ét fortryd-trin.
-  const latest = useRef({ doc, selected, numbering, measure, onMove, onCommit });
+  const latest = useRef({ doc, selected, numbering, measure, onMove, onCommit, mode });
   useEffect(() => {
-    latest.current = { doc, selected, numbering, measure, onMove, onCommit };
+    latest.current = { doc, selected, numbering, measure, onMove, onCommit, mode };
   });
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -138,7 +143,7 @@ export function SheetEditor({
       const v = dir[e.key];
       const cur = latest.current;
       const obj = cur.selected;
-      if (!v || !obj || drag.current) return;
+      if (!v || !obj || drag.current || cur.mode !== "opgave") return;
       e.preventDefault();
       const step = e.shiftKey ? NUDGE_BIG : NUDGE;
       const box = boxFor(obj, cur.doc, cur.numbering, cur.measure);
@@ -197,7 +202,7 @@ export function SheetEditor({
     const hit = target.closest("[data-ol-hit]");
     const id = hit?.getAttribute("data-ol-hit") ?? null;
     onSelect(id);
-    if (!id) return;
+    if (!id || mode !== "opgave") return;
     const obj = doc.objects.find((o) => o.id === id);
     const pt = toSvg(svg, e);
     if (!obj || !pt) return;
@@ -281,12 +286,17 @@ export function SheetEditor({
   }
 
   return (
-    <div className="ol-stage" ref={stageRef} data-dragging={dragging || undefined}>
+    <div className="ol-stage" ref={stageRef} data-dragging={dragging || undefined} data-ol-mode={mode}>
+      {mode === "svarark" && (
+        <p className="ol-viewnote" data-ol-viewnote="">
+          Svarark (forhåndsvisning) — skjulte størrelser står i blåt
+        </p>
+      )}
       {size && sheetW > 0 && (
         <div className="ol-sheet" style={{ width: sheetW, height: sheetH }}>
           <SheetSvg
             doc={doc}
-            mode="opgave"
+            mode={mode}
             numbering={numbering}
             measure={measure}
             svgRef={svgRef}
@@ -303,7 +313,14 @@ export function SheetEditor({
               onLostPointerCapture: endDrag,
             }}
           >
-            <Overlay doc={doc} selected={selected} numbering={numbering} measure={measure} activeHandle={activeHandle} />
+            <Overlay
+              doc={doc}
+              mode={mode}
+              selected={selected}
+              numbering={numbering}
+              measure={measure}
+              activeHandle={activeHandle}
+            />
           </SheetSvg>
         </div>
       )}
@@ -325,12 +342,14 @@ function hitProps(id: string) {
 
 function Overlay({
   doc,
+  mode,
   selected,
   numbering,
   measure,
   activeHandle,
 }: {
   doc: SheetDoc;
+  mode: SheetMode;
   selected: SheetObject | null;
   numbering: ReadonlyMap<string, string>;
   measure: Measure;
@@ -340,19 +359,38 @@ function Overlay({
     <g data-ol-overlay="">
       {doc.objects.map((o) => {
         if (o.type === "figure") return <FigureHit key={o.id} fig={o} />;
-        const b = objectBox(o, doc, numbering, measure);
+        const b = objectBox(o, doc, numbering, measure, mode);
+        const fig = o.type === "calc" ? doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId) : null;
+        const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
         return (
-          <rect
-            key={o.id}
-            x={b.minX - 1}
-            y={b.minY - 1}
-            width={b.maxX - b.minX + 2}
-            height={b.maxY - b.minY + 2}
-            {...hitProps(o.id)}
-          />
+          <g key={o.id}>
+            {problem && (
+              // Kun i editoren: regnestykket kan ikke udregnes ud fra de synlige størrelser.
+              <rect
+                data-ol-warn={o.id}
+                x={b.minX - 1.2}
+                y={b.minY - 1.2}
+                width={b.maxX - b.minX + 2.4}
+                height={b.maxY - b.minY + 2.4}
+                rx={1}
+                fill={WARN_FILL}
+                stroke={WARN}
+                strokeWidth={0.4}
+                strokeDasharray="1.2 0.8"
+                pointerEvents="none"
+              />
+            )}
+            <rect
+              x={b.minX - 1}
+              y={b.minY - 1}
+              width={b.maxX - b.minX + 2}
+              height={b.maxY - b.minY + 2}
+              {...hitProps(o.id)}
+            />
+          </g>
         );
       })}
-      {selected && (
+      {selected && mode === "opgave" && (
         <Selection obj={selected} doc={doc} numbering={numbering} measure={measure} activeHandle={activeHandle} />
       )}
     </g>
@@ -382,7 +420,7 @@ function Selection({
   measure: Measure;
   activeHandle: string | null;
 }) {
-  const b = boxFor(obj, doc, numbering, measure);
+  const b = obj.type === "figure" ? boxFor(obj, doc, numbering, measure) : objectBox(obj, doc, numbering, measure, "opgave");
   const pad = 1.5;
   const def = obj.type === "figure" ? getFigureDef(obj.figure) : null;
   const verts = obj.type === "figure" && def ? def.vertices(obj.shape) : null;

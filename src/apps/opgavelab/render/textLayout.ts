@@ -95,18 +95,22 @@ export function calcContent(
   return { number, body, sizeMm, widthMm: numW + measure(body, CALC_PT) };
 }
 
-/** Objektets udstrækning på arket i mm (til markering og grænser). */
+/**
+ * Objektets udstrækning på arket i mm (til markering og grænser). Et regnestykke er bredest
+ * på svararket (standard); `mode: "opgave"` giver den smalle "X = ____"-boks til markering.
+ */
 export function objectBox(
   obj: SheetObject,
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
+  mode: "opgave" | "svarark" = "svarark",
 ): Bounds {
   if (obj.type === "figure") return figureBoundsOnSheet(obj);
   if (obj.type === "text") {
     const l = layoutText(obj, measure);
     return { minX: obj.x, minY: obj.y, maxX: obj.x + obj.width, maxY: obj.y + l.height };
   }
-  const c = calcContent(doc, obj, "svarark", numbering.get(obj.id) ?? "", measure);
+  const c = calcContent(doc, obj, mode, numbering.get(obj.id) ?? "", measure);
   return { minX: obj.x, minY: obj.y, maxX: obj.x + c.widthMm, maxY: obj.y + c.sizeMm * LINE_HEIGHT };
 }

@@ -39,7 +39,7 @@ type Patch = ObjectPatch;
 
 export type DocAction =
   | { type: "addNew"; id: string; kind: "text" | FigureKind }
-  | { type: "addCalc"; id: string; figureId: string; param: string }
+  | { type: "addCalc"; id: string; figureId: string; param: string; x?: number; y?: number }
   | { type: "update"; id: string; patch: Patch; key?: string }
   | { type: "move"; id: string; x: number; y: number }
   | { type: "reshape"; id: string; shape: FigureShape; x: number; y: number }
@@ -88,9 +88,12 @@ export function reducer(s: DocState, a: DocAction): DocState {
     }
     case "addCalc": {
       const fig = s.doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === a.figureId);
-      if (!fig || s.doc.objects.length >= 200) return s;
+      if (!fig || !(a.param in fig.params) || s.doc.objects.length >= 200) return s;
+      // Ét regnestykke pr. størrelse.
+      if (s.doc.objects.some((o) => o.type === "calc" && o.figureId === fig.id && o.param === a.param)) return s;
       const siblings = s.doc.objects.filter((o) => o.type === "calc" && o.figureId === fig.id).length;
-      const calc = makeCalc(a.id, fig, a.param, siblings);
+      const base = makeCalc(a.id, fig, a.param, siblings);
+      const calc = { ...base, x: a.x ?? base.x, y: a.y ?? base.y };
       return commitChange(s, { ...s.doc, objects: [...s.doc.objects, calc] }, null, { selectedId: calc.id });
     }
     case "update": {
@@ -187,7 +190,8 @@ export function useDocument() {
     () => ({
       addText: () => dispatch({ type: "addNew", id: newId(), kind: "text" }),
       addFigure: (kind: FigureKind) => dispatch({ type: "addNew", id: newId(), kind }),
-      addCalc: (figureId: string, param: string) => dispatch({ type: "addCalc", id: newId("c"), figureId, param }),
+      addCalc: (figureId: string, param: string, x?: number, y?: number) =>
+        dispatch({ type: "addCalc", id: newId("c"), figureId, param, x, y }),
       update: (id: string, patch: Patch, key?: string) => dispatch({ type: "update", id, patch, key }),
       move: (id: string, x: number, y: number) => dispatch({ type: "move", id, x, y }),
       reshape: (id: string, shape: FigureShape, x: number, y: number) => dispatch({ type: "reshape", id, shape, x, y }),
