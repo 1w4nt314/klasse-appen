@@ -80,7 +80,9 @@
 /*
  * Effekter til særlige opførsler. Sættes på en <g> i tegningen. Drejepunkt
  * sættes evt. med style={{ transformOrigin: "50% 100%" }} (fill-box = gruppens
- * egen boks). --d forskyder starten, fx style={{ "--d": "0.4s" }}.
+ * egen boks). --d forskyder fasen, fx style={{ "--d": "0.4s" }}: animationen
+ * starter straks, men så langt inde i sin cyklus (negativ forsinkelse), så
+ * intet står stille i grundtilstanden, før den går i gang.
  *   zoo-fx-talk    mund/kæbe der går op og ned (snakker)
  *   zoo-fx-flip    side der vendes (bladrer i en bog)
  *   zoo-fx-wave    arm/pote der vinker
@@ -94,38 +96,45 @@
 [class*="zoo-fx-"] {
   transform-box: fill-box;
   transform-origin: 50% 50%;
-  animation-delay: var(--d, 0s);
 }
+/* --d arves ikke, så en effekt inde i en forskudt gruppe starter selv i 0. */
+@property --d {
+  syntax: "<time>";
+  inherits: false;
+  initial-value: 0s;
+}
+/* Forsinkelsen --d skal stå i selve shorthand'en: en separat animation-delay
+   ville blive nulstillet af reglerne herunder. */
 .zoo-fx-talk {
   transform-origin: 50% 0%;
-  animation: zoo-fx-talk 0.32s ease-in-out infinite alternate;
+  animation: zoo-fx-talk 0.32s ease-in-out calc(var(--d) * -1) infinite alternate;
 }
 .zoo-fx-flip {
   transform-origin: 0% 50%;
-  animation: zoo-fx-flip 2.6s ease-in-out infinite;
+  animation: zoo-fx-flip 2.6s ease-in-out calc(var(--d) * -1) infinite;
 }
 .zoo-fx-wave {
   transform-origin: 50% 100%;
-  animation: zoo-fx-wave 0.9s ease-in-out infinite alternate;
+  animation: zoo-fx-wave 0.9s ease-in-out calc(var(--d) * -1) infinite alternate;
 }
 .zoo-fx-nod {
   transform-origin: 50% 100%;
-  animation: zoo-fx-nod 1.1s ease-in-out infinite alternate;
+  animation: zoo-fx-nod 1.1s ease-in-out calc(var(--d) * -1) infinite alternate;
 }
 .zoo-fx-bob {
-  animation: zoo-fx-bob 1.6s ease-in-out infinite alternate;
+  animation: zoo-fx-bob 1.6s ease-in-out calc(var(--d) * -1) infinite alternate;
 }
 .zoo-fx-sparkle {
-  animation: zoo-fx-sparkle 1.4s ease-in-out infinite;
+  animation: zoo-fx-sparkle 1.4s ease-in-out calc(var(--d) * -1) infinite;
 }
 .zoo-fx-rise {
-  animation: zoo-fx-rise 2.4s ease-out infinite;
+  animation: zoo-fx-rise 2.4s ease-out calc(var(--d) * -1) infinite;
 }
 .zoo-fx-spin {
-  animation: zoo-fx-spin 1.8s linear infinite;
+  animation: zoo-fx-spin 1.8s linear calc(var(--d) * -1) infinite;
 }
 .zoo-fx-shake {
-  animation: zoo-fx-shake 0.4s ease-in-out infinite;
+  animation: zoo-fx-shake 0.4s ease-in-out calc(var(--d) * -1) infinite;
 }
 @keyframes zoo-fx-talk {
   from {
@@ -213,8 +222,7 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  [class*="zoo-fx-"],
-  .zoo-wing {
+  [class*="zoo-fx-"] {
     animation: none;
   }
 }
@@ -321,6 +329,12 @@
   }
   to {
     transform: scaleY(0.25);
+  }
+}
+/* Efter .zoo-wing, så den vinder (samme specificitet). */
+@media (prefers-reduced-motion: reduce) {
+  .zoo-wing {
+    animation: none;
   }
 }
 
