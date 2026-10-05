@@ -35,10 +35,12 @@ const drejepunkt = (p: Pkt, alle: Pkt[]) => {
  * Noget, der stiger op (zoo-fx-rise). zoo-fx-rise flytter 120 % af gruppens
  * egen højde, så en usynlig stang på `hoejde` over indholdet giver en længere tur.
  */
-const stiger = (x: number, y: number, hoejde: number, d: string, indhold: ReactNode, key?: string | number) => (
+const stiger = (x: number, y: number, hoejde: number, d: string, indhold: ReactNode, key?: string | number, kant = "#7a4a12") => (
   <g key={key} className="zoo-fx-rise" style={fx(d)}>
     <rect x={x} y={y - hoejde} width="1" height={hoejde} fill="none" stroke="none" />
-    {indhold}
+    <g stroke={kant} strokeWidth="0.8" strokeLinejoin="round">
+      {indhold}
+    </g>
   </g>
 );
 
@@ -153,7 +155,7 @@ const krystalKrop = (
 const krystalBen = (x: number, w: number, fill: string) => (
   <>
     <rect x={x} y="94" width={w} height="46" rx="10" fill={fill} />
-    <ellipse cx={x + w / 2} cy="137" rx={w / 2 - 1} ry="3.5" fill={KT_KLOE} />
+    <ellipse cx={x + w / 2} cy="136.5" rx={w / 2 - 1} ry="3.5" fill={KT_KLOE} />
   </>
 );
 
@@ -187,25 +189,25 @@ const KT_NAESE_SPIDS = drejNakke([234, 54]);
 
 /** Regnbuevifte fra det store horn (blinker i forskudt takt, som et fyrtårn). */
 const regnbueStraaler = REGNBUE.map((farve, i) =>
-  lysStraale(KT_HORN_SPIDS, -158 + i * 21, 36, farve, `${r2((REGNBUE.length - i) * 0.25)}s`, i),
+  lysStraale(KT_HORN_SPIDS, -165 + i * 24, 46, farve, `${r2((REGNBUE.length - i) * 0.25)}s`, i),
 );
 
 /** Mindre stråler fra det bageste horn og næsehornet. */
 const smaaStraaler = [
-  lysStraale(KT_BAGHORN_SPIDS, -38, 18, "#f9a8d4", "0.4s", 10),
-  lysStraale(KT_BAGHORN_SPIDS, -10, 16, "#67e8f9", "1.1s", 11),
-  lysStraale(KT_NAESE_SPIDS, 8, 14, "#fde047", "0.75s", 12),
+  lysStraale(KT_BAGHORN_SPIDS, -36, 22, "#f472b6", "0.4s", 10),
+  lysStraale(KT_BAGHORN_SPIDS, -8, 20, "#22d3ee", "1.1s", 11),
+  lysStraale(KT_NAESE_SPIDS, 14, 16, "#facc15", "0.75s", 12),
 ];
 
 /** Lilla-turkis triceratops med krystalhorn — står den stille, løfter den hovedet, og hornene sender regnbuelys ud. */
 const crystalTrice: CreatureSpec = {
   name: "Krystal-triceratopsen",
   rarity: "legendary",
-  height: 23.7,
-  aspect: 244 / 184,
+  height: 24.2,
+  aspect: 256 / 188,
   gait: "walk",
   pace: 0.85,
-  viewBox: "0 -44 244 184",
+  viewBox: "0 -48 256 188",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">{krystalBen(128, 24, KT_MOERK)}</g>
@@ -236,7 +238,7 @@ const crystalTrice: CreatureSpec = {
       {krystalBen(52, 26, KT_KROP)}
       {/* Blødt lysskær bag hornspidsen, der pulserer. */}
       <g className="zoo-fx-sparkle" style={{ ...fx("0.2s"), animationDuration: "1.5s" }}>
-        <circle cx={KT_HORN_SPIDS[0]} cy={KT_HORN_SPIDS[1]} r="15" fill="#fff7c2" opacity="0.6" />
+        <circle cx={KT_HORN_SPIDS[0]} cy={KT_HORN_SPIDS[1]} r="18" fill="#fff7c2" opacity="0.7" />
       </g>
       {/* Hovedet løftet stolt. */}
       <g transform={`rotate(${KT_LOEFT} ${KT_NAKKE[0]} ${KT_NAKKE[1]})`}>{krystalHoved}</g>
@@ -273,18 +275,23 @@ const KP_STOEV = "#fff4b8";
 /** Den glitrende komethale bag flyveøglen. */
 const kometHale = (
   <>
-    <path d="M88 80 C 60 78, 20 66, -44 56 C -34 78, -34 100, -44 120 C 20 106, 60 94, 88 90 Z" fill="#a9b8ff" opacity="0.45" />
-    <path d="M86 81 C 60 80, 24 74, -30 70 C -24 84, -24 96, -30 108 C 24 98, 60 92, 86 89 Z" fill="#dfe6ff" opacity="0.75" />
-    <path d="M86 82 C 64 82, 34 82, 4 82 C 0 86, 0 90, 4 94 C 34 92, 64 90, 86 88 Z" fill="#fff3c4" />
+    {/* Tre lysstriber, der spidser til langt bag den (som et stjerneskud). */}
+    <path d="M88 76 C 50 70, 0 62, -40 58 C 0 70, 50 84, 88 86 Z" fill="#b9c8ff" />
+    <path d="M88 84 C 60 104, 10 110, -26 112 C 14 100, 60 90, 88 92 Z" fill="#e2c8ff" />
+    <path d="M88 79 C 50 78, 0 82, -46 86 C 0 90, 50 92, 88 90 Z" fill="#ffe08a" />
+    <path d="M88 82 C 60 82, 30 84, 0 86 C 30 87, 60 88, 88 88 Z" fill="#fffbe6" />
     <g fill="#ffffff">
-      <circle cx="-20" cy="66" r="1.6" />
-      <circle cx="-36" cy="94" r="2" />
+      <circle cx="-20" cy="66" r="1.8" />
+      <circle cx="-34" cy="96" r="2" />
       <circle cx="10" cy="104" r="1.6" />
-      <circle cx="30" cy="74" r="1.4" />
-      <circle cx="-8" cy="112" r="1.4" />
+      <circle cx="30" cy="70" r="1.6" />
+      <circle cx="-4" cy="76" r="1.4" />
     </g>
-    {STJERNE(-14, 88, 4.5, KP_STOEV)}
-    {STJERNE(42, 96, 3.4, "#ffffff")}
+    <g stroke="#b45309" strokeWidth="0.8" strokeLinejoin="round">
+      {STJERNE(-12, 86, 5, KP_STOEV)}
+      {STJERNE(40, 98, 3.6, "#ffffff")}
+      {STJERNE(18, 70, 3.2, "#ffffff")}
+    </g>
   </>
 );
 
@@ -353,8 +360,8 @@ const kometHoved = (
 );
 
 /** Punkter langs et hjerte (den klassiske hjertekurve), startende i spidsen forneden og rundt med uret. */
-const HJ_MIDTE: Pkt = [248, 46];
-const HJ_SKALA = 2.1;
+const HJ_MIDTE: Pkt = [262, 48];
+const HJ_SKALA = 3;
 const hjertePunkt = (t: number): Pkt => {
   const x = 16 * Math.sin(t) ** 3;
   const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
@@ -374,7 +381,7 @@ const stjerneHjerte = Array.from({ length: HJ_ANTAL }, (_, i) => {
   return (
     <g key={i} className="zoo-fx-sparkle" style={{ ...fx(`${r2((HJ_ANTAL - i) * HJ_TAKT)}s`), animationDuration: `${r2(HJ_ANTAL * HJ_TAKT)}s` }}>
       <g stroke="#b45309" strokeWidth="0.9" strokeLinejoin="round">
-        {i % 2 ? GLIMT(x, y, 5.2, farve) : STJERNE(x, y, 5.2, farve)}
+        {i % 2 ? GLIMT(x, y, 7, farve) : STJERNE(x, y, 7, farve)}
       </g>
     </g>
   );
@@ -388,11 +395,11 @@ const cometPteranodon: CreatureSpec = {
   name: "Komet-pteranodonen",
   rarity: "legendary",
   height: 12.9,
-  aspect: 340 / 140,
+  aspect: 370 / 140,
   gait: "float",
   zone: "open",
   pace: 1.05,
-  viewBox: "-50 -10 340 140",
+  viewBox: "-50 -10 370 140",
   art: (
     <>
       {kometHale}
@@ -431,8 +438,8 @@ const cometPteranodon: CreatureSpec = {
       <g className="zoo-fx-sparkle" style={fx("0.2s")}>{GLIMT(205, 50, 3.4, KP_STOEV)}</g>
       <g className="zoo-fx-sparkle" style={fx("0.6s")}>{GLIMT(209, 42, 2.6, "#ffffff")}</g>
       {/* Hjertet af stjernestøv foran den. */}
-      <path d={hjerteSti} stroke="#f472b6" strokeWidth="2.6" strokeDasharray="0.1 6" strokeLinecap="round" fill="none" />
-      <g opacity="0.9">{HJERTE(HJ_MIDTE[0], HJ_MIDTE[1] + 6, 9, "#ff8cc0")}</g>
+      <path d={hjerteSti} fill="#ff9ccb" opacity="0.3" />
+      <path d={hjerteSti} stroke="#ec4899" strokeWidth="3" strokeDasharray="0.1 7" strokeLinecap="round" fill="none" />
       {stjerneHjerte}
     </>
   ),
@@ -505,13 +512,17 @@ const KAPPE = `M${rp(KAPPE_V[0])} C ${rp(KAPPE_V[1])}, ${rp(KAPPE_V[2])}, ${rp(K
 const UNDER_REVNEN = `M-10 ${REVNE_Y} ${REVNE.map((p) => `L ${rp(p)}`).join(" ")} L 70 ${REVNE_Y} L 70 80 L -10 80 Z`;
 const REVNE_LINJE = `M${REVNE.map(rp).join(" L ")}`;
 
-/** Det hele, skinnende guldæg. */
-const guldAeg = (
+/** Det skinnende guldæg. `bund`: kun skallens bund vises, så glansen flyttes ned under revnen. */
+const guldAeg = (bund = false) => (
   <>
     <path d={AEG} fill={AE_GULD} />
     <path d={AEG_SKYGGE} fill={AE_SKYGGE} />
-    <ellipse cx="18" cy="24" rx="4.6" ry="10" transform="rotate(20 18 24)" fill={AE_GLANS} />
-    <circle cx="14" cy="40" r="2.2" fill={AE_GLANS} />
+    {bund ? (
+      <ellipse cx="11" cy="48" rx="3.2" ry="7" transform="rotate(8 11 48)" fill={AE_GLANS} />
+    ) : (
+      <ellipse cx="18" cy="24" rx="4.6" ry="10" transform="rotate(20 18 24)" fill={AE_GLANS} />
+    )}
+    {!bund && <circle cx="14" cy="40" r="2.2" fill={AE_GLANS} />}
     {STJERNE(38, 22, 4, AE_LYS)}
     {STJERNE(22, 54, 4.6, AE_LYS)}
     {STJERNE(44, 50, 3.2, AE_LYS)}
@@ -600,7 +611,7 @@ const goldenEgg: CreatureSpec = {
   viewBox: "-26 -58 112 130",
   art: (
     <>
-      {guldAeg}
+      {guldAeg()}
       <g className="zoo-fx-sparkle">{GLIMT(20, 16, 5)}</g>
       <g className="zoo-fx-sparkle" style={fx("0.5s")}>{GLIMT(47, 58, 3.6)}</g>
       <g className="zoo-fx-sparkle" style={fx("0.9s")}>{GLIMT(56, 14, 3.6, "#fff6c2")}</g>
@@ -616,7 +627,7 @@ const goldenEgg: CreatureSpec = {
       {guldUnge}
       {/* Skallens bund med takket revne. */}
       <Klip form={<path d={UNDER_REVNEN} />}>
-        {guldAeg}
+        {guldAeg(true)}
         <Klip form={<path d={AEG} />}>
           <path d={REVNE_LINJE} stroke={AE_KANT} strokeWidth="4" fill="none" strokeLinejoin="round" strokeLinecap="round" />
         </Klip>
@@ -625,7 +636,7 @@ const goldenEgg: CreatureSpec = {
       <g className="zoo-fx-wave" style={{ ...fx("0s", "0% 100%"), animationDuration: "0.6s" }}>{ungeArm}</g>
       {/* Skallens top løftes og vipper som en lille hat. */}
       <g className="zoo-fx-bob" style={{ ...fx("0.3s"), animationDuration: "1.1s" }}>
-        <rect x="28" y="-58" width="1" height="120" fill="none" stroke="none" />
+        <rect x="28" y="-58" width="1" height="100" fill="none" stroke="none" />
         <g className="zoo-fx-wave" style={{ ...fx("0.2s", "50% 100%"), animationDuration: "1.1s" }}>
           <g transform="translate(-3 -50)">{kappe}</g>
         </g>
