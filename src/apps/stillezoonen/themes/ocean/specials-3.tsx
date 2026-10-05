@@ -99,8 +99,8 @@ const wishFish: CreatureSpec = {
   ),
   special: (
     <>
-      {/* Halen vifter blødt, mens fisken står stille i vandet. */}
-      <g className="zoo-fx-wave" style={{ ...fx("0.2s", "100% 50%"), animationDuration: "1.6s" }}>{oenskeHale}</g>
+      {/* Halen svajer blødt (lille udsving, så spidserne bliver i billedet), mens fisken står stille i vandet. */}
+      <g className="zoo-fx-nod" style={{ ...fx("0.2s", "100% 50%"), animationDuration: "1.4s" }}>{oenskeHale}</g>
       {oenskeKrop}
       {/* Brystfinnen vifter som en tryllestav. */}
       <g className="zoo-fx-wave" style={fx("0s", "0% 0%")}>{oenskeFinne}</g>
@@ -289,7 +289,7 @@ const babyKraken: CreatureSpec = {
         <g className="zoo-fx-rise"><circle cx="40" cy="28" r="3.6" /></g>
         <g className="zoo-fx-rise" style={fx("0.8s")}><circle cx="28" cy="16" r="2.6" /></g>
         <g className="zoo-fx-rise" style={fx("1.6s")}><circle cx="132" cy="22" r="3" /></g>
-        <g className="zoo-fx-rise" style={fx("1.2s")}><circle cx="122" cy="10" r="2.2" /></g>
+        <g className="zoo-fx-rise" style={fx("1.2s")}><circle cx="122" cy="14" r="2.2" /></g>
         <g className="zoo-fx-rise" style={fx("2s")}><circle cx="52" cy="12" r="2.2" /></g>
       </g>
     </>
