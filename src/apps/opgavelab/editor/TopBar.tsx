@@ -3,6 +3,8 @@
 import Link from "next/link";
 
 export type View = "opgave" | "svarark";
+/** Gemmestatus i topbaren: "Gemt kl. 14.32" / "Ikke gemt" / fejl. */
+export type TopStatus = { text: string; tone: "ok" | "warn" | "error" };
 
 export function TopBar({
   view,
@@ -12,7 +14,11 @@ export function TopBar({
   canUndo,
   onUndo,
   onNew,
-  dirty,
+  onSave,
+  onSaveCopy,
+  onLoad,
+  busy,
+  status,
 }: {
   view: View;
   onView: (view: View) => void;
@@ -21,7 +27,12 @@ export function TopBar({
   canUndo: boolean;
   onUndo: () => void;
   onNew: () => void;
-  dirty: boolean;
+  onSave: () => void;
+  /** null = "Gem som kopi" er ikke tilgængelig (opgaven er ikke gemt endnu). */
+  onSaveCopy: (() => void) | null;
+  onLoad: () => void;
+  busy: boolean;
+  status: TopStatus | null;
 }) {
   return (
     <header className="ol-topbar">
@@ -59,15 +70,28 @@ export function TopBar({
           </button>
         ))}
       </div>
-      {dirty && <span className="ol-dirty">Ikke gemt</span>}
+      {status && (
+        <span
+          className="ol-dirty"
+          data-ol-status={status.tone}
+          role={status.tone === "error" ? "alert" : "status"}
+        >
+          {status.text}
+        </span>
+      )}
       <div className="ol-top-actions">
-        <button type="button" className="ol-btn" onClick={onNew}>
+        <button type="button" className="ol-btn" data-ol-new="" onClick={onNew} disabled={busy}>
           Ny
         </button>
-        <button type="button" className="ol-btn" disabled title="Kommer i et senere trin">
+        <button type="button" className="ol-btn" data-ol-save="" onClick={onSave} disabled={busy}>
           Gem
         </button>
-        <button type="button" className="ol-btn" disabled title="Kommer i et senere trin">
+        {onSaveCopy && (
+          <button type="button" className="ol-btn" data-ol-save-copy="" onClick={onSaveCopy} disabled={busy}>
+            Gem som kopi
+          </button>
+        )}
+        <button type="button" className="ol-btn" data-ol-load="" onClick={onLoad} disabled={busy}>
           Indlæs
         </button>
         <button type="button" className="ol-btn" disabled title="Kommer i et senere trin">

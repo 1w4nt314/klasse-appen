@@ -52,7 +52,13 @@ export type DocAction =
   | { type: "setSettings"; patch: Partial<DocSettings> }
   | { type: "undo" }
   | { type: "replace"; doc: SheetDoc; savedId?: string | null }
-  | { type: "markSaved"; id: string; name?: string };
+  /**
+   * snapshot = dokumentet som det blev sendt til serveren (rettelser under gemningen forbliver ugemte);
+   * prevName = navnet i dokumentet da gemningen begyndte (følger kun med det rensede navn, hvis det ikke er rettet siden).
+   */
+  | { type: "markSaved"; id: string; name?: string; snapshot?: SheetDoc; prevName?: string }
+  /** Dokumentets række på serveren er væk (slettet): det regnes for ugemt. */
+  | { type: "markUnsaved" };
 
 export function initState(doc: SheetDoc = newDocument()): DocState {
   return {
@@ -175,9 +181,14 @@ export function reducer(s: DocState, a: DocAction): DocState {
     case "replace":
       return { ...initState(a.doc), savedId: a.savedId ?? null };
     case "markSaved": {
-      const doc = a.name !== undefined ? { ...s.doc, name: a.name } : s.doc;
-      return { ...s, doc, savedId: a.id, savedJson: JSON.stringify(doc) };
+      const base = a.snapshot ?? s.doc;
+      const name = a.name ?? base.name;
+      // Navnet i feltet følger det rensede navn, hvis det ikke er rettet siden.
+      const doc = s.doc.name === (a.prevName ?? base.name) ? { ...s.doc, name } : s.doc;
+      return { ...s, doc, savedId: a.id, savedJson: JSON.stringify({ ...base, name }) };
     }
+    case "markUnsaved":
+      return { ...s, savedId: null, savedJson: "" };
   }
 }
 
@@ -205,7 +216,9 @@ export function useDocument() {
       setSettings: (patch: Partial<DocSettings>) => dispatch({ type: "setSettings", patch }),
       undo: () => dispatch({ type: "undo" }),
       replace: (doc: SheetDoc, savedId?: string | null) => dispatch({ type: "replace", doc, savedId }),
-      markSaved: (id: string, name?: string) => dispatch({ type: "markSaved", id, name }),
+      markSaved: (id: string, name?: string, snapshot?: SheetDoc, prevName?: string) =>
+        dispatch({ type: "markSaved", id, name, snapshot, prevName }),
+      markUnsaved: () => dispatch({ type: "markUnsaved" }),
     }),
     [],
   );
