@@ -256,14 +256,17 @@ const bolle = (x: number) => (
 const damp = (x: number, d: string) => (
   <g className="zoo-fx-rise" style={fxv(d, "50% 100%", "2.4s")}>
     {loeft(x, 38, 22, -22)}
-    <path d={`M${x} 60 c -3.5 -3.5, 3.5 -7.5, 0 -11 c -3.5 -3.5, 3.5 -7.5, 0 -11`} stroke="#ffffff" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.92" />
+    <path d={`M${x} 60 c -3.5 -3.5, 3.5 -7.5, 0 -11 c -3.5 -3.5, 3.5 -7.5, 0 -11`} stroke="#ffffff" strokeWidth="3.6" fill="none" strokeLinecap="round" />
   </g>
 );
 
-/** Armen drejer om skulderen (102, 50); poten ælter dejen. */
-const ARM_RAMME: Ramme = [84, 32, 36, 46];
-/** Hovedet (løftet 8 op) nikker om halsen (128, 62). */
-const G_HOVED_RAMME: Ramme = [112, -22, 66, 92];
+/**
+ * Det nære forben drejer om skulderen (97, 60): poten går op og ned (zoo-fx-wave),
+ * mens dejens kuppel trykkes flad (zoo-fx-talk) i samme takt.
+ */
+const ARM_RAMME: Ramme = [84, 46, 42, 32];
+/** Hovedet (løftet 10 op) nikker om halsen (128, 60). */
+const G_HOVED_RAMME: Ramme = [114, -22, 64, 90];
 const AELT = "0.7s";
 
 /** Grævling med bagerhue — står den stille, ælter den dej ved bænken med nybagte boller. */
@@ -273,10 +276,10 @@ const bakerBadger: CreatureSpec = {
   // Som `badger` (8 på 100 enheder), med plads til huen, dampen og bænken.
   // Boksen er symmetrisk om grævlingen (midt x 90).
   height: (8 * 126) / 100,
-  aspect: 228 / 126,
+  aspect: 236 / 126,
   gait: "walk",
   pace: 0.8,
-  viewBox: "-24 -26 228 126",
+  viewBox: "-28 -26 236 126",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
@@ -301,35 +304,35 @@ const bakerBadger: CreatureSpec = {
       <rect x="36" y="64" width="14" height="36" rx="6" fill={G_BEN} />
       {graevlingKrop}
       <rect x="50" y="66" width="15" height="34" rx="6" fill={G_BEN_NAER} />
-      {/* Hovedet er løftet en anelse og nikker tilfreds. */}
-      <g className="zoo-fx-nod" style={fxv("0s", drej(G_HOVED_RAMME, 128, 62), "1.4s")}>
+      {/* Hovedet er løftet og nikker tilfreds. */}
+      <g className="zoo-fx-nod" style={fxv("0s", drej(G_HOVED_RAMME, 128, 60), "1.4s")}>
         {ramme(G_HOVED_RAMME)}
-        <g transform="translate(2 -8)">{graevlingHoved}</g>
+        <g transform="translate(2 -10)">{graevlingHoved}</g>
       </g>
       {/* Bænken foran. */}
-      <rect x="102" y="82" width="6" height="18" fill={BAENK_MOERK} />
-      <rect x="188" y="82" width="6" height="18" fill={BAENK_MOERK} />
-      <rect x="96" y="76" width="104" height="8" rx="2" fill={BAENK} />
-      <rect x="96" y="81" width="104" height="3" fill={BAENK_MOERK} />
+      <rect x="104" y="82" width="6" height="18" fill={BAENK_MOERK} />
+      <rect x="192" y="82" width="6" height="18" fill={BAENK_MOERK} />
+      <rect x="98" y="76" width="106" height="8" rx="2" fill={BAENK} />
+      <rect x="98" y="81" width="106" height="3" fill={BAENK_MOERK} />
       {/* Dejen: kuplen trykkes flad, når poten ælter. */}
-      <ellipse cx="112" cy="74.5" rx="15" ry="2.6" fill={DEJ} />
+      <ellipse cx="110" cy="75.4" rx="14" ry="2.4" fill={DEJ} />
       <g className="zoo-fx-talk" style={fxv(AELT, "50% 100%", AELT)}>
-        <path d="M100 75 C 100 64.1, 124 64.1, 124 75 Z" fill={DEJ} />
+        <path d="M99 76 C 99 62, 121 62, 121 76 Z" fill={DEJ} />
       </g>
-      <circle cx="98" cy="73" r="1.4" fill="#fff" />
-      <circle cx="127" cy="72" r="1.2" fill="#fff" />
-      <g className="zoo-fx-wave" style={fxv("0s", drej(ARM_RAMME, 102, 50), AELT)}>
+      <circle cx="95" cy="74" r="1.4" fill="#fff" />
+      <circle cx="126" cy="74.4" r="1.2" fill="#fff" />
+      <g className="zoo-fx-wave" style={fxv("0s", drej(ARM_RAMME, 97, 60), AELT)}>
         {ramme(ARM_RAMME)}
-        <circle cx="102" cy="50" r="8" fill={G_KROP} />
-        <path d="M102 50 L 113 66" stroke={G_BEN_NAER} strokeWidth="9" strokeLinecap="round" />
-        <ellipse cx="113" cy="66" rx="6" ry="4" fill={G_BEN} />
+        <path d="M97 60 L 111 63" stroke={G_BEN_NAER} strokeWidth="12" strokeLinecap="round" />
+        <ellipse cx="113" cy="63.6" rx="5" ry="5.4" fill={G_BEN} />
+        <path d="M116.5 61 l 2 0.6 M117.4 64 l 2 0.4 M116.5 67 l 2 -0.2" stroke="#b4b7bb" strokeWidth="1.2" strokeLinecap="round" />
       </g>
       {/* Bakken med nybagte boller, der damper. */}
-      {damp(176, "0s")}
-      {damp(190, "0.8s")}
-      {damp(162, "1.6s")}
-      <rect x="150" y="72.5" width="48" height="3.6" rx="1.6" fill="#9aa0a6" />
-      {[162, 176, 190].map(bolle)}
+      {damp(182, "0s")}
+      {damp(196, "0.8s")}
+      {damp(189, "1.6s")}
+      <rect x="157" y="72.5" width="46" height="3.6" rx="1.6" fill="#9aa0a6" />
+      {[168, 182, 196].map(bolle)}
     </>
   ),
 };
@@ -449,7 +452,7 @@ const drummerWoodpecker: CreatureSpec = {
   special: (
     <>
       {/* Træstubben med årringe og et lille hak, hvor der trommes. */}
-      <path d="M115 112 C 120 104, 121 96, 121 86 V 30 H 149 V 86 C 149 96, 150 104, 155 112 Z" fill={BARK} />
+      <path d="M116 112 C 120 104, 121 96, 121 86 V 30 H 149 V 86 C 149 96, 150 104, 153 112 Z" fill={BARK} />
       <path d="M128 40 V 70 M140 48 V 96 M133 80 V 104" stroke={BARK_MOERK} strokeWidth="2.6" strokeLinecap="round" />
       <ellipse cx="135" cy="30" rx="14" ry="4.6" fill={SNIT} />
       <ellipse cx="135" cy="30" rx="8.5" ry="2.6" fill="none" stroke={AARRING} strokeWidth="1.4" />
@@ -524,12 +527,14 @@ const picnicKurv = (
 const raeveHale = (
   <>
     <path d="M74 96 C 52 98, 26 86, 18 66 C 12 52, 18 40, 30 40 C 36 58, 52 74, 76 80 Z" fill={R_KROP} />
-    <Klip form={<path d="M74 96 C 52 98, 26 86, 18 66 C 12 52, 18 40, 30 40 C 36 58, 52 74, 76 80 Z" />}>
-      <circle cx="18" cy="46" r="15" fill={R_HVID} />
-    </Klip>
+    <path d="M18 66 C 12 52, 18 40, 30 40 C 31.6 45, 33.2 49, 35.5 53 C 28 54, 22 59, 18 66 Z" fill={R_HVID} />
   </>
 );
-const HALE_RAMME: Ramme = [10, 34, 70, 70];
+/**
+ * Halens egen boks (udregnet fra stien). Uden usynlig ramme her: en ramme om
+ * halen ville selv svinge ud under tæppet, når halen logrer.
+ */
+const HALE_BOKS: Ramme = [15.65, 40, 60.35, 56.2];
 
 /** Ternet tæppe i perspektiv. */
 const TAEPPE_FORM = "M28 96 H 176 L 198 110 H 4 Z";
@@ -599,17 +604,18 @@ const picnicFox: CreatureSpec = {
         <rect x="0" y="105.5" width="200" height="4.5" fill={TERN} opacity="0.55" />
       </Klip>
       {/* Halen logrer glad. */}
-      <g className="zoo-fx-wave" style={fxv("0s", drej(HALE_RAMME, 70, 90), "0.5s")}>
-        {ramme(HALE_RAMME)}
+      <g className="zoo-fx-wave" style={fxv("0s", drej(HALE_BOKS, 70, 90), "0.5s")}>
         {raeveHale}
       </g>
       {/* Ræven sidder: lår, krop og forben. */}
       <rect x="118" y="70" width="9" height="40" rx="4" fill={R_MOERK} />
       <rect x="118" y="94" width="9" height="16" rx="4" fill={R_SOK} />
-      <ellipse cx="114" cy="66" rx="22" ry="33" transform="rotate(24 114 66)" fill={R_KROP} />
-      <ellipse cx="86" cy="88" rx="28" ry="19" fill={R_KROP} />
-      <ellipse cx="102" cy="106" rx="15" ry="4" fill={R_SOK} />
-      <ellipse cx="134" cy="54" rx="12" ry="18" transform="rotate(14 134 54)" fill={R_HVID} />
+      <path d="M64 106 C 56 86, 64 64, 88 58 C 104 54, 116 40, 126 24 L 150 32 C 150 50, 146 64, 140 80 L 138 106 Z" fill={R_KROP} />
+      {/* Låret og bagpoten langs jorden. */}
+      <path d="M70 96 C 70 78, 88 68, 106 74" stroke={R_MOERK} strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      <rect x="86" y="101" width="34" height="9" rx="4.5" fill={R_KROP} />
+      <rect x="106" y="101" width="15" height="9" rx="4.5" fill={R_SOK} />
+      <path d="M134 30 C 145 31, 151 40, 149 54 C 147 64, 142 72, 136 75 C 131 60, 130 44, 134 30 Z" fill={R_HVID} />
       <rect x="130" y="70" width="10" height="40" rx="4" fill={R_KROP} />
       <rect x="130" y="94" width="10" height="16" rx="4" fill={R_SOK} />
       {/* Hovedet, løftet op, nikker glad. */}
@@ -617,7 +623,7 @@ const picnicFox: CreatureSpec = {
         {ramme([124, -28, 64, 68])}
         <g transform="translate(-4 -34)">
           {raeveHoved}
-          <path d="M170 32 Q 175 36 180 31" stroke={R_SOK} strokeWidth="2" fill="none" strokeLinecap="round" />
+          <path d="M168 61.5 Q 173 64.5 178 60.5" stroke={R_SOK} strokeWidth="1.8" fill="none" strokeLinecap="round" />
         </g>
         <circle cx="160" cy="21" r="3.6" fill="#ff9aa0" opacity="0.6" />
       </g>
@@ -631,9 +637,9 @@ const picnicFox: CreatureSpec = {
       <path d="M186.8 95 H 196.2 L 195.4 105 H 187.6 Z" fill={SAFT} />
       <path d="M193 92 L 196 84" stroke="#3fa0e0" strokeWidth="1.6" strokeLinecap="round" />
       {/* Små hjerter stiger op. */}
-      {stigendeHjerte(104, 26, 5, "0s")}
-      {stigendeHjerte(116, 10, 4, "0.95s")}
-      {stigendeHjerte(190, 64, 4.4, "1.9s")}
+      {stigendeHjerte(100, 30, 5, "0s")}
+      {stigendeHjerte(114, 12, 4, "0.95s")}
+      {stigendeHjerte(84, 46, 4.4, "1.9s")}
     </>
   ),
 };

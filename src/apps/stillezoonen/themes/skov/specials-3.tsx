@@ -124,7 +124,7 @@ const hjorteHoved = (blomstrer: boolean) => (
         {blad(152, -2, 40)}
         {blad(166, 6, -60)}
         {SPIDSER_FJERN.map(([x, y], i) => (
-          <g key={`f${x}`}>{blomst(x, y, 4.6, i % 2 ? "#ffffff" : "#f7a6c6")}</g>
+          <g key={`f${x},${y}`}>{blomst(x, y, 4.6, i % 2 ? "#ffffff" : "#f7a6c6")}</g>
         ))}
       </>
     )}
