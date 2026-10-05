@@ -256,7 +256,7 @@ const honeyBee: CreatureSpec = {
 
 const snail: CreatureSpec = {
   name: "Snegl",
-  height: 5,
+  height: 4.5,
   aspect: 110 / 66,
   gait: "slither",
   pace: 0.4,
