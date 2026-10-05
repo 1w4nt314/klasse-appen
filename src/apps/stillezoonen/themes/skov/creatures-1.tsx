@@ -40,11 +40,11 @@ const roeDeer: CreatureSpec = {
       </g>
       <g className="zoo-head">
         {/* Bukkens små gevirer */}
-        <path d="M150 32 L 149 12 M149 21 L 157 14" stroke="#7b6a48" strokeWidth="3.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M118 62 C 124 44, 130 34, 140 28 L 158 42 C 150 54, 146 68, 140 86 Z" fill="#b8683a" />
-        <ellipse cx="158" cy="40" rx="17" ry="11" transform="rotate(28 158 40)" fill="#b8683a" />
-        <ellipse cx="171" cy="49" rx="7" ry="6" fill="#f4e6d0" />
-        <circle cx="175" cy="51" r="3.2" fill="#2b211c" />
+        <path d="M150 32 L 148 10 M149 22 L 157 16 M148.5 14 L 140 8" stroke="#7b6a48" strokeWidth="3.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M116 66 C 122 46, 130 34, 140 28 L 158 42 C 152 56, 146 70, 132 80 Z" fill="#b8683a" />
+        <ellipse cx="158" cy="40" rx="19" ry="11" transform="rotate(26 158 40)" fill="#b8683a" />
+        <ellipse cx="171" cy="48" rx="8" ry="5" transform="rotate(26 171 48)" fill="#f4e6d0" />
+        <circle cx="176" cy="50.5" r="3.2" fill="#2b211c" />
         <ellipse cx="142" cy="24" rx="5" ry="11" transform="rotate(-32 142 24)" fill="#b8683a" />
         <ellipse cx="142" cy="25" rx="2.6" ry="7" transform="rotate(-32 142 25)" fill="#f0c2a8" />
         {EYE(160, 38, 3.6)}
@@ -86,19 +86,19 @@ const redDeer: CreatureSpec = {
       </g>
       <g className="zoo-head">
         {/* Gevir: det fjerne er mørkere og forskudt */}
-        <g transform="translate(-9 3)" stroke="#b09c6a" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M190 52 C 186 38 176 26 164 16 M187 44 L 200 34 M182 34 L 190 20 M174 24 L 178 8 M164 16 L 154 6" />
+        <g transform="translate(-9 3)" stroke="#b09c6a" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M190 52 C 192 36 184 22 170 12 M188 46 L 204 38 M186 36 L 200 28 M182 26 L 195 16 M170 12 L 166 5 M170 12 L 180 6" />
         </g>
-        <path d="M146 96 C 156 70, 166 56, 178 46 L 206 66 C 194 82, 186 100, 180 132 L 140 128 Z" fill="#6b4026" />
+        <path d="M138 98 C 148 72, 164 52, 180 44 L 208 64 C 200 82, 192 104, 178 122 L 170 130 L 140 122 Z" fill="#7a4a2c" />
         {/* manke */}
-        <path d="M152 100 C 160 80, 168 66, 180 56 C 176 72, 174 88, 172 108 L 166 114 L 162 106 L 156 114 Z" fill="#4a2a17" />
+        <path d="M200 76 C 194 90, 188 102, 184 118 L 178 112 L 176 122 L 170 112 L 166 118 C 172 100, 184 86, 200 76 Z" fill="#4a2a17" />
         <ellipse cx="196" cy="64" rx="22" ry="14" transform="rotate(30 196 64)" fill="#7a4a2c" />
         <ellipse cx="213" cy="76" rx="9" ry="8" fill="#c9a37a" />
         <circle cx="219" cy="79" r="4" fill="#2b211c" />
         <ellipse cx="176" cy="54" rx="6" ry="11" transform="rotate(-40 176 54)" fill="#6b4026" />
         <ellipse cx="177" cy="55" rx="3" ry="7" transform="rotate(-40 177 55)" fill="#d9a98c" />
-        <g stroke="#e6d6a8" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M190 52 C 186 38 176 26 164 16 M187 44 L 200 34 M182 34 L 190 20 M174 24 L 178 8 M164 16 L 154 6" />
+        <g stroke="#e6d6a8" strokeWidth="6.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M190 52 C 192 36 184 22 170 12 M188 46 L 204 38 M186 36 L 200 28 M182 26 L 195 16 M170 12 L 166 5 M170 12 L 180 6" />
         </g>
         {EYE(200, 62, 4)}
       </g>
@@ -149,9 +149,11 @@ const fallowDeer: CreatureSpec = {
       </g>
       <g className="zoo-head">
         {/* Skovlformet gevir */}
-        <path d="M152 42 C 144 34, 138 28, 136 18 L 142 20 L 142 10 L 149 16 L 152 6 L 157 15 L 162 10 L 162 22 C 160 32, 156 38, 156 44 Z" fill="#d6bf88" />
-        <path d="M152 41 L 165 33" stroke="#d6bf88" strokeWidth="3.6" strokeLinecap="round" />
-        <path d="M120 76 C 126 58, 134 46, 144 40 L 160 54 C 152 66, 148 80, 142 100 Z" fill="#c98d52" />
+        <g transform="rotate(-20 154 46)">
+          <path d="M150 48 L 148 32 C 142 26, 140 16, 142 8 L 147 14 L 149 6 L 154 14 L 158 7 L 160 16 L 165 11 C 166 22, 162 30, 158 34 L 157 48 Z" fill="#d6bf88" />
+          <path d="M153 44 L 166 36" stroke="#d6bf88" strokeWidth="3.6" strokeLinecap="round" />
+        </g>
+        <path d="M120 76 C 126 58, 134 46, 144 40 L 160 54 C 152 66, 148 78, 142 88 Z" fill="#c98d52" />
         <ellipse cx="160" cy="52" rx="16" ry="10.5" transform="rotate(28 160 52)" fill="#c98d52" />
         <ellipse cx="172" cy="60" rx="7" ry="6" fill="#f3e2c0" />
         <circle cx="176" cy="62" r="3.2" fill="#2b211c" />
@@ -183,11 +185,11 @@ const wildBoar: CreatureSpec = {
         <rect x="40" y="112" width="16" height="8" rx="3" fill="#1f1815" />
       </g>
       <g className="zoo-torso">
-        {/* børstekam langs ryggen */}
-        <path d="M36 46 L 44 30 L 52 42 L 62 26 L 72 38 L 84 22 L 94 36 L 106 20 L 116 34 L 128 22 L 136 44 Z" fill="#2f2520" />
         <ellipse cx="88" cy="62" rx="62" ry="36" fill="#5b4a40" />
         <ellipse cx="118" cy="52" rx="34" ry="30" fill="#5b4a40" />
         <ellipse cx="92" cy="80" rx="42" ry="9" fill="#7a6558" opacity="0.6" />
+        {/* børstekam langs ryggen */}
+        <path d="M40 52 L 42 40 L 48 46 L 54 34 L 60 42 L 68 28 L 76 36 L 86 21 L 94 32 L 104 18 L 112 30 L 122 18 L 128 32 L 120 42 L 80 46 L 50 54 Z" fill="#3b2f29" />
       </g>
       <g className="zoo-leg zoo-leg-b">
         <rect x="122" y="86" width="17" height="34" rx="6" fill="#5b4a40" />
@@ -292,8 +294,8 @@ const badger: CreatureSpec = {
       <g className="zoo-head">
         <circle cx="127" cy="27" r="8" fill="#26231f" />
         <Klip form={<path d="M122 38 C 128 24, 148 24, 158 38 C 164 46, 168 56, 168 66 C 156 74, 136 76, 126 72 C 120 64, 118 48, 122 38 Z" />}>
-          <rect x="110" y="20" width="70" height="60" fill="#f4f2ee" />
-          <path d="M176 52 L 126 24 L 116 40 L 172 72 Z" fill="#26231f" />
+          <rect x="110" y="20" width="64" height="60" fill="#f4f2ee" />
+          <path d="M172 52 L 126 24 L 116 40 L 170 70 Z" fill="#26231f" />
         </Klip>
         <circle cx="167" cy="64" r="4" fill="#26231f" />
         <circle cx="148" cy="47" r="5.8" fill="#f4f2ee" />
@@ -324,7 +326,7 @@ const pineMarten: CreatureSpec = {
         <rect x="62" y="56" width="9" height="34" rx="4" fill="#3a2318" />
       </g>
       <g className="zoo-torso">
-        <ellipse cx="100" cy="48" rx="56" ry="19" fill="#5b3a29" />
+        <ellipse cx="100" cy="47" rx="56" ry="17" fill="#5b3a29" />
         <ellipse cx="100" cy="58" rx="40" ry="6" fill="#7a5238" opacity="0.7" />
       </g>
       <g className="zoo-leg zoo-leg-b">
@@ -335,9 +337,9 @@ const pineMarten: CreatureSpec = {
       </g>
       <g className="zoo-head">
         <ellipse cx="146" cy="52" rx="14" ry="12" fill="#5b3a29" />
-        <circle cx="150" cy="24" r="8" fill="#f0dc9c" />
-        <circle cx="150" cy="25" r="5.4" fill="#5b3a29" />
-        <ellipse cx="158" cy="40" rx="17" ry="13" fill="#5b3a29" />
+        <circle cx="148" cy="24" r="9.5" fill="#f0dc9c" />
+        <circle cx="148" cy="25.5" r="6.4" fill="#5b3a29" />
+        <ellipse cx="158" cy="40" rx="18" ry="14" fill="#5b3a29" />
         <ellipse cx="175" cy="47" rx="11" ry="7" transform="rotate(15 175 47)" fill="#6e4733" />
         <path d="M162 48 C 170 54, 164 66, 150 70 C 140 68, 136 58, 142 52 C 148 56, 156 54, 162 48 Z" fill="#f0dc9c" />
         <circle cx="184" cy="48" r="3" fill="#1f1512" />
@@ -359,20 +361,21 @@ const hare: CreatureSpec = {
     <>
       <g className="zoo-leg zoo-leg-a">
         <rect x="108" y="92" width="9" height="38" rx="4" fill="#8f6a40" />
-        <ellipse cx="80" cy="124" rx="24" ry="6" fill="#8f6a40" />
+        <ellipse cx="82" cy="123" rx="24" ry="7" fill="#8f6a40" />
       </g>
       <g className="zoo-torso">
-        <circle cx="30" cy="80" r="9" fill="#fbf6ec" />
-        <path d="M22 74 C 26 67, 34 67, 39 72" stroke="#3a2f28" strokeWidth="4" fill="none" strokeLinecap="round" />
         <ellipse cx="74" cy="82" rx="48" ry="30" fill="#b88a58" />
         <ellipse cx="84" cy="102" rx="30" ry="8" fill="#efe0c6" />
-        <ellipse cx="48" cy="90" rx="24" ry="28" fill="#a87a4a" />
+        <ellipse cx="48" cy="94" rx="24" ry="30" fill="#a87a4a" />
+        <circle cx="21" cy="84" r="8.5" fill="#fbf6ec" />
+        <path d="M14 79 C 17 73, 23 72, 28 76" stroke="#3a2f28" strokeWidth="3.6" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
         <rect x="114" y="90" width="10" height="40" rx="5" fill="#b88a58" />
-        <ellipse cx="72" cy="124" rx="28" ry="6" fill="#b88a58" />
+        <ellipse cx="72" cy="123" rx="28" ry="7" fill="#b88a58" />
       </g>
       <g className="zoo-head">
+        <g transform="translate(0 4)">
         {/* fjerne øre */}
         <Klip form={<ellipse cx="130" cy="30" rx="7" ry="25" transform="rotate(8 130 30)" />}>
           <g transform="rotate(8 130 30)">
@@ -388,6 +391,7 @@ const hare: CreatureSpec = {
             <rect x="100" y="0" width="24" height="9" fill="#26231f" />
           </g>
         </Klip>
+        </g>
         <ellipse cx="124" cy="66" rx="22" ry="17" fill="#b88a58" />
         <ellipse cx="142" cy="72" rx="12" ry="9" fill="#e6cfa6" />
         <circle cx="151" cy="71" r="3" fill="#d77f86" />

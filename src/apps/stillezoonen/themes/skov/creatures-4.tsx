@@ -105,7 +105,7 @@ const citronVinger = (
     />
     <path d="M64 46 C 52 40, 38 30, 26 22" stroke="#fbf3a6" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.9" />
     <path d="M66 42 C 52 34, 40 26, 30 24" stroke="#c9b52a" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-    <circle cx="42" cy="28" r="2.8" fill="#ee8a2e" />
+    <circle cx="42" cy="28" r="2.2" fill="#ee8a2e" />
     {/* forvinge */}
     <path
       d="M84 46 C 92 32, 98 18, 93 6 C 78 8, 58 17, 52 30 C 56 40, 66 45, 72 47 Z"
@@ -116,7 +116,7 @@ const citronVinger = (
     />
     <path d="M80 44 C 76 34, 70 24, 66 17" stroke="#fbf3a6" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.9" />
     <path d="M70 44 C 70 34, 76 22, 86 14" stroke="#c9b52a" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-    <circle cx="78" cy="30" r="2.8" fill="#ee8a2e" />
+    <circle cx="78" cy="30" r="2.2" fill="#ee8a2e" />
   </>
 );
 
@@ -188,23 +188,13 @@ const bumblebee: CreatureSpec = {
       <path d="M22 56 L 20 63 M34 58 L 34 64 M46 56 L 49 62" stroke="#2f2622" strokeWidth="2.6" strokeLinecap="round" />
       <g className="zoo-torso">
         <Klip form={<ellipse cx="34" cy="40" rx="28" ry="19" />}>
-          <rect x="0" y="0" width="90" height="66" fill="#f2c230" />
+          <rect x="0" y="0" width="84" height="66" fill="#f2c230" />
           {/* hvid hale, sorte og gule bælter */}
           <rect x="0" y="0" width="15" height="66" fill="#f8f4e6" />
           <rect x="15" y="0" width="12" height="66" fill="#2f2622" />
           <rect x="41" y="0" width="12" height="66" fill="#2f2622" />
-          <ellipse cx="32" cy="29" rx="20" ry="6" fill="#fbe27a" opacity="0.55" />
           <ellipse cx="34" cy="56" rx="26" ry="5" fill="#c8961c" opacity="0.5" />
         </Klip>
-        {/* lodden kant */}
-        <path
-          d="M10 30 l -3 -2 l 3 -1 M16 22 l -2 -3 l 3 0 M50 24 l 1 -3 l 2 2 M26 20 l 0 -3 l 3 1"
-          stroke="#f2c230"
-          strokeWidth="1.6"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
       </g>
       <g className="zoo-head">
         <path d="M63 32 C 62 26, 66 22, 71 22" stroke="#2f2622" strokeWidth="1.8" fill="none" strokeLinecap="round" />
@@ -296,10 +286,10 @@ const woodAnt: CreatureSpec = {
   art: (
     <>
       {/* fjerne ben */}
-      <g className="zoo-leg zoo-leg-a">{streg("M58 37 L 56 48 L 53 58", MYRE_FJERN)}</g>
+      <g className="zoo-leg zoo-leg-a">{streg("M60 37 L 66 48 L 67 58", MYRE_FJERN)}</g>
       <g className="zoo-leg zoo-leg-b">
-        {streg("M64 36 L 74 44 L 76 58", MYRE_FJERN)}
-        {streg("M52 37 L 40 46 L 35 58", MYRE_FJERN)}
+        {streg("M66 36 L 80 42 L 87 56", MYRE_FJERN)}
+        {streg("M50 37 L 32 44 L 26 56", MYRE_FJERN)}
       </g>
       <g className="zoo-torso">
         {/* bagkrop, stilk, bryst */}
@@ -335,17 +325,17 @@ const FLAG_MAVE = "#b08658";
 const FLAG_HUD = "#6b4a36";
 const FLAG_KNOGLE = "#4a3225";
 
-/** Læder-vinge set fra siden: fire fingre med bue-kanter mellem spidserne. */
+/** Læder-vinge set fra siden: fire fingre fra skulderen med bue-kanter mellem spidserne. */
 const flagVinge = (hud: string, knogle: string) => (
   <>
     <path
-      d="M52 52 C 44 34, 24 20, 4 14 C 12 22, 12 28, 10 34 C 18 32, 22 36, 24 42 C 32 38, 36 42, 38 50 C 44 52, 48 54, 52 52 Z"
+      d="M62 50 C 62 30, 60 14, 56 2 C 54 12, 40 12, 28 6 C 28 16, 16 16, 8 22 C 10 30, 4 34, 6 42 C 16 44, 26 50, 36 56 Z"
       fill={hud}
       stroke={knogle}
       strokeWidth="1.6"
       strokeLinejoin="round"
     />
-    <path d="M52 52 L 4 14 M52 52 L 10 34 M52 52 L 24 42" stroke={knogle} strokeWidth="1.8" fill="none" strokeLinecap="round" />
+    <path d="M62 50 L 56 2 M62 50 L 28 6 M62 50 L 8 22 M62 50 L 6 42" stroke={knogle} strokeWidth="1.8" fill="none" strokeLinecap="round" />
   </>
 );
 
@@ -361,12 +351,12 @@ const pipistrelle: CreatureSpec = {
     <>
       {/* fjern vinge (mørkere) */}
       <g className="zoo-wing" style={{ "--flap": "0.16s", transformOrigin: "100% 100%" } as CSSProperties}>
-        <g transform="translate(18 -2)">{flagVinge("#5a3e2e", "#3a271c")}</g>
+        <g transform="translate(9 0)">{flagVinge("#5a3e2e", "#3a271c")}</g>
       </g>
       <g className="zoo-torso">
         <ellipse cx="58" cy="54" rx="26" ry="14" fill={FLAG_PELS} />
         <ellipse cx="62" cy="60" rx="18" ry="7" fill={FLAG_MAVE} />
-        <path d="M34 58 L 20 66 L 36 68 Z" fill={FLAG_HUD} />
+        <ellipse cx="34" cy="63" rx="10" ry="4" transform="rotate(14 34 63)" fill={FLAG_HUD} />
         <path d="M54 66 L 52 72 M63 67 L 62 73" stroke={FLAG_KNOGLE} strokeWidth="2.2" strokeLinecap="round" />
       </g>
       {/* nær vinge */}
@@ -405,35 +395,35 @@ const crossSpider: CreatureSpec = {
     <>
       {/* fjerne ben (mørke) */}
       <g className="zoo-leg zoo-leg-a">
-        {streg("M76 46 C 82 24, 90 38, 90 64", EDDER_FJERN)}
-        {streg("M64 48 C 48 40, 40 54, 36 64", EDDER_FJERN)}
+        {streg("M70 48 C 70 54, 72 58, 72 64", EDDER_FJERN)}
+        {streg("M62 46 C 48 52, 36 56, 28 64", EDDER_FJERN)}
       </g>
       <g className="zoo-leg zoo-leg-b">
-        {streg("M80 42 C 92 30, 100 42, 104 64", EDDER_FJERN)}
-        {streg("M66 46 C 44 46, 24 50, 14 64", EDDER_FJERN)}
+        {streg("M78 40 C 86 22, 94 34, 96 64", EDDER_FJERN)}
+        {streg("M64 46 C 60 52, 58 58, 54 64", EDDER_FJERN)}
       </g>
       <g className="zoo-torso">
-        <circle cx="38" cy="32" r="22" fill="#a8723f" />
-        <path d="M18 40 C 24 54, 52 58, 58 40 C 56 52, 20 54, 18 40 Z" fill="#8a5a32" />
-        <ellipse cx="30" cy="20" rx="11" ry="5" transform="rotate(-24 30 20)" fill="#c28d58" opacity="0.85" />
+        <circle cx="38" cy="28" r="21" fill="#a8723f" />
+        <path d="M18 36 C 24 50, 52 54, 58 36 C 56 48, 20 50, 18 36 Z" fill="#8a5a32" />
+        <ellipse cx="30" cy="16" rx="11" ry="5" transform="rotate(-24 30 16)" fill="#c28d58" opacity="0.85" />
         {/* lyst kors af prikker */}
         <g fill="#f6ecd0">
-          <circle cx="38" cy="19" r="2.6" />
-          <circle cx="38" cy="27" r="3" />
-          <circle cx="38" cy="36" r="3.2" />
-          <circle cx="38" cy="45" r="2.6" />
-          <circle cx="28.5" cy="29" r="2.6" />
-          <circle cx="47.5" cy="29" r="2.6" />
+          <circle cx="38" cy="15" r="2.6" />
+          <circle cx="38" cy="23" r="3" />
+          <circle cx="38" cy="32" r="3.2" />
+          <circle cx="38" cy="41" r="2.6" />
+          <circle cx="28.5" cy="25" r="2.6" />
+          <circle cx="47.5" cy="25" r="2.6" />
         </g>
       </g>
       {/* nære ben */}
       <g className="zoo-leg zoo-leg-b">
-        {streg("M76 46 C 82 24, 90 38, 90 64", EDDER_NAER)}
-        {streg("M64 48 C 48 40, 40 54, 36 64", EDDER_NAER)}
+        {streg("M76 46 C 82 36, 88 46, 86 64", EDDER_NAER)}
+        {streg("M64 50 C 46 56, 28 56, 16 64", EDDER_NAER)}
       </g>
       <g className="zoo-leg zoo-leg-a">
-        {streg("M80 42 C 92 30, 100 42, 104 64", EDDER_NAER)}
-        {streg("M66 46 C 44 46, 24 50, 14 64", EDDER_NAER)}
+        {streg("M80 42 C 94 20, 104 36, 104 64", EDDER_NAER)}
+        {streg("M66 48 C 56 54, 46 56, 42 64", EDDER_NAER)}
       </g>
       <g className="zoo-head">
         <circle cx="74" cy="40" r="13" fill="#8a5a32" />
@@ -474,11 +464,10 @@ const glowWorm: CreatureSpec = {
         <circle cx="30" cy="30" r="17" fill={GLOD} opacity="0.22" />
         <circle cx="30" cy="30" r="13" fill={GLOD} opacity="0.3" />
         {/* lysende bagende */}
-        <ellipse cx="24" cy="30" rx="13" ry="11" fill="#b4de2a" />
+        <ellipse cx="24" cy="30" rx="13" ry="11" fill={GLOD} />
         <ellipse cx="38" cy="30" rx="14" ry="12.5" fill={GLOD} />
-        <ellipse cx="24" cy="30" rx="8" ry="7" fill="#e6ff8a" />
-        <ellipse cx="37" cy="29" rx="9" ry="8" fill="#e6ff8a" />
-        <path d="M31 18 C 33 26, 33 34, 31 42" stroke="#8fb81f" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <path d="M31 18.5 C 33 26, 33 34, 31 41.5" stroke="#8fb81f" strokeWidth="1.6" fill="none" strokeLinecap="round" />
+        <ellipse cx="30" cy="23" rx="16" ry="4" fill="#f2ffb0" opacity="0.75" />
         {/* mørke led */}
         <ellipse cx="53" cy="30" rx="14" ry="13" fill={ORM_MORK} />
         <ellipse cx="68" cy="30" rx="14" ry="13" fill={ORM_MORK} />
@@ -500,7 +489,7 @@ const glowWorm: CreatureSpec = {
         <ellipse cx="96" cy="25" rx="6" ry="2.6" fill={ORM_LYS} />
         <circle cx="95" cy="38" r="3" fill="#f09d8a" opacity="0.55" />
         {EYE(102, 28, 3.6)}
-        <path d="M104 37 C 107 39, 110 38, 111 35" stroke="#e8d3a8" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+        <path d="M104 36 C 106 38.5, 109 38, 110 35.5" stroke="#2e2018" strokeWidth="1.4" fill="none" strokeLinecap="round" />
       </g>
     </>
   ),

@@ -67,7 +67,7 @@ const tawnyOwl: CreatureSpec = {
         {/* lyst ansigtsslør */}
         <ellipse cx="70" cy="48" rx="25" ry="21" fill="#f2e2c0" />
         <ellipse cx="70" cy="48" rx="25" ry="21" fill="none" stroke="#c99a68" strokeWidth="2.4" />
-        <path d="M54 34 C 58 38, 62 38, 64 36 M92 34 C 88 38, 84 38, 82 36" stroke="#6b4429" strokeWidth="3" fill="none" strokeLinecap="round" />
+        <path d="M52 36 C 55 30, 62 30, 66 33 M78 33 C 82 30, 89 30, 92 36" stroke="#6b4429" strokeWidth="2.6" fill="none" strokeLinecap="round" />
         {EYE(60, 47, 7.4)}
         {EYE(82, 47, 6.4)}
         <path d="M70 52 C 77 52, 82 57, 80 63 C 74 66, 68 62, 70 52 Z" fill="#e8b040" />
@@ -155,7 +155,7 @@ const woodpecker: CreatureSpec = {
         <circle cx="40" cy="30" r="3.4" fill="#f6f1e6" />
         <circle cx="36" cy="42" r="3.4" fill="#f6f1e6" />
         <circle cx="48" cy="44" r="3.4" fill="#f6f1e6" />
-        <circle cx="44" cy="54" r="3.2" fill="#f6f1e6" />
+        <circle cx="52" cy="30" r="3.2" fill="#f6f1e6" />
       </g>
       {/* stiv hale */}
       <path d="M30 70 L 4 92 L 12 98 L 42 84 Z" fill="#26252c" />
@@ -174,8 +174,8 @@ const woodpecker: CreatureSpec = {
       <g className="zoo-head">
         <circle cx="94" cy="44" r="18" fill="#f6f1e6" />
         <path d="M76 44 C 74 28, 88 22, 100 26 C 106 28, 110 32, 110 34 C 100 32, 88 36, 76 44 Z" fill="#26252c" />
-        <ellipse cx="80" cy="40" rx="5.6" ry="8" transform="rotate(-18 80 40)" fill="#d93a2e" />
-        <path d="M98 51 C 94 58, 88 62, 80 62" stroke="#26252c" strokeWidth="4.4" fill="none" strokeLinecap="round" />
+        <ellipse cx="82" cy="38" rx="4.4" ry="6.4" transform="rotate(-18 82 38)" fill="#d93a2e" />
+        <path d="M99 50 C 97 55, 93 58, 88 59" stroke="#26252c" strokeWidth="3.6" fill="none" strokeLinecap="round" />
         <path d="M108 40 L 130 44 L 108 49 Z" fill="#3b3a42" />
         {EYE(99, 41, 3.8)}
       </g>
@@ -211,7 +211,8 @@ const jay: CreatureSpec = {
         </Klip>
       </g>
       {/* sort hale */}
-      <path d="M34 78 L 4 86 L 8 104 L 40 94 Z" fill="#26242b" />
+      <path d="M36 76 C 22 76, 8 80, 4 88 C 4 96, 6 102, 10 106 C 22 104, 36 98, 44 90 Z" fill="#26242b" />
+      <path d="M8 98 C 6 94, 5 92, 4 88 C 8 84, 12 82, 16 80 C 12 86, 10 92, 8 98 Z" fill="#3d86c8" />
       <g className="zoo-leg zoo-leg-a">
         <path d="M52 94 V 108 M45 112 H 59 M52 108 L 46 112 M52 108 L 58 112" stroke="#8d6d62" strokeWidth="4.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
@@ -270,8 +271,8 @@ const cuckoo: CreatureSpec = {
         <Klip form={<path d={gogBug} />}>
           <path
             d="M54 56 L 58 90 M62 56 L 66 90 M70 56 L 74 90 M78 56 L 82 90 M86 56 L 90 90 M94 56 L 98 90 M102 56 L 106 90 M110 56 L 114 90 M118 56 L 122 90"
-            stroke="#5f6a77"
-            strokeWidth="2.6"
+            stroke="#7a8696"
+            strokeWidth="2.2"
           />
         </Klip>
       </g>
@@ -338,7 +339,7 @@ const robin: CreatureSpec = {
     <>
       <path d="M22 50 L 4 40 L 6 56 L 26 60 Z" fill="#7a5a3e" />
       <g className="zoo-leg zoo-leg-a">
-        <path d="M40 74 V 88 M34 91 H 46" stroke="#7d5c4c" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+        <path d="M40 74 V 88 M34 90 H 46" stroke="#7d5c4c" strokeWidth="3.4" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-torso">
         <circle cx="46" cy="52" r="28" fill="#8c6a4a" />
@@ -347,7 +348,7 @@ const robin: CreatureSpec = {
         <ellipse cx="38" cy="50" rx="17" ry="11" transform="rotate(-12 38 50)" fill="#76563a" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M52 74 V 88 M46 91 H 58" stroke="#9a7664" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+        <path d="M52 74 V 88 M46 90 H 58" stroke="#9a7664" strokeWidth="3.4" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-head">
         <circle cx="56" cy="32" r="20" fill="#8c6a4a" />
@@ -374,7 +375,7 @@ const greatTit: CreatureSpec = {
     <>
       <path d="M22 50 L 3 44 L 6 60 L 26 60 Z" fill="#6f8ea6" />
       <g className="zoo-leg zoo-leg-a">
-        <path d="M40 74 V 88 M34 91 H 46" stroke="#5f6a77" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+        <path d="M40 74 V 88 M34 90 H 46" stroke="#5f6a77" strokeWidth="3.4" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-torso">
         <circle cx="46" cy="52" r="28" fill="#8da35b" />
@@ -384,7 +385,7 @@ const greatTit: CreatureSpec = {
         <path d="M24 48 C 32 44, 42 44, 50 48" stroke="#f6f2ea" strokeWidth="3" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M52 74 V 88 M46 91 H 58" stroke="#7b8795" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+        <path d="M52 74 V 88 M46 90 H 58" stroke="#7b8795" strokeWidth="3.4" fill="none" strokeLinecap="round" />
       </g>
       <g className="zoo-head">
         <circle cx="56" cy="32" r="20" fill="#26242b" />

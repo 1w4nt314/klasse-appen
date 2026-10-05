@@ -65,7 +65,7 @@ const hedgehog: CreatureSpec = {
         <polygon points={piggeKurve(54, 60, 40, 40, 0.18, 12, 182, -2)} fill="#74502f" />
         <polygon points={piggeKurve(52, 60, 31, 31, 0.2, 9, 176, 6)} fill="#946a42" />
         <polygon points={piggeKurve(50, 60, 20, 18, 0.22, 6, 170, 12)} fill="#b08555" />
-        <ellipse cx="54" cy="62" rx="42" ry="9" fill="#74502f" />
+        <ellipse cx="54" cy="63" rx="40" ry="7.5" fill="#74502f" />
       </g>
       <g className="zoo-leg zoo-leg-b">
         <ellipse cx="82" cy="70" rx="9.5" ry="6.5" fill="#e3c9a0" />
@@ -79,7 +79,6 @@ const hedgehog: CreatureSpec = {
           d="M80 40 C 92 38, 104 46, 118 56 C 119 58, 118 60, 116 61 C 106 66, 90 68, 80 64 C 74 58, 74 46, 80 40 Z"
           fill="#f0dab5"
         />
-        <polygon points={piggeKurve(86, 50, 14, 12, 0.3, 4, 150, 40)} fill="#74502f" />
         <ellipse cx="90" cy="43" rx="6" ry="5.5" fill="#b08a5e" />
         <ellipse cx="90" cy="43.5" rx="3.2" ry="3" fill="#e9a9a6" />
         <circle cx="118" cy="57.5" r="4" fill="#2b2420" />
@@ -169,7 +168,9 @@ const dormouse: CreatureSpec = {
         fill="#dd8a2e"
       />
       <path d="M32 42 C 14 46, 7 32, 9 22 C 11 14, 16 10, 22 9" stroke="#f4c470" strokeWidth="3.4" fill="none" strokeLinecap="round" />
-      <path d="M3 24 l 4 1 M5 14 l 4 3 M13 6 l 2 4" stroke="#c97620" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="3.5" cy="26" r="3.2" fill="#dd8a2e" />
+      <circle cx="4.5" cy="15" r="3.2" fill="#dd8a2e" />
+      <circle cx="12" cy="7" r="3.2" fill="#dd8a2e" />
       <g className="zoo-leg zoo-leg-a">
         <rect x="56" y="48" width="8" height="10" rx="4" fill="#cf8a34" />
         <ellipse cx="61" cy="56.6" rx="6" ry="2.2" fill="#f6dba4" />
@@ -223,7 +224,7 @@ const shrew: CreatureSpec = {
       {/* kort, tyk hale */}
       <path d="M24 32 C 14 32, 8 28, 3 20" stroke="#a89886" strokeWidth="3" fill="none" strokeLinecap="round" />
       <g className="zoo-leg zoo-leg-a">
-        <rect x="52" y="34" width="6" height="13" rx="3" fill="#6f655a" />
+        <rect x="51" y="34" width="8" height="13" rx="4" fill="#6f655a" />
         <ellipse cx="55.5" cy="46.2" rx="5" ry="1.8" fill="#e3a9a4" />
       </g>
       <g className="zoo-leg zoo-leg-b">
@@ -236,7 +237,7 @@ const shrew: CreatureSpec = {
         <ellipse cx="50" cy="36" rx="19" ry="5" fill="#c9bfb0" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <rect x="62" y="34" width="6" height="13" rx="3" fill="#8f8274" />
+        <rect x="61" y="34" width="8" height="13" rx="4" fill="#8f8274" />
         <ellipse cx="65.5" cy="46.2" rx="5" ry="1.8" fill="#eeb8b2" />
       </g>
       <g className="zoo-leg zoo-leg-a">
@@ -252,7 +253,7 @@ const shrew: CreatureSpec = {
           d="M62 36 C 60 22, 72 18, 84 24 C 96 29, 106 32, 115 35 C 117 36, 116 38, 113 38.6 C 100 40, 84 42, 72 42 C 66 42, 63 40, 62 36 Z"
           fill="#8f8274"
         />
-        <path d="M84 36 C 94 38, 104 38, 112 38" stroke="#c9bfb0" strokeWidth="3.4" fill="none" strokeLinecap="round" />
+        <path d="M72 42 C 88 42, 102 40, 113.4 38.4 C 104 36.6, 90 37, 78 38 Z" fill="#c9bfb0" />
         <circle cx="115.5" cy="36" r="2.6" fill="#e0868f" />
         <path d="M106 34 L 118 29 M106 36 L 119 34" stroke="#5f564c" strokeWidth="0.8" strokeLinecap="round" />
         <circle cx="68" cy="37" r="3.4" fill="#e9a9a4" opacity="0.5" />
@@ -316,7 +317,7 @@ const toad: CreatureSpec = {
         <ellipse cx="72" cy="31" rx="6" ry="3.4" fill="#665528" opacity="0.7" />
         <path d="M99 42 C 90 46, 78 46, 70 43" stroke="#5a4a24" strokeWidth="1.8" fill="none" strokeLinecap="round" />
         <circle cx="94" cy="32" r="1.3" fill="#4d3f1d" />
-        <circle cx="84" cy="43" r="4" fill="#e6a090" opacity="0.5" />
+        <circle cx="88" cy="36" r="3.6" fill="#e6a090" opacity="0.5" />
       </g>
     </>
   ),
@@ -327,7 +328,7 @@ const toad: CreatureSpec = {
 /* ------------------------------------------------------------------ */
 
 const newtKrop =
-  "M4 33 C 18 30, 34 25, 52 24 L 100 24 C 110 21, 120 24, 126 30 C 128 33, 127 36, 122 38 C 112 42, 104 41, 98 41 L 52 41 C 34 40, 18 37, 4 33 Z";
+  "M3 35 C 18 32, 34 22, 52 21 L 98 21 C 108 17, 120 20, 127 29 C 129 33, 128 37, 123 39 C 113 43, 104 42, 98 42 L 52 42 C 34 42, 18 40, 3 35 Z";
 
 const newt: CreatureSpec = {
   name: "Lille vandsalamander",
@@ -339,43 +340,42 @@ const newt: CreatureSpec = {
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M86 38 L 82 43 L 76 45" stroke="#7a5a32" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M86 40 L 84 44 L 78 45" stroke="#7a5a32" strokeWidth="4.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M30 38 L 34 43 L 28 45" stroke="#7a5a32" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M30 40 L 32 44 L 26 45" stroke="#7a5a32" strokeWidth="4.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-torso">
         {/* bølget rygkam bag kroppen */}
-        <path d={rygKam(38, 98, 25, 8, 7)} fill="#a98456" />
-        <path d={rygKam(8, 38, 31, 3, 4)} fill="#a98456" transform="translate(0 -1)" />
+        <path d={rygKam(46, 98, 22, 7, 8)} fill="#a98456" />
+        <path d={rygKam(-42, 0, 22, 4, 4.5)} fill="#a98456" transform="translate(46 0) rotate(-13)" />
         <path d={newtKrop} fill="#8a6a3c" />
         <Klip form={<path d={newtKrop} />}>
           {/* orange mave med mørke pletter */}
-          <path d="M0 35 C 30 32, 60 34, 90 33 C 106 32, 120 33, 130 32 L 130 46 L 0 46 Z" fill="#f08a2a" />
-          <circle cx="22" cy="37" r="1.5" fill="#5a3a1c" />
-          <circle cx="38" cy="38" r="1.7" fill="#5a3a1c" />
-          <circle cx="54" cy="37.5" r="1.6" fill="#5a3a1c" />
-          <circle cx="70" cy="38.5" r="1.8" fill="#5a3a1c" />
-          <circle cx="86" cy="38" r="1.6" fill="#5a3a1c" />
-          <circle cx="102" cy="37" r="1.5" fill="#5a3a1c" />
-          <circle cx="116" cy="36" r="1.3" fill="#5a3a1c" />
+          <path d="M0 37 C 30 33, 60 34, 90 33 C 106 32, 120 33, 130 31 L 130 46 L 0 46 Z" fill="#f08a2a" />
+          <circle cx="24" cy="38" r="1.4" fill="#5a3a1c" />
+          <circle cx="40" cy="38" r="1.9" fill="#5a3a1c" />
+          <circle cx="56" cy="38" r="2" fill="#5a3a1c" />
+          <circle cx="72" cy="39" r="2.1" fill="#5a3a1c" />
+          <circle cx="88" cy="38.4" r="2" fill="#5a3a1c" />
+          <circle cx="104" cy="38" r="1.8" fill="#5a3a1c" />
           {/* mørke pletter på ryggen */}
-          <circle cx="46" cy="29" r="1.5" fill="#5e4524" />
-          <circle cx="64" cy="28" r="1.7" fill="#5e4524" />
-          <circle cx="80" cy="28.6" r="1.5" fill="#5e4524" />
-          <circle cx="94" cy="28" r="1.4" fill="#5e4524" />
+          <circle cx="46" cy="27" r="1.7" fill="#5e4524" />
+          <circle cx="64" cy="26" r="1.9" fill="#5e4524" />
+          <circle cx="80" cy="27" r="1.7" fill="#5e4524" />
+          <circle cx="94" cy="26" r="1.6" fill="#5e4524" />
         </Klip>
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M92 38 L 98 43 L 92 45" stroke="#8a6a3c" strokeWidth="5.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M92 40 L 96 44 L 90 45" stroke="#8a6a3c" strokeWidth="4.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M40 38 L 44 43 L 38 45" stroke="#8a6a3c" strokeWidth="5.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M40 40 L 44 44 L 38 45" stroke="#8a6a3c" strokeWidth="4.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </g>
       <g className="zoo-head">
-        <path d="M112 37 C 118 40, 123 38, 125 35" stroke="#5a3a1c" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-        <circle cx="113" cy="35.5" r="2.6" fill="#f1a08a" opacity="0.55" />
-        {EYE(116, 29, 3)}
+        <path d="M112 38 C 118 41, 124 39, 126 35" stroke="#5a3a1c" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+        <circle cx="112" cy="36" r="2.8" fill="#f1a08a" opacity="0.55" />
+        {EYE(117, 27, 3.2)}
       </g>
     </>
   ),
@@ -400,16 +400,16 @@ const lizard: CreatureSpec = {
       <circle cx="30" cy="32" r="1.6" fill="#4a3d22" />
       <circle cx="16" cy="37" r="1.3" fill="#4a3d22" />
       <g className="zoo-leg zoo-leg-a">
-        <path d="M92 32 L 84 38 L 90 43" stroke="#6b5e30" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="92" cy="43.5" r="2.8" fill="#6b5e30" />
+        <path d="M92 32 L 84 38 L 90 43" stroke="#6b5e30" strokeWidth="6.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="92" cy="43.5" r="3.6" fill="#6b5e30" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M60 32 L 54 38 L 60 43" stroke="#6b5e30" strokeWidth="5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="62" cy="43.5" r="2.8" fill="#6b5e30" />
+        <path d="M60 32 L 54 38 L 60 43" stroke="#6b5e30" strokeWidth="6.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="62" cy="43.5" r="3.6" fill="#6b5e30" />
       </g>
       <g className="zoo-torso">
-        <ellipse cx="84" cy="27" rx="34" ry="12" fill="#8c7c44" />
-        <path d="M54 20 C 70 14, 100 14, 114 20" stroke="#b3a562" strokeWidth="4.5" fill="none" strokeLinecap="round" />
+        <ellipse cx="84" cy="27" rx="34" ry="13" fill="#8c7c44" />
+        <path d="M60 21 C 74 16.5, 96 16.5, 110 21" stroke="#b3a562" strokeWidth="3.6" fill="none" strokeLinecap="round" />
         <path d="M54 32 C 70 38, 98 38, 114 32 C 100 34, 70 34, 54 32 Z" fill="#d8d8a0" />
         <circle cx="66" cy="23" r="2.3" fill="#4a3d22" />
         <circle cx="78" cy="24.5" r="2.5" fill="#4a3d22" />
@@ -420,12 +420,12 @@ const lizard: CreatureSpec = {
         <circle cx="98" cy="30" r="1.5" fill="#5f5230" />
       </g>
       <g className="zoo-leg zoo-leg-b">
-        <path d="M100 32 L 108 38 L 116 42" stroke="#8c7c44" strokeWidth="5.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="118" cy="43.5" r="3" fill="#8c7c44" />
+        <path d="M100 32 L 108 38 L 116 42" stroke="#8c7c44" strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="118" cy="43.5" r="3.8" fill="#8c7c44" />
       </g>
       <g className="zoo-leg zoo-leg-a">
-        <path d="M68 32 L 74 38 L 80 42" stroke="#8c7c44" strokeWidth="5.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="82" cy="43.5" r="3" fill="#8c7c44" />
+        <path d="M68 32 L 74 38 L 80 42" stroke="#8c7c44" strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="82" cy="43.5" r="3.8" fill="#8c7c44" />
       </g>
       <g className="zoo-head">
         <path
@@ -448,10 +448,10 @@ const lizard: CreatureSpec = {
 const stagBeetle: CreatureSpec = {
   name: "Eghjort",
   height: 4,
-  aspect: 124 / 66,
+  aspect: 132 / 66,
   gait: "walk",
   pace: 0.7,
-  viewBox: "0 0 124 66",
+  viewBox: "0 0 132 66",
   art: (
     <>
       {/* fjerne ben */}
@@ -483,10 +483,11 @@ const stagBeetle: CreatureSpec = {
         {/* følehorn */}
         <path d="M108 28 C 110 22, 108 16, 104 12" stroke="#2c180e" strokeWidth="2" fill="none" strokeLinecap="round" />
         <path d="M104 12 l -3 -2 M104 12 l -1 -4 M104 12 l 2 -4" stroke="#2c180e" strokeWidth="2" strokeLinecap="round" />
-        {/* røde gevir-kæber */}
-        <path d="M110 40 C 118 44, 122 34, 120 22" stroke="#9c2c1c" strokeWidth="5" fill="none" strokeLinecap="round" />
-        <path d="M112 46 C 122 48, 124 38, 123 28" stroke="#d24a30" strokeWidth="5.4" fill="none" strokeLinecap="round" />
-        <path d="M121 40 L 115 36 M123 30 L 117 26" stroke="#d24a30" strokeWidth="3.4" strokeLinecap="round" />
+        {/* røde gevir-kæber: fjerne kæbe mørkere og højere, nære kæbe forrest */}
+        <path d="M110 32 C 120 32, 126 22, 121 10" stroke="#8f2617" strokeWidth="5" fill="none" strokeLinecap="round" />
+        <path d="M122 22 L 116 20" stroke="#8f2617" strokeWidth="3.2" strokeLinecap="round" />
+        <path d="M112 42 C 124 44, 130 32, 125 18" stroke="#d24a30" strokeWidth="6" fill="none" strokeLinecap="round" />
+        <path d="M127 32 L 119 30 M119 42 L 117 35" stroke="#d24a30" strokeWidth="3.6" strokeLinecap="round" />
         {EYE(104, 33, 3.6)}
       </g>
     </>
