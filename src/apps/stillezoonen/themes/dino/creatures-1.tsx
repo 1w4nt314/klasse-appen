@@ -67,7 +67,7 @@ const tRex: CreatureSpec = {
         {/* venligt smil */}
         <path d="M250 62 C 240 76, 224 76, 212 66" stroke="#2f6d33" strokeWidth="3.5" fill="none" strokeLinecap="round" />
         <circle cx="252" cy="42" r="2.6" fill="#2f6d33" />
-        <circle cx="214" cy="62" r="7" fill="#fba3a3" opacity="0.6" />
+        <circle cx="214" cy="62" r="7" fill="#ffc2b0" opacity="0.7" />
         {EYE(224, 40, 6)}
         <path d="M214 28 q 10 -4 20 2" stroke="#4b9a4a" strokeWidth="4" fill="none" strokeLinecap="round" />
       </g>
@@ -141,7 +141,7 @@ const triceratops: CreatureSpec = {
         {/* nære øjenbrynshorn */}
         <path d="M192 56 L 232 20 L 208 64 Z" fill="#f4ead0" stroke="#f4ead0" strokeWidth="3" strokeLinejoin="round" />
         {EYE(196, 72, 5)}
-        <circle cx="206" cy="88" r="5.5" fill="#fba3a3" opacity="0.6" />
+        <circle cx="206" cy="88" r="5.5" fill="#ffc2b0" opacity="0.7" />
       </g>
     </>
   ),
@@ -195,7 +195,7 @@ const brachiosaurus: CreatureSpec = {
         <path d="M168 50 C 182 58, 200 58, 208 48" stroke="#cdeee0" strokeWidth="6" fill="none" strokeLinecap="round" />
         <path d="M198 50 Q 204 56 210 46" stroke="#2c6d63" strokeWidth="3" fill="none" strokeLinecap="round" />
         <circle cx="207" cy="36" r="2.4" fill="#2c6d63" />
-        <circle cx="190" cy="50" r="4.5" fill="#fba3a3" opacity="0.6" />
+        <circle cx="190" cy="50" r="4.5" fill="#ffc2b0" opacity="0.7" />
         {EYE(190, 38, 4.8)}
       </g>
     </>
@@ -279,7 +279,7 @@ const stegosaurus: CreatureSpec = {
         <path d="M212 118 C 224 126, 240 126, 249 114" stroke="#e6f0b5" strokeWidth="5" fill="none" strokeLinecap="round" />
         <path d="M247 112 Q 238 120 226 117" stroke="#2f6d33" strokeWidth="3" fill="none" strokeLinecap="round" />
         <circle cx="246" cy="102" r="2.2" fill="#2f6d33" />
-        <circle cx="222" cy="116" r="4.5" fill="#fba3a3" opacity="0.6" />
+        <circle cx="222" cy="116" r="4.5" fill="#ffc2b0" opacity="0.7" />
         {EYE(233, 101, 4.4)}
       </g>
     </>
@@ -358,7 +358,7 @@ const ankylosaurus: CreatureSpec = {
         <path d="M188 62 C 196 52, 222 54, 232 66 C 240 76, 238 90, 226 94 C 210 98, 192 94, 188 84 Z" fill="#b88a55" />
         <path d="M226 68 C 236 74, 238 88, 228 94 C 222 96, 220 90, 220 84 Z" fill="#d9b97c" />
         <path d="M204 92 Q 218 98 232 88" stroke="#6b4420" strokeWidth="3" fill="none" strokeLinecap="round" />
-        <circle cx="206" cy="86" r="5" fill="#fba3a3" opacity="0.6" />
+        <circle cx="206" cy="86" r="5" fill="#ffc2b0" opacity="0.7" />
         {EYE(210, 72, 4.2)}
       </g>
     </>
@@ -435,7 +435,7 @@ const velociraptor: CreatureSpec = {
         {fjer(134, 23, 290, 16, "#f27aa8")}
         <path d="M160 40 Q 152 46 144 43" stroke="#5a3d92" strokeWidth="2.8" fill="none" strokeLinecap="round" />
         <circle cx="160" cy="32" r="1.8" fill="#5a3d92" />
-        <circle cx="140" cy="42" r="3.6" fill="#fba3a3" opacity="0.6" />
+        <circle cx="140" cy="42" r="3.6" fill="#ffc2b0" opacity="0.7" />
         {EYE(142, 33, 4.4)}
       </g>
     </>
@@ -501,7 +501,7 @@ const parasaurolophus: CreatureSpec = {
         <path d="M222 56 C 232 58, 242 56, 247 49 C 240 53, 230 52, 222 50 Z" fill="#fbe9b8" />
         <path d="M244 52 Q 232 60 220 56" stroke="#8a5e12" strokeWidth="3" fill="none" strokeLinecap="round" />
         <circle cx="238" cy="42" r="2" fill="#8a5e12" />
-        <circle cx="208" cy="54" r="5" fill="#fba3a3" opacity="0.6" />
+        <circle cx="208" cy="54" r="5" fill="#ffc2b0" opacity="0.7" />
         {EYE(206, 38, 4.8)}
       </g>
     </>
@@ -563,7 +563,7 @@ const spinosaurus: CreatureSpec = {
         <path d="M200 82 C 222 88, 246 82, 260 72 C 248 78, 222 80, 200 74 Z" fill="#dcebf7" />
         <path d="M262 72 C 244 80, 226 80, 212 74" stroke="#2c5a86" strokeWidth="3.2" fill="none" strokeLinecap="round" />
         <circle cx="258" cy="62" r="2.4" fill="#2c5a86" />
-        <circle cx="212" cy="72" r="5.5" fill="#fba3a3" opacity="0.6" />
+        <circle cx="212" cy="72" r="5.5" fill="#ffc2b0" opacity="0.7" />
         {EYE(210, 58, 5)}
       </g>
     </>
@@ -620,7 +620,7 @@ const pachycephalosaurus: CreatureSpec = {
         </g>
         <path d="M146 64 Q 138 70 128 67" stroke="#7a3a2a" strokeWidth="2.8" fill="none" strokeLinecap="round" />
         <circle cx="148" cy="55" r="2" fill="#7a3a2a" />
-        <circle cx="122" cy="66" r="4" fill="#fba3a3" opacity="0.6" />
+        <circle cx="122" cy="66" r="4" fill="#ffc2b0" opacity="0.7" />
         {EYE(128, 58, 4.4)}
       </g>
     </>

@@ -419,37 +419,38 @@ const FLOD_PUNKTER = [0, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220, 240,
   ellipsePunkt(80, 108, 52, 42, v),
 );
 
-/** Én lang, blød og afrundet kløer — banan-agtig, ikke spids. */
+/** Én lang, blød og afrundet kløer — banan-agtig, krummer nedad, ikke spids. */
 const kloer = (key: string, x: number, y: number, vinkel: number, len: number, farve: string) => (
   <path
     key={key}
     transform={`translate(${x} ${y}) rotate(${vinkel})`}
-    d={`M0 -5.5 C ${r2(len * 0.35)} -9, ${r2(len * 0.8)} -6, ${len} 7 C ${len + 2} 11, ${r2(len - 4)} 13, ${r2(len - 7)} 11 C ${r2(len * 0.6)} 3, ${r2(len * 0.3)} 5, 0 5.5 Z`}
+    d={`M0 -5.5 C ${r2(len * 0.4)} -8, ${r2(len * 0.88)} -5, ${len} 10 C ${len + 1} 14, ${r2(len - 5)} 16, ${r2(len - 8)} 13 C ${r2(len * 0.6)} 4, ${r2(len * 0.3)} 5, 0 5.5 Z`}
     fill={farve}
   />
 );
 
+/** Armen hænger fra skulderen foran brystet; kløerne krummer nedad i luften foran maven. */
 const arm = (pre: string, dx: number, dy: number, fjern: boolean) => (
   <g transform={`translate(${dx} ${dy})`}>
     <path
-      d="M108 98 C 118 108, 124 118, 134 126"
+      d="M110 94 C 120 100, 128 108, 132 120"
       stroke={fjern ? "#b98b52" : "#c9a066"}
-      strokeWidth="15"
+      strokeWidth="17"
       fill="none"
       strokeLinecap="round"
     />
-    <circle cx="136" cy="128" r="9" fill={fjern ? "#d3b27a" : "#e4c68e"} />
-    {[8, 30, 52].map((v, i) => kloer(`${pre}${i}`, 142, 130, v, 76 - i * 4, fjern ? "#e6dcb8" : "#f6efd8"))}
+    <circle cx="132" cy="122" r="9.5" fill={fjern ? "#d3b27a" : "#e4c68e"} />
+    {[8, 28, 48].map((v, i) => kloer(`${pre}${i}`, 134, 122, v, 46 - i * 3, fjern ? "#e6dcb8" : "#f6efd8"))}
   </g>
 );
 
 const therizinosaurus: CreatureSpec = {
   name: "Therizinosaurus",
   height: 22,
-  aspect: 230 / 190,
+  aspect: 200 / 190,
   gait: "walk",
   pace: 0.7,
-  viewBox: "0 0 230 190",
+  viewBox: "0 0 200 190",
   art: (
     <>
       <ellipse cx="22" cy="104" rx="21" ry="11" transform="rotate(-15 22 104)" fill="#b98b52" />
@@ -462,10 +463,10 @@ const therizinosaurus: CreatureSpec = {
         <rect x="52" y="130" width="22" height="60" rx="10" fill="#a8814c" />
         <rect x="52" y="180" width="32" height="10" rx="5" fill="#8c6b45" />
       </g>
-      <g className="zoo-torso">{arm("fa", -6, -4, true)}</g>
+      <g className="zoo-torso">{arm("fa", -8, -3, true)}</g>
       <g className="zoo-torso">
-        <path d="M104 84 C 118 74, 128 50, 138 24" stroke="#d4aa6c" strokeWidth="21" fill="none" strokeLinecap="round" />
-        <path d="M110 86 C 124 76, 134 54, 143 28" stroke="#f0dcae" strokeWidth="6" fill="none" strokeLinecap="round" opacity="0.8" />
+        <path d="M104 86 C 116 76, 124 60, 132 42" stroke="#d4aa6c" strokeWidth="30" fill="none" strokeLinecap="round" />
+        <path d="M112 86 C 124 78, 132 62, 140 46" stroke="#f0dcae" strokeWidth="8" fill="none" strokeLinecap="round" opacity="0.8" />
         <ellipse cx="80" cy="108" rx="52" ry="42" fill="#d4aa6c" />
         {FLOD_PUNKTER.map(([x, y], i) => (
           <circle key={i} cx={x} cy={y} r="7" fill="#d4aa6c" />
@@ -485,13 +486,12 @@ const therizinosaurus: CreatureSpec = {
       </g>
       <g className="zoo-torso">{arm("na", 0, 0, false)}</g>
       <g className="zoo-head">
-        <circle cx="130" cy="30" r="11" fill="#d4aa6c" />
-        <ellipse cx="148" cy="17" rx="16" ry="13" fill="#d4aa6c" />
-        <ellipse cx="162" cy="22" rx="9" ry="6.5" fill="#f0d9a0" />
-        <path d="M153 27 Q 160 31 168 25" stroke="#7a5a30" strokeWidth="1.8" fill="none" strokeLinecap="round" />
-        <path d="M138 8 C 134 0, 128 1, 126 5 M142 5 C 140 -1, 134 -2, 132 1" stroke="#b98b52" strokeWidth="3" fill="none" strokeLinecap="round" />
-        <circle cx="143" cy="25" r="4.5" fill="#f4a6a0" opacity="0.55" />
-        {EYE(151, 14, 5.6)}
+        <ellipse cx="150" cy="30" rx="28" ry="23" fill="#d4aa6c" />
+        <ellipse cx="176" cy="37" rx="14" ry="10" fill="#f0d9a0" />
+        <path d="M157 46 Q 170 55 186 43" stroke="#7a5a30" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+        <path d="M134 10 C 128 0, 120 1, 118 7 M140 7 C 138 -2, 130 -3, 127 1" stroke="#b98b52" strokeWidth="3.6" fill="none" strokeLinecap="round" />
+        <circle cx="143" cy="40" r="7" fill="#f4a6a0" opacity="0.55" />
+        {EYE(158, 23, 9)}
       </g>
     </>
   ),
