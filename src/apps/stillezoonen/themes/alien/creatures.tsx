@@ -2,6 +2,13 @@ import type { CSSProperties } from "react";
 import { EYE } from "../shared";
 import type { CreatureSpec } from "../types";
 import { crystal } from "./Background";
+import { more } from "./creatures-2";
+import { evenMore } from "./creatures-3";
+import { yetMore } from "./creatures-4";
+import { specials } from "./specials";
+import { specialsTwo } from "./specials-2";
+import { specialsThree } from "./specials-3";
+import { variants } from "./variants";
 
 /**
  * Rumvæsnerne i Stillezoonen. Tegnet i profil, vendt mod højre, med fødderne
@@ -339,4 +346,11 @@ export const creatures: Record<string, CreatureSpec> = {
   floatingEye,
   crystalSnail,
   tentacleBuddy,
+  ...more,
+  ...evenMore,
+  ...yetMore,
+  ...variants,
+  ...specials,
+  ...specialsTwo,
+  ...specialsThree,
 };
