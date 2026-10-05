@@ -53,14 +53,18 @@ const roeDeer: CreatureSpec = {
   ),
 };
 
+/** Kronhjortens gevir: en stang, der buer op og bagud, med brynsprosse og fem ender. */
+const ANTLER =
+  "M190 50 C 192 24 176 -4 150 -20 M189 40 L 207 34 M188 30 L 204 16 M181 11 L 194 -8 M167 -6 L 170 -26 M150 -20 L 146 -30 M150 -20 L 160 -30";
+
 /** Kronhjort: stor og mørkebrun med manke og stort grenet gevir. */
 const redDeer: CreatureSpec = {
   name: "Kronhjort",
-  height: 28,
-  aspect: 204 / 200,
+  height: 33.6,
+  aspect: 204 / 240,
   gait: "walk",
   pace: 0.8,
-  viewBox: "28 0 204 200",
+  viewBox: "28 -40 204 240",
   art: (
     <>
       <g className="zoo-leg zoo-leg-a">
@@ -85,9 +89,9 @@ const redDeer: CreatureSpec = {
         <rect x="66" y="190" width="13" height="10" rx="4" fill="#2f2019" />
       </g>
       <g className="zoo-head">
-        {/* Gevir: det fjerne er mørkere og forskudt */}
-        <g transform="translate(-9 3)" stroke="#b09c6a" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M190 52 C 192 36 184 22 170 12 M188 46 L 204 38 M186 36 L 200 28 M182 26 L 195 16 M170 12 L 166 5 M170 12 L 180 6" />
+        {/* Gevir: to store grenede stænger, den fjerne er mørkere og forskudt */}
+        <g transform="translate(-14 5)" stroke="#a89466" strokeWidth="7" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d={ANTLER} />
         </g>
         <path d="M138 98 C 148 72, 164 52, 180 44 L 208 64 C 200 82, 192 104, 178 122 L 170 130 L 140 122 Z" fill="#7a4a2c" />
         {/* manke */}
@@ -97,8 +101,8 @@ const redDeer: CreatureSpec = {
         <circle cx="219" cy="79" r="4" fill="#2b211c" />
         <ellipse cx="176" cy="54" rx="6" ry="11" transform="rotate(-40 176 54)" fill="#6b4026" />
         <ellipse cx="177" cy="55" rx="3" ry="7" transform="rotate(-40 177 55)" fill="#d9a98c" />
-        <g stroke="#e6d6a8" strokeWidth="6.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M190 52 C 192 36 184 22 170 12 M188 46 L 204 38 M186 36 L 200 28 M182 26 L 195 16 M170 12 L 166 5 M170 12 L 180 6" />
+        <g stroke="#e3d0a0" strokeWidth="7.5" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d={ANTLER} />
         </g>
         {EYE(200, 62, 4)}
       </g>
@@ -337,11 +341,14 @@ const pineMarten: CreatureSpec = {
       </g>
       <g className="zoo-head">
         <ellipse cx="146" cy="52" rx="14" ry="12" fill="#5b3a29" />
-        <circle cx="148" cy="24" r="9.5" fill="#f0dc9c" />
-        <circle cx="148" cy="25.5" r="6.4" fill="#5b3a29" />
+        {/* to små runde ører med lys kant */}
+        <circle cx="164" cy="29" r="7" fill="#f0dc9c" />
+        <circle cx="164" cy="30.2" r="4.6" fill="#4a2e20" />
+        <circle cx="149" cy="30" r="7.6" fill="#f0dc9c" />
+        <circle cx="149" cy="31.4" r="5" fill="#5b3a29" />
         <ellipse cx="158" cy="40" rx="18" ry="14" fill="#5b3a29" />
         <ellipse cx="175" cy="47" rx="11" ry="7" transform="rotate(15 175 47)" fill="#6e4733" />
-        <path d="M162 48 C 170 54, 164 66, 150 70 C 140 68, 136 58, 142 52 C 148 56, 156 54, 162 48 Z" fill="#f0dc9c" />
+        <path d="M168 50 C 166 56, 160 60, 154 64 C 150 70, 140 70, 136 64 C 140 58, 148 56, 156 50 C 160 52, 164 52, 168 50 Z" fill="#f0dc9c" />
         <circle cx="184" cy="48" r="3" fill="#1f1512" />
         {EYE(166, 38, 3.4)}
       </g>
