@@ -5,6 +5,7 @@
 // regnestykker smides væk.
 
 import { aliasConflict, clipAlias, getFigureDef } from "./figures";
+import { asFigure, type FigureDefFor, type FigureKind, type FigureObjectFor } from "../figures/registry";
 import { DEFAULT_SETTINGS, LIMITS, SCHEMA_VERSION } from "./types";
 import type {
   CalcObject,
@@ -71,9 +72,13 @@ function parseText(r: Record<string, unknown>, id: string): TextObject | null {
 
 function parseFigure(r: Record<string, unknown>, id: string): FigureObject | null {
   const def = getFigureDef(r.figure);
+  return def ? parseFigureOf(def, r, id) : null;
+}
+
+function parseFigureOf<K extends FigureKind>(def: FigureDefFor<K>, r: Record<string, unknown>, id: string): FigureObject | null {
   const x = num(r.x, COORD_MIN, COORD_MAX);
   const y = num(r.y, COORD_MIN, COORD_MAX);
-  if (!def || x === null || y === null) return null;
+  if (x === null || y === null) return null;
   const shape = def.validateShape(r.shape);
   if (!shape) return null;
   const rawParams = isObj(r.params) ? r.params : {};
@@ -87,14 +92,14 @@ function parseFigure(r: Record<string, unknown>, id: string): FigureObject | nul
       if (alias) aliases[p.key] = alias;
     }
   }
-  const fig: FigureObject = { id, type: "figure", figure: def.type, x, y, shape, params };
+  const fig: FigureObjectFor<K> = { id, type: "figure", figure: def.type, x, y, shape, params };
   // Aliasser tilføjes i parameterrækkefølge; et alias, der allerede er i brug (som navn
   // eller nøgle på en anden parameter), smides væk.
   for (const p of def.params) {
     const alias = aliases[p.key];
     if (alias && !aliasConflict(fig, p.key, alias)) params[p.key] = { ...params[p.key], alias };
   }
-  return fig;
+  return asFigure(fig);
 }
 
 function parseCalc(r: Record<string, unknown>, id: string, figures: Map<string, FigureObject>): CalcObject | null {

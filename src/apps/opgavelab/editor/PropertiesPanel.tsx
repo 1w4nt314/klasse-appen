@@ -11,7 +11,7 @@ import {
   calcProblem,
   clipAlias,
   displayName,
-  getFigureDef,
+  defOf,
   solveParam,
   visibleParams,
 } from "../model/figures";
@@ -66,7 +66,7 @@ export function PropertiesPanel({
       </aside>
     );
   }
-  const def = selected.type === "figure" ? getFigureDef(selected.figure) : null;
+  const def = selected.type === "figure" ? defOf(selected) : null;
   const title =
     selected.type === "text"
       ? "Tekst"
@@ -148,8 +148,7 @@ function FigureSection({
   onSelect: (id: string | null) => void;
   onSettings: (patch: Partial<DocSettings>) => void;
 }) {
-  const def = getFigureDef(fig.figure);
-  if (!def) return null;
+  const def = defOf(fig);
   const values = def.compute(fig.shape);
   const vis = visibleParams(fig);
   const problems = calcs
@@ -206,6 +205,12 @@ function FigureSection({
                   {reason && (
                     <span id={`ol-find-why-${key}`} className={vis.has(key) ? "sr-only" : "ol-find-why"}>
                       {reason}
+                    </span>
+                  )}
+                  {reason && vis.has(key) && (
+                    // Kort, synlig årsag for musebrugere (den fulde tekst står i title og for skærmlæsere).
+                    <span className="ol-find-why ol-find-why-short" aria-hidden="true" data-ol-find-why={key}>
+                      Skjul først
                     </span>
                   )}
                 </td>

@@ -1,15 +1,9 @@
 // Opgavelab — nyt dokument, nye objekter og id-generator (ren TS).
 
 import { PAGE, DEFAULT_SETTINGS } from "./types";
-import type {
-  CalcObject,
-  Document as SheetDoc,
-  FigureKind,
-  FigureObject,
-  SheetObject,
-  TextObject,
-} from "./types";
-import { defaultParams, figureBoundsOnSheet, getFigureDef } from "./figures";
+import type { CalcObject, Document as SheetDoc, FigureObject, SheetObject, TextObject } from "./types";
+import { FIGURES, asFigure, type FigureKind } from "../figures/registry";
+import { defaultParams, figureBoundsOnSheet } from "./figures";
 
 let counter = 0;
 
@@ -51,20 +45,16 @@ export function makeText(id: string, existing: number): TextObject {
   };
 }
 
-const NEW_TRIANGLE_MM = { a: 80, b: 60 } as const;
-
-/** Ny figur med bounding box centreret midt på arket (let forskudt pr. eksisterende figur). */
-export function makeFigure(id: string, kind: FigureKind, existing: number): FigureObject | null {
-  const def = getFigureDef(kind);
-  if (!def) return null;
-  // Ny trekant: 8 × 6 cm (c = 10 cm), så vinkelværdierne får plads inde i figuren.
-  const base = def.defaultShape();
-  const shape = kind === "rightTriangle" ? { ...base, a: NEW_TRIANGLE_MM.a, b: NEW_TRIANGLE_MM.b } : base;
+/** Ny figur (figurens newShape) med bounding box centreret midt på arket (let forskudt pr. eksisterende figur). */
+export function makeFigure<K extends FigureKind>(id: string, kind: K, existing: number): FigureObject | null {
+  if (!Object.prototype.hasOwnProperty.call(FIGURES, kind)) return null;
+  const def = FIGURES[kind];
+  const shape = def.newShape();
   const b = def.bounds(shape);
   const o = cascade(existing);
   const cx = PAGE.w / 2 + o;
   const cy = PAGE.h / 2 + o;
-  return {
+  return asFigure<K>({
     id,
     type: "figure",
     figure: kind,
@@ -72,7 +62,7 @@ export function makeFigure(id: string, kind: FigureKind, existing: number): Figu
     y: cy - (b.minY + b.maxY) / 2,
     shape,
     params: defaultParams(def),
-  };
+  });
 }
 
 /** Nyt regnestykke placeret under figuren (kan flyttes uafhængigt). */

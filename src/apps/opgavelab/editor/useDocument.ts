@@ -122,15 +122,15 @@ export function reducer(s: DocState, a: DocAction): DocState {
       // Hjørnetræk: som "move" lægges ændringen i det igangværende træk (ét fortryd-trin ved commit).
       const fig = s.doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === a.id);
       if (!fig) return s;
-      const same =
-        fig.x === a.x &&
-        fig.y === a.y &&
-        (Object.keys(a.shape) as (keyof FigureShape)[]).every((k) => fig.shape[k] === a.shape[k]);
+      const prev = fig.shape as Record<string, unknown>;
+      const next = a.shape as Record<string, unknown>;
+      const same = fig.x === a.x && fig.y === a.y && Object.keys(next).every((k) => prev[k] === next[k]);
       if (same) return s;
+      // Formen kommer fra samme figurs dragVertex (samme figurtype som `fig`).
       return {
         ...s,
         pending: s.pending ?? s.doc,
-        doc: mapObject(s.doc, a.id, (o) => ({ ...(o as FigureObject), shape: a.shape, x: a.x, y: a.y })),
+        doc: mapObject(s.doc, a.id, () => ({ ...fig, shape: a.shape, x: a.x, y: a.y }) as FigureObject),
       };
     }
     case "commit": {

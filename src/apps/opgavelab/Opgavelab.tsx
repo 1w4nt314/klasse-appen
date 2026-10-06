@@ -342,6 +342,23 @@ export default function Opgavelab({ userKey }: AppProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Fokusringen på arkets objekter skal kun ses ved tastatur. Chrome viser
+  // :focus-visible på SVG-elementer med tabindex også efter et museklik, så
+  // vi husker selv, om seneste input var tastatur eller pointer.
+  const [pointerInput, setPointerInput] = useState(false);
+  useEffect(() => {
+    const onPointer = () => setPointerInput(true);
+    const onKeyInput = (e: KeyboardEvent) => {
+      if (e.key === "Tab" || e.key.startsWith("Arrow")) setPointerInput(false);
+    };
+    window.addEventListener("pointerdown", onPointer, true);
+    window.addEventListener("keydown", onKeyInput, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointer, true);
+      window.removeEventListener("keydown", onKeyInput, true);
+    };
+  }, []);
+
   useEffect(() => {
     if (!d.dirty) return;
     const onUnload = (e: BeforeUnloadEvent) => {
@@ -368,7 +385,7 @@ export default function Opgavelab({ userKey }: AppProps) {
   };
 
   return (
-    <div className="ol-root">
+    <div className="ol-root" data-ol-input={pointerInput ? "pointer" : "keyboard"}>
       <TopBar
         view={view}
         onView={setView}

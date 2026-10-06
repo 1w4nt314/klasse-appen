@@ -12,7 +12,7 @@ import type {
   DocSettings,
   DragOpts,
   DragResult,
-  FigureDef,
+  FigureGeometry,
   Fmt,
   ParamDef,
   ParamKind,
@@ -338,9 +338,8 @@ export function solve(
   };
 }
 
-export const rightTriangle: FigureDef<RightTriangleShape> = {
-  type: "rightTriangle",
-  name: "Retvinklet trekant",
+/** Geometri-delen af figurens FigureDef (resten — tegning, etiketter, ikon — i figures/rightTriangle.tsx). */
+export const rightTriangleGeometry: FigureGeometry<RightTriangleShape> = {
   params: PARAMS,
   defaultShape,
   vertices,

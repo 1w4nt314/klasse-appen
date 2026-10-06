@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [
+      {
+        // Opgavelabs fontfiler (1,5 MB) ændrer sig aldrig: lang cache i stedet for
+        // Next-standarden max-age=0 for public/. Skift filnavnet, hvis en font udskiftes.
+        source: "/fonts/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+    ];
+  },
   async redirects() {
     return [
       // Klasse Zoo hedder nu Stillezoonen.

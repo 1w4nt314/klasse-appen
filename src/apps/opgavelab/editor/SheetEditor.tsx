@@ -14,7 +14,7 @@ import {
 } from "react";
 import { numberDocument } from "../core/numbering";
 import { FMT } from "../core/format";
-import { calcProblem, displayName, dragOpts, figureBoundsOnSheet, getFigureDef } from "../model/figures";
+import { calcProblem, defOf, displayName, dragOpts, figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
@@ -174,9 +174,9 @@ export function SheetEditor({
 
   /** Piletast på et hjørnehåndtag: flyt hjørnet ét trin (snap-trin, ellers 2 mm; Shift: 5 gange så meget). */
   function keyVertex(fig: FigureObject, vertex: string, dir: Point, big: boolean) {
-    const def = getFigureDef(fig.figure);
-    const p = def?.vertices(fig.shape)[vertex];
-    if (!def || !p) return;
+    const def = defOf(fig);
+    const p = def.vertices(fig.shape)[vertex];
+    if (!p) return;
     const opts = dragOpts(doc.settings, false);
     const step = (doc.settings.snapCm > 0 ? opts.snapMm : 2) * (big ? 5 : 1);
     const d: VertexDrag = {
@@ -215,10 +215,9 @@ export function SheetEditor({
 
   function startVertexDrag(e: ReactPointerEvent<SVGSVGElement>, svg: SVGSVGElement, vertex: string) {
     if (!selected || selected.type !== "figure") return;
-    const def = getFigureDef(selected.figure);
     const pt = toSvg(svg, e);
-    const p = def?.vertices(selected.shape)[vertex];
-    if (!def || !pt || !p) return;
+    const p = defOf(selected).vertices(selected.shape)[vertex];
+    if (!pt || !p) return;
     svg.setPointerCapture(e.pointerId);
     drag.current = {
       kind: "vertex",
@@ -248,8 +247,13 @@ export function SheetEditor({
     }
     const hit = target.closest("[data-ol-hit]");
     const id = hit?.getAttribute("data-ol-hit") ?? null;
+    const wasSelected = id !== null && id === selectedId;
     onSelect(id);
     if (!id || mode !== "opgave") return;
+    // Touch: første tryk på et umarkeret objekt markerer det kun. Ellers ville samme træk
+    // både scrolle siden (svg'et har touch-action: pan-y, når intet er markeret) og flytte
+    // objektet. Når noget er markeret, er touch-action none, og næste træk flytter.
+    if (e.pointerType === "touch" && !wasSelected) return;
     const obj = doc.objects.find((o) => o.id === id);
     const pt = toSvg(svg, e);
     if (!obj || !pt) return;
@@ -268,16 +272,14 @@ export function SheetEditor({
 
   /** Figuren efter et hjørnetræk til `local` (ankerets koordinater ved start), eller null hvis den ikke kan være på arket. */
   function reshapeAt(d: VertexDrag, fig: FigureObject, local: Point, coarse: boolean): FigureObject | null {
-    const def = getFigureDef(fig.figure);
-    if (!def) return null;
-    const res = def.dragVertex(d.shape, d.vertex, local, dragOpts(doc.settings, coarse));
-    const next: FigureObject = {
+    const res = defOf(fig).dragVertex(d.shape, d.vertex, local, dragOpts(doc.settings, coarse));
+    const next = {
       ...fig,
       shape: res.shape,
       // Ikke afrundet: ved C-træk skal A og B blive præcis, hvor de var.
       x: d.anchor.x + res.offset.x,
       y: d.anchor.y + res.offset.y,
-    };
+    } as FigureObject;
     return fitsSheet(figureExtent(next, numbering.get(fig.id) ?? "", measure)) ? next : null;
   }
 
@@ -480,8 +482,7 @@ function FigureHit({
   pressed: boolean;
   onSelect: (id: string | null) => void;
 }) {
-  const def = getFigureDef(fig.figure);
-  if (!def) return null;
+  const def = defOf(fig);
   const v = def.vertices(fig.shape);
   const pts = Object.values(v)
     .map((p) => `${fig.x + p.x},${fig.y + p.y}`)
@@ -505,8 +506,7 @@ function Selection({
 }) {
   const b = obj.type === "figure" ? boxFor(obj, doc, numbering, measure) : objectBox(obj, doc, numbering, measure, "opgave");
   const pad = 1.5;
-  const def = obj.type === "figure" ? getFigureDef(obj.figure) : null;
-  const verts = obj.type === "figure" && def ? def.vertices(obj.shape) : null;
+  const verts = obj.type === "figure" ? defOf(obj).vertices(obj.shape) : null;
   return (
     <g data-ol-selection={obj.id} pointerEvents="none">
       <rect

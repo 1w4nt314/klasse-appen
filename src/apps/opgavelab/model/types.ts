@@ -26,20 +26,21 @@ export type RightTriangleShape = {
   mirror: boolean;
 };
 
-/** Nøgler i FIGURES-registry. Udvides pr. ny figur. */
-export type FigureKind = "rightTriangle";
-/** Figur-specifik form. Bliver en union, når flere figurer kommer til. */
-export type FigureShape = RightTriangleShape;
+// Figurtyperne (FigureKind, FigureShape, FigureObject) afledes af registry'et i
+// figures/registry.ts, så en ny figur kun kræver én ny fil + én linje dér.
+import type { FigureObject } from "../figures/registry";
+export type { FigureKind, FigureObject, FigureShape } from "../figures/registry";
 
-export type FigureObject = {
+/** En figur på arket med en bestemt nøgle K og form S (FigureObject er unionen pr. figur). */
+export type FigureObjectOf<K extends string, S> = {
   id: string;
   type: "figure";
-  figure: FigureKind;
+  figure: K;
   /** Anker på arket (for retvinklet trekant = hjørne C). */
   x: Mm;
   y: Mm;
-  shape: FigureShape;
-  /** a, b, c, A, B, C (senere O, T). */
+  shape: S;
+  /** Fx a, b, c, A, B, C for den retvinklede trekant. */
   params: Record<string, ParamState>;
 };
 
@@ -64,6 +65,9 @@ export type Document = {
 
 export const PAGE = { w: 210, h: 297, margin: 10 } as const;
 
+/** 1 pt i mm. */
+export const PT_MM = 25.4 / 72;
+
 export const LIMITS = {
   objects: 200,
   textChars: 2000,
@@ -78,7 +82,7 @@ export const ALIAS_MAX = 6;
 
 export const DEFAULT_SETTINGS: DocSettings = { inverseNotation: "power", snapCm: 0.5, snapDeg: true };
 
-// ---- Figur-registry-typer (implementeres i core/*, samles i model/figures.ts) ----
+// ---- Figurgeometri (implementeres i core/*; den fulde FigureDef i figures/types.ts) ----
 
 export type ParamKind = "length" | "angle" | "area";
 export type ParamDef = { key: string; label: string; kind: ParamKind };
@@ -119,9 +123,8 @@ export type DragOpts = {
 /** Resultat af et hjørnetræk. offset lægges til figurens anker (x, y). */
 export type DragResult<S> = { shape: S; offset: Point };
 
-export type FigureDef<S> = {
-  type: FigureKind;
-  name: string;
+/** Geometri og Find-regler for en figur: ren TS uden React/DOM, testbar i Node. */
+export type FigureGeometry<S> = {
   params: ParamDef[];
   defaultShape(): S;
   /** Lokale mm-koordinater relativt til ankeret. */

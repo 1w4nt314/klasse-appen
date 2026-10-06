@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { FIGURES } from "../model/figures";
+import { FIGURES, FIGURE_KINDS } from "../model/figures";
 import type { FigureKind } from "../model/types";
 
 export function ToolPanel({
@@ -35,22 +35,26 @@ export function ToolPanel({
           </svg>
           Tekst
         </button>
-        {(Object.keys(FIGURES) as FigureKind[]).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            className="ol-tool"
-            aria-label={`${FIGURES[kind].name} — læg figuren på arket`}
-            onClick={() => onAddFigure(kind)}
-            disabled={full}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path d="M5 4v16h14L5 4Z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />
-              <path d="M5 15h5v5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            </svg>
-            {FIGURES[kind].name}
-          </button>
-        ))}
+        {/* Én knap pr. figur i registry'et (figures/registry.ts). */}
+        {FIGURE_KINDS.map((kind) => {
+          const def = FIGURES[kind];
+          return (
+            <button
+              key={kind}
+              type="button"
+              className="ol-tool"
+              data-ol-tool={kind}
+              aria-label={`${def.name} — læg figuren på arket`}
+              onClick={() => onAddFigure(kind)}
+              disabled={full}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                {def.icon()}
+              </svg>
+              {def.name}
+            </button>
+          );
+        })}
       </div>
       {full && (
         <p className="ol-hint" role="status">
@@ -66,6 +70,7 @@ export function ToolPanel({
           <li>Eksporter laver opgave og svarark som to PDF-filer.</li>
         </ol>
         <p>Delete sletter, Ctrl+Z fortryder, Esc afmarkerer.</p>
+        <p>På en touchskærm: tryk én gang for at markere en figur, og træk den derefter.</p>
       </details>
     </aside>
   );

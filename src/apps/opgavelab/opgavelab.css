@@ -475,6 +475,12 @@
   font-size: 0.75rem;
   color: var(--muted);
 }
+/* Kort årsag ved siden af en deaktiveret Find-knap ("Skjul først"). */
+.ol-find-why-short {
+  flex: 0 0 auto;
+  flex-basis: auto;
+  white-space: nowrap;
+}
 .ol-vis .ol-check {
   font-size: 0.875rem;
 }
@@ -760,6 +766,9 @@
 .ol-sheet [data-ol-handle]:focus-visible {
   outline: 3px solid var(--brand);
   outline-offset: 0;
+}
+.ol-root[data-ol-input="pointer"] .ol-sheet :is([data-ol-hit], [data-ol-handle]):focus-visible {
+  outline: none;
 }
 
 /* ---------- Telefon (≤ 600 px): alt stables, ingen vandret scroll ---------- */

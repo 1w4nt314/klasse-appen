@@ -1,8 +1,10 @@
-// Opgavelab — figur-registry. En ny figur (fri trekant, rektangel, cirkel …)
-// tilføjes som én ny FigureDef her. Denne fil må gerne importere runtime fra core.
+// Opgavelab — figur-hjælpere oven på registry'et (figures/registry.ts): navne, Find,
+// advarsler, svararkets facit. Generiske — intet her kender en bestemt figur.
 
 import { FMT } from "../core/format";
-import { parseShown, rightTriangle } from "../core/rightTriangle";
+import { parseShown } from "../core/rightTriangle";
+import { defOf } from "../figures/registry";
+import { displayName, visibleParams } from "./params";
 import { ALIAS_MAX } from "./types";
 import type {
   Bounds,
@@ -10,10 +12,8 @@ import type {
   DocSettings,
   Document as SheetDoc,
   DragOpts,
-  FigureDef,
-  FigureKind,
   FigureObject,
-  FigureShape,
+  ParamDef,
   ParamState,
   Solution,
 } from "./types";
@@ -21,33 +21,20 @@ import type {
 export type {
   DragOpts,
   DragResult,
-  FigureDef,
   Fmt,
   ParamDef,
   ParamKind,
   Solution,
 } from "./types";
-
-export const FIGURES: Record<FigureKind, FigureDef<FigureShape>> = { rightTriangle };
-
-/** Opslag med en vilkårlig streng (fx fra indlæst JSON). */
-export function getFigureDef(key: unknown): FigureDef<FigureShape> | null {
-  return typeof key === "string" && Object.prototype.hasOwnProperty.call(FIGURES, key)
-    ? FIGURES[key as FigureKind]
-    : null;
-}
+export type { FigureDef } from "../figures/types";
+export { FIGURES, FIGURE_KINDS, defOf, getFigureDef } from "../figures/registry";
+export { displayName, visibleParams } from "./params";
 
 /** Alle parametre synlige og uden alias. */
-export function defaultParams(def: FigureDef<FigureShape>): Record<string, ParamState> {
+export function defaultParams(def: { params: ParamDef[] }): Record<string, ParamState> {
   const out: Record<string, ParamState> = {};
   for (const p of def.params) out[p.key] = { visible: true };
   return out;
-}
-
-/** Viste navn: alias ?? nøgle. Afledes live, så omdøbning slår igennem på regnestykker. */
-export function displayName(fig: FigureObject, param: string): string {
-  const alias = fig.params[param]?.alias?.trim();
-  return alias ? alias : param;
 }
 
 /** Alias klippet til ALIAS_MAX kodepunkter (ikke UTF-16-enheder: et emoji deles aldrig). */
@@ -60,7 +47,7 @@ export function clipAlias(alias: string): string {
  * til store/små bogstaver mod de andre parametres viste navne OG nøgler (A må fx ikke
  * hedde "b" eller "a"). Tomt alias og parameterens egen nøgle er altid tilladt.
  */
-export function aliasConflict(fig: FigureObject, param: string, alias: string): boolean {
+export function aliasConflict(fig: { params: Record<string, ParamState> }, param: string, alias: string): boolean {
   const n = alias.trim();
   if (n === "" || n === param) return false;
   const low = n.toLowerCase();
@@ -73,23 +60,14 @@ export function aliasConflict(fig: FigureObject, param: string, alias: string): 
 
 /** Navne for alle figurens parametre (til solve). */
 export function displayNames(fig: FigureObject): Record<string, string> {
-  const def = getFigureDef(fig.figure);
   const out: Record<string, string> = {};
-  for (const p of def?.params ?? []) out[p.key] = displayName(fig, p.key);
-  return out;
-}
-
-/** Mængden af synlige parametre (til solve). */
-export function visibleParams(fig: FigureObject): Set<string> {
-  const out = new Set<string>();
-  for (const [key, st] of Object.entries(fig.params)) if (st.visible) out.add(key);
+  for (const p of defOf(fig).params) out[p.key] = displayName(fig, p.key);
   return out;
 }
 
 /** Figurens bounding box i ARK-koordinater (til nummerering m.m.). */
 export function figureBoundsOnSheet(fig: FigureObject): Bounds {
-  const def = getFigureDef(fig.figure);
-  const b = def ? def.bounds(fig.shape) : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+  const b = defOf(fig).bounds(fig.shape);
   return { minX: fig.x + b.minX, minY: fig.y + b.minY, maxX: fig.x + b.maxX, maxY: fig.y + b.maxY };
 }
 
@@ -107,8 +85,7 @@ export function dragOpts(settings: DocSettings, coarse = false): DragOpts {
 
 /** Løsning af "Find <param>" ud fra figurens synlige størrelser (null = kan ikke findes). */
 export function solveParam(fig: FigureObject, param: string, settings: DocSettings): Solution | null {
-  const def = getFigureDef(fig.figure);
-  if (!def) return null;
+  const def = defOf(fig);
   return def.solve(param, visibleParams(fig), def.compute(fig.shape), displayNames(fig), FMT, settings);
 }
 
@@ -147,9 +124,9 @@ export const DRIFT_DEG = 1;
  * sin⁻¹/cos⁻¹ mere end 0,1° i ca. 38 % af tilfældene, men mere end 1° i kun ca. 4 %.
  */
 export function calcDrift(fig: FigureObject, param: string, settings: DocSettings): string | null {
-  const def = getFigureDef(fig.figure);
-  const sol = def ? solveParam(fig, param, settings) : null;
-  if (!def || !sol) return null;
+  const def = defOf(fig);
+  const sol = solveParam(fig, param, settings);
+  if (!sol) return null;
   const truth = def.compute(fig.shape)[param];
   const shownTruth = parseShown(sol.kind === "angle" ? FMT.ang(truth) : FMT.len(truth));
   if (Math.abs(parseShown(sol.result) - shownTruth) <= (sol.kind === "angle" ? DRIFT_DEG : DRIFT_CM) + 1e-9) return null;
@@ -168,8 +145,8 @@ function joinNames(names: string[]): string {
  * (ellers null). Foreslår det givne-sæt, der kræver færrest nye synlige størrelser.
  */
 export function calcProblem(fig: FigureObject, param: string, settings: DocSettings): string | null {
-  const def = getFigureDef(fig.figure);
-  if (!def || solveParam(fig, param, settings)) return null;
+  const def = defOf(fig);
+  if (solveParam(fig, param, settings)) return null;
   const name = displayName(fig, param);
   if (fig.params[param]?.visible) return `${name} er synlig på figuren — skjul den for at kunne finde den`;
   const vis = visibleParams(fig);

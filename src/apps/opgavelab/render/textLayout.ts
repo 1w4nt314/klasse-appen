@@ -2,10 +2,11 @@
 // SheetSvg (tegning) og editoren (markering, grænser).
 
 import { FMT } from "../core/format";
-import { displayName, displayNames, getFigureDef, figureBoundsOnSheet, visibleParams } from "../model/figures";
+import { defOf, displayName, displayNames, figureBoundsOnSheet, visibleParams } from "../model/figures";
+import { PT_MM } from "../model/types";
 import type { Bounds, CalcObject, Document as SheetDoc, FigureObject, SheetObject, TextObject } from "../model/types";
 
-export const PT_MM = 25.4 / 72;
+export { PT_MM };
 export const LINE_HEIGHT = 1.3;
 export const WRAP_SAFETY = 0.98;
 
@@ -80,8 +81,8 @@ export function calcContent(
   const name = fig ? displayName(fig, calc.param) : calc.param;
   let body = `${name} = ${BLANK}`;
   if (mode === "svarark" && fig) {
-    const def = getFigureDef(fig.figure);
-    const sol = def?.solve(calc.param, visibleParams(fig), def.compute(fig.shape), displayNames(fig), FMT, doc.settings);
+    const def = defOf(fig);
+    const sol = def.solve(calc.param, visibleParams(fig), def.compute(fig.shape), displayNames(fig), FMT, doc.settings);
     if (sol) {
       const rhs = sol.formula.includes(" = ") ? sol.formula.slice(sol.formula.indexOf(" = ") + 3) : sol.formula;
       body = sol.formula;

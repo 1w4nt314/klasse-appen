@@ -60,7 +60,13 @@ export function preparePdfExport(): Promise<void> {
 // Kontroltegn og tegn, der ikke må stå i filnavne på Windows/macOS.
 const BAD_CHARS = /[\\/:*?"<>|\u0000-\u001f\u007f-\u009f]/g;
 
-/** "Trekanter: 7.b" → "Trekanter 7.b"; tomt → "opgave". Højst 80 tegn. */
+/** Navne, Windows ikke tillader som filnavn — heller ikke med endelse ("CON.pdf", "nul.txt"). */
+const RESERVED = /^(con|prn|aux|nul|com[0-9¹²³]|lpt[0-9¹²³])(\.|$)/i;
+
+/**
+ * "Trekanter: 7.b" → "Trekanter 7.b"; tomt → "opgave"; "CON" → "CON_". Højst 80 tegn.
+ * Æ, ø, å og andre bogstaver bevares.
+ */
 export function safeFileName(name: string): string {
   const s = name
     .normalize("NFC")
@@ -71,7 +77,9 @@ export function safeFileName(name: string): string {
     .trim()
     // Windows tillader ikke punktum eller mellemrum sidst i et filnavn.
     .replace(/[. ]+$/, "");
-  return s || "opgave";
+  if (!s) return "opgave";
+  // Reserveret navn (evt. med endelse): "CON" → "CON_", "aux.b" → "aux_.b".
+  return RESERVED.test(s) ? s.replace(/^([^.]*)/, "$1_") : s;
 }
 
 export type PdfFiles = {
