@@ -1,24 +1,22 @@
 // Opgavelab — geometri-kerne for den retvinklede trekant (dansk notation).
 // C = 90°, c er hypotenusen, a = BC (modstående A), b = AC (modstående B).
 // Formen gemmes som { a, b, rotation, mirror } med C som anker, så C altid er
-// præcis 90°. Geometrien regnes uafrundet; facit i solve() regnes på de viste
-// (afrundede) tal, så svararket kan eftergøres med lommeregner.
+// præcis 90°. Geometrien regnes uafrundet; Find-reglerne (RULES) køres af den generiske
+// motor i core/solveKit.ts (makeSolver), der regner facit på de viste (afrundede) tal.
 //
 // Ingen runtime-imports (kun `import type`), ingen enums/parameter properties,
 // så filen kan køres i Node med --experimental-strip-types.
 
 import type {
   Bounds,
-  DocSettings,
   DragOpts,
   DragResult,
-  FigureGeometry,
-  Fmt,
+  FigureSpec,
   ParamDef,
   ParamKind,
   Point,
   RightTriangleShape,
-  Solution,
+  Rule,
 } from "../model/types";
 
 /** Min/max katetelængde i mm (= LIMITS.sideMinCm/sideMaxCm · 10). */
@@ -35,9 +33,21 @@ export const PARAMS: ParamDef[] = [
   { key: "A", label: "Vinkel A", kind: "angle" },
   { key: "B", label: "Vinkel B", kind: "angle" },
   { key: "C", label: "Vinkel C", kind: "angle" },
+  // Afledte mål: skjult som standard (gamle dokumenter ser ens ud), tegnes under figuren når de vises.
+  { key: "T", label: "Areal T", kind: "area", derived: true },
+  { key: "O", label: "Omkreds O", kind: "length", derived: true },
 ];
 
-const KIND: Record<string, ParamKind> = { a: "length", b: "length", c: "length", A: "angle", B: "angle", C: "angle" };
+const KIND: Record<string, ParamKind> = {
+  a: "length",
+  b: "length",
+  c: "length",
+  A: "angle",
+  B: "angle",
+  C: "angle",
+  T: "area",
+  O: "length",
+};
 
 // ---- små hjælpere (lokale kopier; core-filer må ikke importere runtime fra hinanden) ----
 
@@ -94,12 +104,12 @@ export function bounds(shape: RightTriangleShape): Bounds {
   return { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) };
 }
 
-/** Sider i cm og vinkler i grader, uafrundet. */
+/** Sider i cm, vinkler i grader, areal T i cm² og omkreds O i cm, uafrundet. */
 export function compute(shape: RightTriangleShape): Record<string, number> {
   const a = shape.a / 10;
   const b = shape.b / 10;
   const A = Math.atan2(a, b) / RAD;
-  return { a, b, c: Math.hypot(a, b), A, B: 90 - A, C: 90 };
+  return { a, b, c: Math.hypot(a, b), A, B: 90 - A, C: 90, T: (a * b) / 2, O: a + b + Math.hypot(a, b) };
 }
 
 // ---- hjørnetræk ----
@@ -219,20 +229,16 @@ export function validateShape(raw: unknown): RightTriangleShape | null {
 
 // ---- Find X ----
 
-type Rule = {
-  given: string[];
-  /** Højreside med {param} for parametre og {inv:fn} for inverse trig-funktioner. */
-  rhs: string;
-  value: (v: Record<string, number>) => number;
-};
-
 const sin = (deg: number) => Math.sin(deg * RAD);
 const cos = (deg: number) => Math.cos(deg * RAD);
 const tan = (deg: number) => Math.tan(deg * RAD);
 const unit = (x: number) => (x < -1 ? -1 : x > 1 ? 1 : x);
 const deg = (rad: number) => rad / RAD;
 
-/** Regeltabel i prioriteret rækkefølge (tie-break i solve, når flere regler giver lige tæt facit). */
+/**
+ * Regeltabel i prioriteret rækkefølge (første inden for tolerancen vinder; ellers den tætteste, ved uafgjort den første).
+ * De omvendte regler (a/b ud fra T, c ud fra O) står sidst, så de aldrig fortrænger en regel, der gjaldt før T og O fandtes.
+ */
 const RULES: Record<string, Rule[]> = {
   c: [
     { given: ["a", "b"], rhs: "√({a}² + {b}²)", value: (v) => Math.hypot(v.a, v.b) },
@@ -240,6 +246,8 @@ const RULES: Record<string, Rule[]> = {
     { given: ["A", "b"], rhs: "{b} / cos {A}", value: (v) => v.b / cos(v.A) },
     { given: ["B", "b"], rhs: "{b} / sin {B}", value: (v) => v.b / sin(v.B) },
     { given: ["B", "a"], rhs: "{a} / cos {B}", value: (v) => v.a / cos(v.B) },
+    // Omvendt (sidst): c ud fra omkredsen.
+    { given: ["O", "a", "b"], rhs: "{O} − {a} − {b}", value: (v) => v.O - v.a - v.b },
   ],
   a: [
     { given: ["b", "c"], rhs: "√({c}² − {b}²)", value: (v) => Math.sqrt(Math.max(0, v.c * v.c - v.b * v.b)) },
@@ -247,6 +255,8 @@ const RULES: Record<string, Rule[]> = {
     { given: ["A", "b"], rhs: "{b} · tan {A}", value: (v) => v.b * tan(v.A) },
     { given: ["B", "c"], rhs: "{c} · cos {B}", value: (v) => v.c * cos(v.B) },
     { given: ["B", "b"], rhs: "{b} / tan {B}", value: (v) => v.b / tan(v.B) },
+    // Omvendt (sidst): a ud fra arealet.
+    { given: ["T", "b"], rhs: "2 · {T} / {b}", value: (v) => (2 * v.T) / v.b },
   ],
   b: [
     { given: ["a", "c"], rhs: "√({c}² − {a}²)", value: (v) => Math.sqrt(Math.max(0, v.c * v.c - v.a * v.a)) },
@@ -254,6 +264,8 @@ const RULES: Record<string, Rule[]> = {
     { given: ["A", "a"], rhs: "{a} / tan {A}", value: (v) => v.a / tan(v.A) },
     { given: ["B", "c"], rhs: "{c} · sin {B}", value: (v) => v.c * sin(v.B) },
     { given: ["B", "a"], rhs: "{a} · tan {B}", value: (v) => v.a * tan(v.B) },
+    // Omvendt (sidst): b ud fra arealet.
+    { given: ["T", "a"], rhs: "2 · {T} / {a}", value: (v) => (2 * v.T) / v.a },
   ],
   A: [
     { given: ["B", "C"], rhs: "180° − {B} − {C}", value: (v) => 180 - v.B - v.C },
@@ -268,114 +280,24 @@ const RULES: Record<string, Rule[]> = {
     { given: ["a", "c"], rhs: "{inv:cos}({a}/{c})", value: (v) => deg(Math.acos(unit(v.a / v.c))) },
   ],
   C: [{ given: ["A", "B"], rhs: "180° − {A} − {B}", value: (v) => 180 - v.A - v.B }],
+  T: [{ given: ["a", "b"], rhs: "½ · {a} · {b}", value: (v) => 0.5 * v.a * v.b }],
+  O: [{ given: ["a", "b", "c"], rhs: "{a} + {b} + {c}", value: (v) => v.a + v.b + v.c }],
 };
 
-/** Mulige sæt af givne parametre for target, i prioriteret rækkefølge. */
-export function solvableFrom(target: string): string[][] {
-  const rules = Object.prototype.hasOwnProperty.call(RULES, target) ? RULES[target] : [];
-  return rules.map((r) => [...r.given]);
-}
-
-function fill(rhs: string, param: (key: string) => string, inv: (fn: string) => string): string {
-  return rhs.replace(/\{inv:(\w+)\}|\{(\w+)\}/g, (_m, fn: string | undefined, key: string | undefined) =>
-    fn ? inv(fn) : param(key ?? ""),
-  );
-}
-
 /**
- * Tallet, som det står på arket: formateringen parses tilbage ("1.234,6 cm" → 1234.6,
- * "−2,5" → −2.5, "36,9°" → 36.9). NaN hvis der ikke er et tal.
+ * Geometri + regeldata for figurens FigureDef. solve/solvableFrom laves af makeSolver
+ * (core/solveKit.ts) i figures/rightTriangle.tsx; tegning, etiketter og ikon står også dér.
+ * C er fast 90° (kendt i en regel kun når C er synlig — retvinkelmarkeringen tegnes kun da).
  */
-export function parseShown(text: string): number {
-  const t = text.replace(/\u2212/g, "-").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
-  return t === "" || t === "-" ? NaN : Number(t);
-}
-
-/**
- * Find target ud fra de SYNLIGE parametre. C regnes kun som kendt, når C er synlig
- * (retvinkelmarkeringen tegnes kun da). Returnerer null, hvis target selv er synlig,
- * eller ingen regel kan bruges.
- *
- * Facit regnes på de VISTE tal (længder med 1 decimal, vinkler som fmt.ang viser dem,
- * C = 90°), så "indsat → resultat" altid kan eftergøres med lommeregner. `approx` er sand,
- * når resultatet er afrundet (vises som "≈"), og falsk når det er eksakt (fx 180° − A − B).
- */
-/** Hvor meget et facit må afvige fra figurens viste værdi, før det regnes som en afvigelse. */
-export const DRIFT_CM = 0.1;
-export const DRIFT_DEG = 1;
-
-export function solve(
-  target: string,
-  visible: ReadonlySet<string>,
-  values: Record<string, number>,
-  names: Record<string, string>,
-  fmt: Fmt,
-  settings: DocSettings,
-): Solution | null {
-  if (!Object.prototype.hasOwnProperty.call(RULES, target) || visible.has(target)) return null;
-  const kind = KIND[target];
-  const shownText = (key: string, x: number) => (KIND[key] === "angle" ? fmt.ang(x) : fmt.num(x, 1));
-  const resultText = (x: number) => (kind === "angle" ? fmt.ang(x) : fmt.len(x));
-  // Af de anvendelige regler (alle givne synlige) bruges den første i tabellens rækkefølge,
-  // hvis facit — regnet på de viste tal og vist som på arket — ligger inden for tolerancen
-  // af figurens egen (viste) værdi. Så står Pythagoras/vinkelsum stabilt på svararket og
-  // skifter ikke formel ved små ryk. Holder ingen regel tolerancen, bruges den med mindst
-  // afvigelse (ved uafgjort tabellens rækkefølge) — fx a = c · sin A frem for √(c² − b²),
-  // når den sidste giver 0,0 cm for en side på 1 cm.
-  const tol = (kind === "angle" ? DRIFT_DEG : DRIFT_CM) + 1e-9;
-  const truthRaw = target === "C" ? 90 : values[target];
-  const truth = Number.isFinite(truthRaw) ? parseShown(resultText(truthRaw)) : NaN;
-  let best: { rule: Rule; v: Record<string, number>; value: number; dev: number } | null = null;
-  for (const rule of RULES[target]) {
-    if (!rule.given.every((g) => visible.has(g))) continue;
-    const v: Record<string, number> = { C: 90 };
-    let okGiven = true;
-    for (const g of rule.given) {
-      const raw = g === "C" ? 90 : values[g];
-      v[g] = Number.isFinite(raw) ? parseShown(shownText(g, raw)) : NaN;
-      if (!Number.isFinite(v[g])) okGiven = false;
-    }
-    if (!okGiven) continue;
-    const value = rule.value(v);
-    if (!Number.isFinite(value)) continue;
-    const dev = Number.isFinite(truth) ? Math.abs(parseShown(resultText(value)) - truth) : 0;
-    if (dev <= tol) {
-      best = { rule, v, value, dev };
-      break;
-    }
-    if (!best || dev < best.dev - 1e-9) best = { rule, v, value, dev };
-  }
-  if (!best) return null;
-  const { rule, v, value } = best;
-
-  const name = (key: string) => {
-    const n = names[key];
-    return typeof n === "string" && n.trim() !== "" ? n.trim() : key;
-  };
-  const inv = (fn: string) => (settings.inverseNotation === "arc" ? `arc${fn}` : `${fn}⁻¹`);
-  const result = resultText(value);
-  const rounded = parseShown(result);
-
-  return {
-    target,
-    formula: `${name(target)} = ${fill(rule.rhs, name, inv)}`,
-    substituted: fill(rule.rhs, (key) => shownText(key, v[key]), inv),
-    result,
-    value,
-    approx: !(Math.abs(rounded - value) <= 1e-9 * Math.max(1, Math.abs(value))),
-    kind,
-  };
-}
-
-/** Geometri-delen af figurens FigureDef (resten — tegning, etiketter, ikon — i figures/rightTriangle.tsx). */
-export const rightTriangleGeometry: FigureGeometry<RightTriangleShape> = {
+export const rightTriangleSpec: FigureSpec<RightTriangleShape> = {
   params: PARAMS,
   defaultShape,
   vertices,
   compute,
-  solve,
-  solvableFrom,
   dragVertex,
   validateShape,
   bounds,
+  kinds: KIND,
+  rules: RULES,
+  fixed: { C: 90 },
 };

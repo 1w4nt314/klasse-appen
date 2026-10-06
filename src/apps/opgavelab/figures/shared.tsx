@@ -1,0 +1,320 @@
+// Opgavelab — fælles hjælpere til figurfilerne (figures/*): afledte mål under figuren,
+// sideetiketter, stiplede skjulte kanter, retvinkelmærke og kavalerperspektiv (3D).
+// Importerer kun render/primitives, model/format-typer og figures/types (type) — ikke registry'et.
+
+import type { ReactNode } from "react";
+import { formatByKind } from "../core/format";
+import { displayName } from "../model/params";
+import type { Bounds, ParamDef, ParamState, Point } from "../model/types";
+import { BRAND, INK, LABEL_GAP, add, besides, labelBox, r2, sub, unit } from "../render/primitives";
+import type { Measure } from "../render/textLayout";
+import type { Label, SheetMode } from "./types";
+
+type HasParams = { params: Record<string, ParamState> };
+
+// ---- afledte mål ("mål-boksen") ----
+
+/** mm fra figurens nederste kant til første linje i mål-boksen (linjens midte). */
+export const DERIVED_GAP = 6;
+/** mm luft (mellem placeringsboksene) til en etiket lige over mål-boksen, fx l/s under en firkant. */
+export const DERIVED_CLEARANCE = 2;
+/** mm mellem linjerne i mål-boksen. */
+export const DERIVED_LINE = 5.5;
+
+/**
+ * Etiketter for de SYNLIGE afledte mål (areal, omkreds, rumfang …): en venstrejusteret "mål-boks"
+ * under figuren ("A = 40,0 cm²"), første linje DERIVED_GAP mm under `bounds.maxY`, DERIVED_LINE mm
+ * pr. linje. Skjulte afledte mål tegnes aldrig (heller ikke på svararket: facit står i regnestykket).
+ * `others` er figurens øvrige etiketter: rammer boksen en af dem (fx en sideetiket under figuren),
+ * skubbes den ned under den (med `clearance` mm luft mellem placeringsboksene; en linjeboks er
+ * højere end cifrene, så figurer med en etiket lige over mål-boksen bruger ca. 2). Resultatet
+ * afhænger kun af figur og synlighed.
+ */
+export function derivedLabels(
+  fig: HasParams,
+  params: readonly ParamDef[],
+  values: Record<string, number>,
+  bounds: Bounds,
+  measure: Measure,
+  others: readonly Label[] = [],
+  clearance = 0.4,
+): Label[] {
+  const items = params
+    .filter((p) => p.derived && fig.params[p.key]?.visible && Number.isFinite(values[p.key]))
+    .map((p) => {
+      const text = `${displayName(fig, p.key)} = ${formatByKind(p.kind, values[p.key])}`;
+      return { key: p.key, text, ...labelBox(text, measure) };
+    });
+  if (items.length === 0) return [];
+  const width = Math.max(...items.map((i) => 2 * i.hw));
+  const x0 = bounds.minX;
+  const span = (items.length - 1) * DERIVED_LINE;
+  const first = items[0];
+  const last = items[items.length - 1];
+  let y0 = bounds.maxY + DERIVED_GAP;
+  for (let guard = 0; guard < 40; guard++) {
+    const top = y0 - first.hh;
+    const bottom = y0 + span + last.hh;
+    const hit = others.find(
+      (o) =>
+        o.c.x - o.hw < x0 + width &&
+        o.c.x + o.hw > x0 &&
+        o.c.y - o.hh < bottom + clearance &&
+        o.c.y + o.hh > top - clearance,
+    );
+    if (!hit) break;
+    y0 = hit.c.y + hit.hh + clearance + first.hh;
+  }
+  return items.map((it, i) => ({
+    key: `derived${it.key}`,
+    text: it.text,
+    c: { x: x0 + it.hw, y: y0 + i * DERIVED_LINE },
+    hw: it.hw,
+    hh: it.hh,
+    fill: INK,
+    data: { "data-ol-param": it.key },
+  }));
+}
+
+// ---- synlighed og farve i opgave/svarark ----
+
+/**
+ * Hvad der vises for figurens parametre i den givne mode. Opgavearket: kun synlige (sort).
+ * Svararket: alle ikke-afledte parametre — de skjulte i BRAND, med facit (`solved`) i stedet
+ * for figurens egen værdi, så figur og regnestykke stemmer. Afledte mål (areal, omkreds …) vises
+ * kun, når de er synlige (se derivedLabels), også på svararket.
+ */
+export function paramShow(
+  fig: HasParams,
+  mode: SheetMode,
+  values: Record<string, number>,
+  solved: Record<string, number> = {},
+) {
+  const answer = mode === "svarark";
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(solved, k);
+  const vis = (k: string) => fig.params[k]?.visible === true;
+  return {
+    /** Skal parameteren skrives med værdi (ellers kun navnet)? */
+    shown: (k: string) => answer || vis(k),
+    /** Værdien på arket (facit på svararket for skjulte parametre). */
+    value: (k: string) => (answer && has(k) ? solved[k] : values[k]),
+    /** BRAND for skjulte parametre på svararket, ellers INK. */
+    color: (k: string) => (answer && !vis(k) ? BRAND : INK),
+  };
+}
+
+// ---- sideetiket ----
+
+/**
+ * Placering af en sideetiket midt på siden pq, på den side der vender væk fra punktet `away`
+ * (hjørnet overfor). Returnerer centrum, halve mål, sidens retning (p→q) og normalen væk fra figuren.
+ */
+export function sideLabel(
+  p: Point,
+  q: Point,
+  away: Point,
+  text: string,
+  measure: Measure,
+): { c: Point; hw: number; hh: number; dir: Point; n: Point } {
+  const mid: Point = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+  const dir = unit(sub(q, p));
+  let n: Point = { x: -dir.y, y: dir.x };
+  const out = sub(mid, away);
+  if (n.x * out.x + n.y * out.y < 0) n = { x: -n.x, y: -n.y };
+  const { hw, hh } = labelBox(text, measure);
+  return { c: besides(mid, n, LABEL_GAP + 0.6, hw, hh), hw, hh, dir, n };
+}
+
+// ---- placering ----
+
+/**
+ * Ligger boksen (centrum c, halve mål hw/hh) inde i den konvekse polygon med mindst `gap` mm til
+ * alle sider? (Tjekker boksens udstrækning vinkelret på hver side.)
+ */
+export function insideConvex(c: Point, hw: number, hh: number, poly: readonly Point[], gap: number): boolean {
+  let cx = 0;
+  let cy = 0;
+  for (const p of poly) {
+    cx += p.x / poly.length;
+    cy += p.y / poly.length;
+  }
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i];
+    const q = poly[(i + 1) % poly.length];
+    const d = unit(sub(q, p));
+    const n = { x: -d.y, y: d.x };
+    const inward = Math.sign((cx - p.x) * n.x + (cy - p.y) * n.y) || 1;
+    const dist = ((c.x - p.x) * n.x + (c.y - p.y) * n.y) * inward;
+    if (dist - (Math.abs(n.x) * hw + Math.abs(n.y) * hh) < gap) return false;
+  }
+  return true;
+}
+
+/** Overlapper de to etiketbokse (med `m` mm luft)? */
+export function boxesOverlap(
+  a: { c: Point; hw: number; hh: number },
+  b: { c: Point; hw: number; hh: number },
+  m = 0.3,
+): boolean {
+  return Math.abs(a.c.x - b.c.x) < a.hw + b.hw + m && Math.abs(a.c.y - b.c.y) < a.hh + b.hh + m;
+}
+
+type Box = { c: Point; hw: number; hh: number };
+
+/** Boksen om et lodret eller vandret linjestykke (uden tekst), så etiketter kan holde sig fri af stiplede linjer. */
+export function lineBox(p: Point, q: Point, half = 0.4): Box {
+  return {
+    c: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 },
+    hw: Math.abs(q.x - p.x) / 2 + half,
+    hh: Math.abs(q.y - p.y) / 2 + half,
+  };
+}
+
+/**
+ * Flytter en sideetiket det mindste stykke langs siden (så længe der er plads), ellers udad, til den
+ * ikke rammer de andre etiketter. Uændret, hvis den ikke rammer, eller hvis intet virker.
+ */
+export function freeSpot(label: Label, others: readonly (Label | Box)[], margin = 0.6): void {
+  const hit = (c: Point) => others.some((o) => o !== label && boxesOverlap({ c, hw: label.hw, hh: label.hh }, o, margin));
+  if (!hit(label.c)) return;
+  const { dir, n } = label;
+  if (dir) {
+    for (let t = 0.5; t <= 30; t += 0.5) {
+      for (const sgn of [1, -1]) {
+        const c = add(label.c, dir, sgn * t);
+        if (!hit(c)) {
+          label.c = c;
+          return;
+        }
+      }
+    }
+  }
+  if (n) {
+    for (let t = 0.5; t <= 15; t += 0.5) {
+      const c = add(label.c, n, t);
+      if (!hit(c)) {
+        label.c = c;
+        return;
+      }
+    }
+  }
+}
+
+/** Sideetiketter (med dir/n), der rammer en anden etiket eller en af `lines`, flyttes det mindste stykke (freeSpot). */
+export function separateLabels(out: Label[], lines: readonly Box[] = []): void {
+  for (const l of out) {
+    const all = [...out, ...lines];
+    if (l.dir && all.some((o) => o !== l && boxesOverlap(l, o))) freeSpot(l, all);
+  }
+}
+
+/**
+ * "h = 4,5 cm" ved en stiplet højde fra `top` ned til `foot`: på et sted langs linjen, til højre eller
+ * venstre for den, inde i polygonen `poly` og uden at ramme de andre etiketter eller retvinkelmærket
+ * (`mark`, boks i lokale mm). null hvis der ikke er plads (så står h i mål-boksen).
+ */
+export function placeHeightLabel(o: {
+  foot: Point;
+  top: Point;
+  poly: readonly Point[];
+  text: string;
+  measure: Measure;
+  others: readonly Label[];
+  mark: { c: Point; hw: number; hh: number } | null;
+}): Label | null {
+  const { hw, hh } = labelBox(o.text, o.measure);
+  for (const side of [{ x: 1, y: 0 }, { x: -1, y: 0 }]) {
+    for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+      const at = { x: o.foot.x + (o.top.x - o.foot.x) * t, y: o.foot.y + (o.top.y - o.foot.y) * t };
+      const c = besides(at, side, LABEL_GAP + 0.6, hw, hh);
+      const box = { c, hw, hh };
+      if (o.others.some((l) => boxesOverlap(l, box))) continue;
+      if (o.mark && boxesOverlap(o.mark, box, 0.2)) continue;
+      if (!insideConvex(c, hw, hh, o.poly, 0.6)) continue;
+      return { key: "sideh", text: o.text, c, hw, hh, fill: INK, data: { "data-ol-param": "h" } };
+    }
+  }
+  return null;
+}
+
+// ---- streger ----
+
+/** Skjulte kanter (3D) tegnes stiplet; svg2pdf forstår stroke-dasharray. */
+export const HIDDEN_EDGE = { strokeDasharray: "1.5 1", strokeWidth: 0.4 } as const;
+
+/** Polygon-punkter til <polygon points>: "x,y x,y …" (2 decimaler). */
+export function polyPoints(pts: readonly Point[]): string {
+  return pts.map((p) => `${r2(p.x)},${r2(p.y)}`).join(" ");
+}
+
+/**
+ * Retvinkelmærke (kvadrat-hjørne) i hjørnet v mellem retningerne mod p og q, `size` mm (std 3).
+ * Returnerer path-data ("M … L … L …"), uden udfyldning.
+ */
+export function rightAngleMark(v: Point, p: Point, q: Point, size = 3): string {
+  const u = unit(sub(p, v));
+  const w = unit(sub(q, v));
+  const p1 = add(v, u, size);
+  const p2 = add(p1, w, size);
+  const p3 = add(v, w, size);
+  return `M ${r2(p1.x)} ${r2(p1.y)} L ${r2(p2.x)} ${r2(p2.y)} L ${r2(p3.x)} ${r2(p3.y)}`;
+}
+
+/**
+ * Ellipsebue om c med radierne rx, ry (path-data). "front": nederste halvdel (forreste, fuld streg),
+ * "back": øverste halvdel (bagerste, stiplet), "full": hele ellipsen.
+ */
+export function ellipsePath(c: Point, rx: number, ry: number, half: "front" | "back" | "full" = "full"): string {
+  const l = { x: r2(c.x - rx), y: r2(c.y) };
+  const r = { x: r2(c.x + rx), y: r2(c.y) };
+  const a = `${r2(rx)} ${r2(ry)} 0 0`;
+  // SVG: y nedad; sweep 0 går fra venstre til højre under centrum, sweep 1 over centrum.
+  if (half === "front") return `M ${l.x} ${l.y} A ${a} 0 ${r.x} ${r.y}`;
+  if (half === "back") return `M ${l.x} ${l.y} A ${a} 1 ${r.x} ${r.y}`;
+  return `M ${l.x} ${l.y} A ${a} 0 ${r.x} ${r.y} A ${a} 0 ${l.x} ${l.y}`;
+}
+
+// ---- kavalerperspektiv (3D) ----
+
+/** Dybdeaksens skala og vinkel: dybden tegnes halv størrelse under 45°. */
+export const CAVALIER_K = 0.5;
+const C45 = Math.SQRT1_2;
+
+/** Punkt (x, y, z) i mm → ark-koordinater (y op, z dybde bagud): x + k·z·cos45°, −y − k·z·sin45°. */
+export function project(x: number, y: number, z: number): Point {
+  return { x: x + CAVALIER_K * z * C45, y: -y - CAVALIER_K * z * C45 };
+}
+
+/**
+ * Kasse (l × b × h mm, b i dybden) i kavalerperspektiv med det forreste nederste venstre hjørne i
+ * (0, 0): de 8 hjørner (f = forreste, k = bagerste; b/t = bund/top; l/r = venstre/højre), de synlige
+ * kanter (forside, top og højre side) og de 3 skjulte bagkanter fra det bagerste nederste venstre
+ * hjørne — begge som path-data.
+ */
+export function cuboid(l: number, b: number, h: number) {
+  const c = {
+    fbl: project(0, 0, 0),
+    fbr: project(l, 0, 0),
+    ftr: project(l, h, 0),
+    ftl: project(0, h, 0),
+    kbl: project(0, 0, b),
+    kbr: project(l, 0, b),
+    ktr: project(l, h, b),
+    ktl: project(0, h, b),
+  };
+  const pt = (p: Point) => `${r2(p.x)} ${r2(p.y)}`;
+  const visible =
+    `M ${pt(c.fbl)} L ${pt(c.fbr)} L ${pt(c.kbr)} L ${pt(c.ktr)} L ${pt(c.ktl)} L ${pt(c.ftl)} Z ` +
+    `M ${pt(c.ftl)} L ${pt(c.ftr)} L ${pt(c.fbr)} M ${pt(c.ftr)} L ${pt(c.ktr)}`;
+  const hidden = `M ${pt(c.kbl)} L ${pt(c.kbr)} M ${pt(c.kbl)} L ${pt(c.ktl)} M ${pt(c.kbl)} L ${pt(c.fbl)}`;
+  return { corners: c, visible, hidden };
+}
+
+/** Kassens streger: de 3 skjulte bagkanter stiplet (HIDDEN_EDGE) under de synlige kanter. */
+export function cuboidDrawing(l: number, b: number, h: number): ReactNode {
+  const { visible, hidden } = cuboid(l, b, h);
+  return [
+    <path key="hidden" data-ol-role="hidden-edges" d={hidden} fill="none" stroke={INK} {...HIDDEN_EDGE} />,
+    <path key="body" data-ol-role="edges" d={visible} fill="none" stroke={INK} strokeWidth={0.5} strokeLinejoin="round" />,
+  ];
+}

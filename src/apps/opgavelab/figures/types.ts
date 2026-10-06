@@ -7,6 +7,9 @@ import type { Measure } from "../render/textLayout";
 
 export type SheetMode = "opgave" | "svarark";
 
+/** Værktøjspanelets figurgrupper (rækkefølge og titler: GROUPS i figures/registry.ts). */
+export type FigureGroup = "trekanter" | "firkanter" | "cirkler" | "rumfigurer";
+
 /** En placeret etiket: tekstens centrum (c) og halve mål, i figurens lokale mm. */
 export type Label = {
   key: string;
@@ -28,6 +31,13 @@ export type FigureDef<K extends string, S> = FigureGeometry<S> & {
   type: K;
   /** Visningsnavn: værktøjsknap, skærmlæser-etiketter. */
   name: string;
+  /** Gruppen i værktøjspanelet (fx "trekanter"). */
+  group: FigureGroup;
+  /**
+   * Skærmlæsernavn for et håndtag (aria-label), fx "Håndtag for l". Udeladt → "Hjørne {navn}"
+   * (trekanter). `displayName` er parameterens viste navn (alias ?? nøgle).
+   */
+  handleName?(key: string, displayName: string): string;
   /** Værktøjsknappens ikon: indholdet af en 24×24-viewBox (brug stroke="currentColor"). */
   icon(): ReactNode;
   /** Formen, en ny figur lægges på arket med (defaultShape() er formen ved indlæsning/test). */

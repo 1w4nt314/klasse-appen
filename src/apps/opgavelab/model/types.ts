@@ -26,6 +26,57 @@ export type RightTriangleShape = {
   mirror: boolean;
 };
 
+/**
+ * Fri trekant (SSS) i dansk notation: a = BC, b = AC, c = AB i mm. Ankeret er hjørne A; B ligger
+ * c mm fra A i retningen `rotation`, og C ligger på den side af AB, `mirror` angiver.
+ */
+export type TriangleShape = {
+  a: Mm;
+  b: Mm;
+  c: Mm;
+  /** Grader, retning A→B (SVG-koordinater, y nedad). */
+  rotation: number;
+  /** false: C ligger til venstre for A→B (over AB, når AB peger mod højre); true: til højre. */
+  mirror: boolean;
+};
+
+/** Rektangel: længde l (vandret) og bredde b (lodret) i mm; ankeret er øverste venstre hjørne. */
+export type RectangleShape = { l: Mm; b: Mm };
+
+/** Kvadrat: side s i mm; ankeret er øverste venstre hjørne. */
+export type SquareShape = { s: Mm };
+
+/**
+ * Parallelogram: grundlinje g (vandret) og skrå side b i mm, vinkel v (grader) ved nederste
+ * venstre hjørne mellem g og b (20–90°; venstrehældende er den spejlede, samme figur).
+ * Ankeret er nederste venstre hjørne.
+ */
+export type ParallelogramShape = { g: Mm; b: Mm; v: number };
+
+/**
+ * Trapez (parallelle sider vandrette): a nederst, b øverst, højde h og forskydning off (mm) af
+ * øverste venstre hjørne i forhold til nederste venstre. Ankeret er nederste venstre hjørne.
+ */
+export type TrapezoidShape = { a: Mm; b: Mm; h: Mm; off: Mm };
+
+/** Cirkel: radius r i mm; ankeret er centrum. */
+export type CircleShape = { r: Mm };
+
+/**
+ * Kasse (retvinklet prisme) i kavalerperspektiv: længde l (vandret), bredde b (dybden, tegnes halv
+ * størrelse under 45°) og højde h i mm. Ankeret er det forreste nederste venstre hjørne.
+ */
+export type BoxShape = { l: Mm; b: Mm; h: Mm };
+
+/** Terning med side s i mm (tegnes som kassen med l = b = h = s); ankeret som kassen. */
+export type CubeShape = { s: Mm };
+
+/** Cylinder: radius r og højde h i mm; ankeret er centrum af topellipsen. */
+export type CylinderShape = { r: Mm; h: Mm };
+
+/** Kugle: radius r i mm; ankeret er centrum. */
+export type SphereShape = { r: Mm };
+
 // Figurtyperne (FigureKind, FigureShape, FigureObject) afledes af registry'et i
 // figures/registry.ts, så en ny figur kun kræver én ny fil + én linje dér.
 import type { FigureObject } from "../figures/registry";
@@ -36,7 +87,7 @@ export type FigureObjectOf<K extends string, S> = {
   id: string;
   type: "figure";
   figure: K;
-  /** Anker på arket (for retvinklet trekant = hjørne C). */
+  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C; fri trekant: hjørne A; rektangel: øverste venstre; cirkel: centrum; kasse/terning: forreste nederste venstre hjørne …). */
   x: Mm;
   y: Mm;
   shape: S;
@@ -46,7 +97,66 @@ export type FigureObjectOf<K extends string, S> = {
 
 export type CalcObject = { id: string; type: "calc"; x: Mm; y: Mm; figureId: string; param: string };
 
-export type SheetObject = TextObject | FigureObject | CalcObject;
+/** Regningsart i et regneark: plus, minus, gange, division. */
+export type DrillOp = "add" | "sub" | "mul" | "div";
+
+/** Regnearkets indstillinger (gemmes; opgaverne selv genereres af core/drill.ts ud fra seed + config). */
+export type DrillConfig = {
+  /** Ikke-tom delmængde, altid i rækkefølgen add, sub, mul, div. */
+  ops: DrillOp[];
+  /** Antal opgaver, 1–LIMITS.drillCount. */
+  count: number;
+  columns: 1 | 2 | 3 | 4;
+  /** Talområder (heltal 0–LIMITS.drillNumberMax, min ≤ max). Division: a = kvotienten (uden rest) / dividenden (med rest), b = divisor. */
+  aMin: number;
+  aMax: number;
+  bMin: number;
+  bMax: number;
+  /** Tabeller (faktorer 1–12) til gange og division; tom = brug bMin–bMax. */
+  tables: number[];
+  /** Division uden rest (a går op) eller med rest ("7 : 2 = 3 rest 1"). */
+  division: "exact" | "remainder";
+  /** Minus: aldrig negative resultater (tallene byttes). */
+  noNegative: boolean;
+  /** Decimaler på tallene — kun ved plus og minus. */
+  decimals: 0 | 1 | 2;
+  /** Overskrift over opgaverne (højst LIMITS.drillTitle tegn; tom = ingen). */
+  title: string;
+};
+
+/** Regneark: en blok med regnestykker (+ − · :), svar på svararket. Ankeret er øverste venstre hjørne. */
+export type DrillObject = {
+  id: string;
+  type: "drill";
+  x: Mm;
+  y: Mm;
+  /** Blokkens bredde i mm (20–190); kolonnerne deler den. */
+  width: Mm;
+  /** uint32; samme seed + config giver altid de samme opgaver. */
+  seed: number;
+  config: DrillConfig;
+};
+
+/**
+ * Formelblok: ét regnestykke pr. linje (fx "3 · (4 + 5) ="), regnet ud af core/formula.ts (ingen
+ * eval) med facit på svararket. Tomme linjer springes over. Ankeret er øverste venstre hjørne.
+ */
+export type FormulaObject = {
+  id: string;
+  type: "formula";
+  x: Mm;
+  y: Mm;
+  /** Blokkens bredde i mm (LIMITS.drillWidthMin–drillWidthMax). */
+  width: Mm;
+  /** 1–LIMITS.formulaLines linjer à højst LIMITS.formulaLineChars tegn. */
+  lines: string[];
+  /** Højst så mange decimaler i facit (kun de nødvendige vises). */
+  decimals: 0 | 1 | 2 | 3 | 4;
+  /** Overskrift (højst LIMITS.formulaTitle tegn; tom = ingen). */
+  title: string;
+};
+
+export type SheetObject = TextObject | FigureObject | CalcObject | DrillObject | FormulaObject;
 
 export type DocSettings = {
   /** "power" → tan⁻¹, "arc" → arctan. */
@@ -75,6 +185,16 @@ export const LIMITS = {
   jsonBytes: 200_000,
   sideMinCm: 1,
   sideMaxCm: 15,
+  /** Regneark: højst så mange opgaver, tegn i titlen, største tal i talområderne. */
+  drillCount: 40,
+  drillTitle: 60,
+  drillNumberMax: 10_000,
+  drillWidthMin: 20,
+  drillWidthMax: 190,
+  /** Formelblok: højst så mange linjer, tegn pr. linje og tegn i titlen. */
+  formulaLines: 20,
+  formulaLineChars: 80,
+  formulaTitle: 60,
 } as const;
 
 /** Højst så mange tegn (kodepunkter) i et alias. */
@@ -84,8 +204,19 @@ export const DEFAULT_SETTINGS: DocSettings = { inverseNotation: "power", snapCm:
 
 // ---- Figurgeometri (implementeres i core/*; den fulde FigureDef i figures/types.ts) ----
 
-export type ParamKind = "length" | "angle" | "area";
-export type ParamDef = { key: string; label: string; kind: ParamKind };
+export type ParamKind = "length" | "angle" | "area" | "volume";
+export type ParamDef = {
+  key: string;
+  label: string;
+  kind: ParamKind;
+  /** Afledt mål (areal, omkreds, rumfang …): standard skjult og tegnes kun når synligt. */
+  derived?: true;
+  /**
+   * Parameteren har ingen Find-regel (solvableFrom er tom): Find-knappen er slået fra, og panelet
+   * viser denne forklaring (udeladt → en almindelig tekst).
+   */
+  noFind?: string;
+};
 
 /** Formatering injiceres i solve, så core-filerne ikke har runtime-imports. */
 export type Fmt = {
@@ -93,6 +224,10 @@ export type Fmt = {
   len: (cm: number) => string;
   /** Vinkel i grader med gradtegn, fx "36,9°" / "90°". */
   ang: (deg: number) => string;
+  /** Areal i cm² med enhed, fx "14,4 cm²". */
+  area: (cm2: number) => string;
+  /** Rumfang i cm³ med enhed, fx "141,4 cm³". */
+  vol: (cm3: number) => string;
   /** Rent tal med decimalkomma og U+2212-minus, fx "8,0". */
   num: (n: number, decimals: number) => string;
 };
@@ -151,4 +286,28 @@ export type FigureGeometry<S> = {
   validateShape(raw: unknown): S | null;
   /** Lokal bounding box relativt til ankeret. */
   bounds(shape: S): Bounds;
+  /** Klik-flade (polygon i lokale mm); udeladt → hjørnerne fra vertices(). */
+  outline?(shape: S): Point[];
 };
+
+/** En Find-regel: givne parametre, højreside og udregning (core/solveKit.ts). */
+export type Rule = {
+  given: string[];
+  /** Højreside med {param} for parametre og {inv:fn} for inverse trig-funktioner; π skrives som "π". */
+  rhs: string;
+  /** Udregningen på de viste tal (π som Math.PI). */
+  value: (v: Record<string, number>) => number;
+};
+
+/** Data til makeSolver i core/solveKit.ts. */
+export type SolveSpec = {
+  /** Parameter → størrelsestype (formatering og tolerance). */
+  kinds: Record<string, ParamKind>;
+  /** Target → regler i prioriteret rækkefølge (første inden for tolerancen vinder). */
+  rules: Record<string, Rule[]>;
+  /** Faste værdier (fx C = 90° i den retvinklede trekant), brugt i stedet for compute(). */
+  fixed?: Record<string, number>;
+};
+
+/** Hvad en core-fil eksporterer: geometrien + regeldata; solve/solvableFrom laves af makeSolver. */
+export type FigureSpec<S> = Omit<FigureGeometry<S>, "solve" | "solvableFrom"> & SolveSpec;

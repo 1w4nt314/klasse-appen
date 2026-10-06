@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { numberDocument } from "./core/numbering";
+import { kindNoun } from "./core/format";
 import type { AppProps } from "../runtime";
 import { deleteDoc, listDocs, loadDoc, saveDoc } from "./actions";
 import type { DocSummary } from "./actions";
@@ -11,15 +11,18 @@ import { PropertiesPanel } from "./editor/PropertiesPanel";
 import { SheetEditor } from "./editor/SheetEditor";
 import { ToolPanel } from "./editor/ToolPanel";
 import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
-import { useDocument } from "./editor/useDocument";
+import { useDocument, type FitFigure } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
-import { newDocument } from "./model/document";
-import { calcDriftInfo, displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
+import { makeDrill, makeFigure, makeFormula, makeText, newDocument, newSeed } from "./model/document";
+import { calcDriftInfo, defOf, displayName, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
-import type { Document as SheetDoc, FigureObject } from "./model/types";
+import type { Document as SheetDoc, FigureObject, ParamState } from "./model/types";
 import { cleanName, parseDocument } from "./model/validate";
 import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
+import type { Measure } from "./render/textLayout";
 import { placeCalc } from "./render/placeCalc";
+import { layoutFormula, numberSheet } from "./render/drillLayout";
+import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeText } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
@@ -35,7 +38,7 @@ type DialogState =
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
   | { kind: "deleteDoc"; doc: DocSummary }
-  | { kind: "exportWarn"; unsolved: string[]; drift: string[] };
+  | { kind: "exportWarn"; unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -55,13 +58,49 @@ const EXPORT_FAILED = "PDF-eksporten mislykkedes. Prøv igen — virker det stad
 const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på de to PDF-filer.";
 
 /**
- * Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"], og regnestykker,
- * hvis facit (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
- * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"].
+ * Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"]; formel-linjer, der
+ * ikke kan regnes ud (svararket viser "= ?"), fx ["2b (3 · (4 +)"]; regnestykker, hvis facit
+ * (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
+ * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"]; og blokke, der går ud
+ * over arket eller dækker andet, som færdige sætninger.
  */
-function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { unsolved: string[]; drift: string[] } {
+function calcWarnings(
+  doc: SheetDoc,
+  numbering: ReadonlyMap<string, string>,
+  measure: Measure,
+): { unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string } {
   const unsolved: string[] = [];
+  const formula: string[] = [];
   const drift: string[] = [];
+  // Blokke, der går ud over arket eller dækker andre objekter, fx "Regneark 1 går ud over arkets bund — …".
+  const layout: string[] = [];
+  let drillLayout = false;
+  let figureLayout = false;
+  for (const o of doc.objects) {
+    if (o.type === "figure") {
+      // Figurer, der går ud over margenen (fx et langt navn på en størrelse); overlap markeres kun i editoren.
+      const p = figureProblem(doc, o, numbering, measure);
+      if (!p || p.outside.length === 0) continue;
+      figureLayout = true;
+      const nr = numbering.get(o.id) ?? "";
+      layout.push(
+        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim()).map(
+          (t) => `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
+        ),
+      );
+      continue;
+    }
+    if (o.type !== "drill" && o.type !== "formula") continue;
+    const nr = numbering.get(o.id) ?? "";
+    if (o.type === "formula") {
+      for (const it of layoutFormula(o, nr, measure).items) if (it.error) formula.push(`${it.label} (${it.text.replace(/ =$/, "")})`);
+    }
+    const p = blockProblem(doc, o, numbering, measure);
+    if (!p) continue;
+    if (o.type === "drill") drillLayout = true;
+    const suffix = o.type === "drill" ? "flyt det, eller vælg færre opgaver." : "flyt den, eller fjern nogle linjer.";
+    layout.push(...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim()).map((t) => `${t} — ${suffix}`));
+  }
   for (const o of doc.objects) {
     if (o.type !== "calc") continue;
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
@@ -71,7 +110,7 @@ function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { 
       if (d)
         drift.push(
           `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}, men ${
-            d.kind === "angle" ? "vinklen" : "siden"
+            kindNoun(d.kind)
           } er tegnet ${d.drawn}`,
         );
       continue;
@@ -79,7 +118,17 @@ function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { 
     const name = fig ? displayName(fig, o.param) : o.param;
     unsolved.push(num ? `${num} (${name})` : name);
   }
-  return { unsolved, drift };
+  return {
+    unsolved,
+    formula,
+    drift,
+    layout,
+    layoutTitle: drillLayout
+      ? "Regnearket passer ikke på arket"
+      : figureLayout
+        ? "En figur går ud over arket"
+        : "Formlerne passer ikke på arket",
+  };
 }
 
 /** "1a (X)" / "1a (X) og 2b (c)". */
@@ -99,7 +148,45 @@ export default function Opgavelab({ userKey }: AppProps) {
   const [view, setView] = useState<View>("opgave");
   // Figur (eller objekt), der venter på sletbekræftelse.
   const [askDelete, setAskDelete] = useState<string | null>(null);
-  const numbering = useMemo(() => numberDocument(d.doc, figureBoundsOnSheet), [d.doc]);
+  const numbering = useMemo(() => numberSheet(d.doc, measure), [d.doc, measure]);
+
+  // Værktøjsknapperne: faste handlere (ToolPanel er memo), så værktøjspanelet ikke tegnes om ved hvert
+  // træk-trin. Placeringen regnes ud fra det seneste dokument (ref'en opdateres efter hver render).
+  const placeRef = useRef({ doc: d.doc, measure });
+  useEffect(() => {
+    placeRef.current = { doc: d.doc, measure };
+  });
+  const { addText, addFigure, addDrill, addFormula } = d;
+  const toolHandlers = useMemo(
+    () => ({
+      onAddText: () => {
+        // Første ledige plads, så teksten ikke lægges oven på en figur (figurer står nu øverst til venstre).
+        const { doc, measure } = placeRef.current;
+        const at = placeText(doc, makeText("probe", 0), measure);
+        addText({ x: at.x, y: at.y });
+      },
+      onAddFigure: (kind: Parameters<typeof addFigure>[0]) => {
+        // Placering i event-handleren: første ledige plads (som regneark), så figurer ikke lægges oven i hinanden.
+        const { doc, measure } = placeRef.current;
+        const probe = makeFigure("probe", kind, 0);
+        const at = probe ? placeFigure(doc, probe, measure) : null;
+        addFigure(kind, at ? { x: at.x, y: at.y } : undefined);
+      },
+      onAddDrill: () => {
+        // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
+        const { doc, measure } = placeRef.current;
+        const seed = newSeed();
+        const at = placeBlock(doc, makeDrill("probe", 0, seed), measure);
+        addDrill(seed, { x: at.x, y: at.y });
+      },
+      onAddFormula: () => {
+        const { doc, measure } = placeRef.current;
+        const at = placeBlock(doc, makeFormula("probe", 0), measure);
+        addFormula({ x: at.x, y: at.y });
+      },
+    }),
+    [addText, addFigure, addDrill, addFormula],
+  );
 
   // ---- Persistens ----
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -122,7 +209,17 @@ export default function Opgavelab({ userKey }: AppProps) {
   // Seneste eksport (Blobs), så hver fil kan hentes igen. Gælder kun det uændrede dokument.
   const [exported, setExported] = useState<{ doc: SheetDoc; files: PdfFiles } | null>(null);
 
-  const { select: selectObject, remove: removeObject } = d;
+  const { select: selectObject, remove: removeObject, setParam: setParamRaw } = d;
+  // Panelændringer på en figur (navn, Vis): gør et nyt navn figuren bredere end pladsen ved margenen, skubbes
+  // den ind på arket (fitFigure); kan den ikke være der, markeres den (figureProblem: panel, overlay, eksport).
+  const setParam = useCallback(
+    (id: string, param: string, patch: Partial<ParamState>, key?: string) => {
+      const fit: FitFigure = (fig, doc) => fitFigure(fig, numberSheet(doc, measure).get(fig.id) ?? "", measure);
+      setParamRaw(id, param, patch, key, fit);
+    },
+    [setParamRaw, measure],
+  );
+
   const select = useCallback(
     (id: string | null) => {
       setAskDelete(null);
@@ -295,10 +392,10 @@ export default function Opgavelab({ userKey }: AppProps) {
       document.querySelector<HTMLInputElement>(".ol-name input")?.focus();
       return;
     }
-    const { unsolved, drift } = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet));
-    if (unsolved.length > 0 || drift.length > 0) {
+    const w = calcWarnings(doc, numberSheet(doc, measure), measure);
+    if (w.unsolved.length > 0 || w.formula.length > 0 || w.drift.length > 0 || w.layout.length > 0) {
       setErr(null);
-      setDialog({ kind: "exportWarn", unsolved, drift });
+      setDialog({ kind: "exportWarn", ...w });
     } else void runExport(doc, name);
   }
 
@@ -409,7 +506,10 @@ export default function Opgavelab({ userKey }: AppProps) {
         busy={busy !== null}
         status={status}
       />
-      <ToolPanel onAddText={d.addText} onAddFigure={d.addFigure} full={d.doc.objects.length >= LIMITS.objects} />
+      <ToolPanel
+        {...toolHandlers}
+        full={d.doc.objects.length >= LIMITS.objects}
+      />
       <main className="ol-main">
         <SheetEditor
           doc={d.doc}
@@ -426,9 +526,10 @@ export default function Opgavelab({ userKey }: AppProps) {
         doc={d.doc}
         selected={d.selected}
         numbering={numbering}
+        measure={measure}
         askDelete={askDelete}
         onUpdate={d.update}
-        onSetParam={d.setParam}
+        onSetParam={setParam}
         onAddCalc={(figureId, param) => {
           const fig = d.doc.objects.find((o) => o.type === "figure" && o.id === figureId);
           if (!fig || fig.type !== "figure") return;
@@ -509,14 +610,28 @@ export default function Opgavelab({ userKey }: AppProps) {
       )}
       {dialog?.kind === "exportWarn" && (
         <ConfirmDialog
-          title={dialog.unsolved.length > 0 ? "Ikke alle regnestykker kan løses" : "Svararket afviger fra figuren"}
+          title={
+            dialog.unsolved.length > 0
+              ? "Ikke alle regnestykker kan løses"
+              : dialog.formula.length > 0
+                ? "Ikke alle formler kan regnes ud"
+                : dialog.drift.length > 0
+                  ? "Svararket afviger fra figuren"
+                  : dialog.layoutTitle
+          }
           message={[
             dialog.unsolved.length > 0
               ? `Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
                   dialog.unsolved.length === 1 ? "den" : "de"
                 } ikke kan findes ud fra det, der er synligt på figuren.`
               : "",
+            dialog.formula.length > 0
+              ? `Svararket vil vise ? for ${joinList(dialog.formula)}, fordi ${
+                  dialog.formula.length === 1 ? "stykket" : "stykkerne"
+                } ikke kan regnes ud — se fejlen i formelblokkens panel.`
+              : "",
             ...dialog.drift.map((t) => `${t} — vis fx andre størrelser.`),
+            ...dialog.layout,
             "Eksportér alligevel?",
           ]
             .filter(Boolean)

@@ -4,7 +4,7 @@
 // Historik pushes ved commit (slip af træk / panel-ændring), ikke ved hvert musetræk.
 
 import { useMemo, useReducer } from "react";
-import { makeCalc, makeFigure, makeText, newDocument, newId } from "../model/document";
+import { makeCalc, makeDrill, makeFigure, makeFormula, makeText, newDocument, newId } from "../model/document";
 import { aliasConflict, clipAlias } from "../model/figures";
 import { LIMITS } from "../model/types";
 import type {
@@ -12,7 +12,9 @@ import type {
   Document as SheetDoc,
   FigureShape,
   DocSettings,
+  DrillObject,
   FigureKind,
+  FormulaObject,
   FigureObject,
   ParamState,
   SheetObject,
@@ -36,11 +38,14 @@ export type DocState = {
 
 export type ObjectPatch = Partial<Omit<TextObject, "id" | "type">> &
   Partial<Omit<FigureObject, "id" | "type">> &
-  Partial<Omit<CalcObject, "id" | "type">>;
+  Partial<Omit<CalcObject, "id" | "type">> &
+  Partial<Omit<DrillObject, "id" | "type">> &
+  Partial<Omit<FormulaObject, "id" | "type">>;
 type Patch = ObjectPatch;
 
 export type DocAction =
-  | { type: "addNew"; id: string; kind: "text" | FigureKind }
+  /** seed: kun regneark (laves i event-handleren med newSeed, så reduceren er deterministisk); at: alle nye objekter (ledig plads fra placeFigure/placeBlock/placeText). */
+  | { type: "addNew"; id: string; kind: "text" | "drill" | "formula" | FigureKind; seed?: number; at?: { x: number; y: number } }
   | { type: "addCalc"; id: string; figureId: string; param: string; x?: number; y?: number }
   | { type: "update"; id: string; patch: Patch; key?: string }
   | { type: "move"; id: string; x: number; y: number }
@@ -49,7 +54,11 @@ export type DocAction =
   | { type: "cancel" }
   | { type: "remove"; id: string }
   | { type: "select"; id: string | null }
-  | { type: "setParam"; id: string; param: string; patch: Partial<ParamState>; key?: string }
+  /**
+   * fit: figuren efter ændringen → figuren, der skal gemmes (Opgavelab: skubbet ind på arket, når et nyt navn
+   * har gjort den bredere end pladsen ved margenen — render/placeBlock.fitFigure). Ren funktion.
+   */
+  | { type: "setParam"; id: string; param: string; patch: Partial<ParamState>; key?: string; fit?: FitFigure }
   | { type: "setName"; name: string }
   | { type: "setSettings"; patch: Partial<DocSettings> }
   | { type: "undo" }
@@ -61,6 +70,9 @@ export type DocAction =
   | { type: "markSaved"; id: string; name?: string; snapshot?: SheetDoc; prevName?: string }
   /** Dokumentets række på serveren er væk (slettet): det regnes for ugemt. */
   | { type: "markUnsaved" };
+
+/** Se DocAction "setParam". */
+export type FitFigure = (fig: FigureObject, doc: SheetDoc) => FigureObject;
 
 export function initState(doc: SheetDoc = newDocument()): DocState {
   return {
@@ -85,12 +97,25 @@ function mapObject(doc: SheetDoc, id: string, fn: (o: SheetObject) => SheetObjec
   return { ...doc, objects: doc.objects.map((o) => (o.id === id ? fn(o) : o)) };
 }
 
+/** Ny figur flyttet til `at` (ankerets placering), når den er givet. */
+function withAt(fig: FigureObject | null, at: { x: number; y: number } | undefined): FigureObject | null {
+  return fig && at ? { ...fig, x: at.x, y: at.y } : fig;
+}
+
 export function reducer(s: DocState, a: DocAction): DocState {
   switch (a.type) {
     case "addNew": {
       if (s.doc.objects.length >= LIMITS.objects) return s;
-      const existing = s.doc.objects.filter((o) => (a.kind === "text" ? o.type === "text" : o.type === "figure")).length;
-      const obj = a.kind === "text" ? makeText(a.id, existing) : makeFigure(a.id, a.kind, existing);
+      const sameType = a.kind === "text" || a.kind === "drill" || a.kind === "formula" ? a.kind : "figure";
+      const existing = s.doc.objects.filter((o) => o.type === sameType).length;
+      const obj =
+        a.kind === "text"
+          ? { ...makeText(a.id, existing), ...(a.at ?? {}) }
+          : a.kind === "drill"
+            ? { ...makeDrill(a.id, existing, a.seed ?? 0), ...(a.at ?? {}) }
+            : a.kind === "formula"
+              ? { ...makeFormula(a.id, existing), ...(a.at ?? {}) }
+              : withAt(makeFigure(a.id, a.kind, existing), a.at);
       if (!obj) return s;
       return commitChange(s, { ...s.doc, objects: [...s.doc.objects, obj] }, null, { selectedId: obj.id });
     }
@@ -166,7 +191,10 @@ export function reducer(s: DocState, a: DocAction): DocState {
         patch.alias = alias === "" ? undefined : alias;
       }
       const next: ParamState = { ...fig.params[a.param], ...patch };
-      const doc = mapObject(s.doc, a.id, (o) => ({ ...(o as FigureObject), params: { ...(o as FigureObject).params, [a.param]: next } }));
+      const changed: FigureObject = { ...fig, params: { ...fig.params, [a.param]: next } };
+      let doc = mapObject(s.doc, a.id, () => changed);
+      const fitted = a.fit ? a.fit(changed, doc) : changed;
+      if (fitted !== changed) doc = mapObject(doc, a.id, () => fitted);
       return commitChange(s, doc, a.key ?? null);
     }
     case "setName":
@@ -209,8 +237,15 @@ export function useDocument() {
 
   const actions = useMemo(
     () => ({
-      addText: () => dispatch({ type: "addNew", id: newId(), kind: "text" }),
-      addFigure: (kind: FigureKind) => dispatch({ type: "addNew", id: newId(), kind }),
+      /** at: placering (fra placeText), ellers standardplaceringen. */
+      addText: (at?: { x: number; y: number }) => dispatch({ type: "addNew", id: newId(), kind: "text", at }),
+      /** at: figurens anker (fra placeFigure), ellers standardplaceringen midt på arket. */
+      addFigure: (kind: FigureKind, at?: { x: number; y: number }) => dispatch({ type: "addNew", id: newId(), kind, at }),
+      /** seed: fra newSeed() i event-handleren; at: placering (fra placeBlock), ellers standardplaceringen. */
+      addDrill: (seed: number, at?: { x: number; y: number }) =>
+        dispatch({ type: "addNew", id: newId("d"), kind: "drill", seed, at }),
+      /** at: placering (fra placeBlock), ellers standardplaceringen. */
+      addFormula: (at?: { x: number; y: number }) => dispatch({ type: "addNew", id: newId("f"), kind: "formula", at }),
       addCalc: (figureId: string, param: string, x?: number, y?: number) =>
         dispatch({ type: "addCalc", id: newId("c"), figureId, param, x, y }),
       update: (id: string, patch: Patch, key?: string) => dispatch({ type: "update", id, patch, key }),
@@ -220,8 +255,8 @@ export function useDocument() {
       cancel: () => dispatch({ type: "cancel" }),
       remove: (id: string) => dispatch({ type: "remove", id }),
       select: (id: string | null) => dispatch({ type: "select", id }),
-      setParam: (id: string, param: string, patch: Partial<ParamState>, key?: string) =>
-        dispatch({ type: "setParam", id, param, patch, key }),
+      setParam: (id: string, param: string, patch: Partial<ParamState>, key?: string, fit?: FitFigure) =>
+        dispatch({ type: "setParam", id, param, patch, key, fit }),
       setName: (name: string) => dispatch({ type: "setName", name }),
       setSettings: (patch: Partial<DocSettings>) => dispatch({ type: "setSettings", patch }),
       undo: () => dispatch({ type: "undo" }),

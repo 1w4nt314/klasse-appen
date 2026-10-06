@@ -2,10 +2,9 @@
 // og uden at dække noget andet på arket — andre regnestykker, tekstbokse og figurer
 // (inkl. deres etiketter og opgavenummer). Ren TS, ingen React/DOM.
 
-import { numberDocument } from "../core/numbering";
-import { figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, CalcObject, Document as SheetDoc, FigureObject, Point } from "../model/types";
+import { numberSheet } from "./drillLayout";
 import { figureExtent } from "./figureLayout";
 import { LINE_HEIGHT, calcContent, objectBox, type Measure } from "./textLayout";
 
@@ -18,6 +17,22 @@ const hits = (a: Bounds, b: Bounds) =>
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
+/**
+ * Alt, der allerede står på arket, som rektangler. Figurer med hele udstrækningen (etiketter og
+ * nummer, som på svararket); regnestykker, regneark og tekst med deres (svararks-)boks.
+ * `ownId`/`ownExt`: en figur, hvis udstrækning allerede er regnet (placeCalc).
+ */
+export function takenBoxes(doc: SheetDoc, measure: Measure, ownId?: string, ownExt?: Bounds): Bounds[] {
+  const numbering = numberSheet(doc, measure);
+  return doc.objects.map((o) =>
+    o.type === "figure"
+      ? o.id === ownId && ownExt
+        ? ownExt
+        : figureExtent(o, numbering.get(o.id) ?? "00", measure)
+      : objectBox(o, doc, numbering, measure),
+  );
+}
+
 export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measure: Measure): Point {
   // Svararket er bredest; bruges, så stykket også passer inden for margenen dér.
   const probe: CalcObject = { id: "probe", type: "calc", x: 0, y: 0, figureId: fig.id, param };
@@ -25,16 +40,7 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
   const w = c.widthMm;
   const h = c.sizeMm * LINE_HEIGHT;
   const ext = figureExtent(fig, "00", measure);
-  const numbering = numberDocument(doc, figureBoundsOnSheet);
-  // Alt, der allerede står på arket. Figurer med hele udstrækningen (etiketter og nummer,
-  // som på svararket); regnestykker og tekst med deres (svararks-)boks.
-  const taken = doc.objects.map((o) =>
-    o.type === "figure"
-      ? o.id === fig.id
-        ? ext
-        : figureExtent(o, numbering.get(o.id) ?? "00", measure)
-      : objectBox(o, doc, numbering, measure),
-  );
+  const taken = takenBoxes(doc, measure, fig.id, ext);
 
   const lo = PAGE.margin;
   const hi = PAGE.h - PAGE.margin - h;

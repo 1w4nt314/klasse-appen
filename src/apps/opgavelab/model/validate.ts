@@ -7,10 +7,15 @@
 import { aliasConflict, clipAlias, getFigureDef } from "./figures";
 import { asFigure, type FigureDefFor, type FigureKind, type FigureObjectFor } from "../figures/registry";
 import { DEFAULT_SETTINGS, LIMITS, SCHEMA_VERSION } from "./types";
+import { DRILL_OPS } from "../core/drill";
 import type {
   CalcObject,
   DocSettings,
+  DrillConfig,
+  DrillObject,
+  DrillOp,
   Document as SheetDoc,
+  FormulaObject,
   FigureObject,
   ParamDef,
   ParamState,
@@ -71,6 +76,86 @@ function parseText(r: Record<string, unknown>, id: string): TextObject | null {
   return { id, type: "text", x, y, width, text, sizePt };
 }
 
+/** Heltal i [min, max]. */
+function int(v: unknown, min: number, max: number): number | null {
+  return typeof v === "number" && Number.isInteger(v) && v >= min && v <= max ? v : null;
+}
+
+/**
+ * Regnearkets indstillinger. Alt skal være der og inden for grænserne — ellers null (et
+ * manipuleret regneark, fx count 500 eller ops [], afviser hele dokumentet).
+ */
+function parseDrillConfig(raw: unknown): DrillConfig | null {
+  if (!isObj(raw)) return null;
+  const N = LIMITS.drillNumberMax;
+  const count = int(raw.count, 1, LIMITS.drillCount);
+  const columns = int(raw.columns, 1, 4) as DrillConfig["columns"] | null;
+  const aMin = int(raw.aMin, 0, N);
+  const aMax = int(raw.aMax, 0, N);
+  const bMin = int(raw.bMin, 0, N);
+  const bMax = int(raw.bMax, 0, N);
+  const decimals = int(raw.decimals, 0, 2) as DrillConfig["decimals"] | null;
+  if (count === null || columns === null || aMin === null || aMax === null || bMin === null || bMax === null || decimals === null) return null;
+  if (aMin > aMax || bMin > bMax) return null;
+  if (raw.division !== "exact" && raw.division !== "remainder") return null;
+  if (typeof raw.noNegative !== "boolean") return null;
+  // Regningsarter: ikke-tom delmængde, gemmes i fast rækkefølge.
+  if (!Array.isArray(raw.ops) || raw.ops.length === 0 || raw.ops.length > DRILL_OPS.length) return null;
+  if (!raw.ops.every((o) => typeof o === "string" && (DRILL_OPS as readonly string[]).includes(o))) return null;
+  const ops = DRILL_OPS.filter((o) => (raw.ops as unknown[]).includes(o)) as DrillOp[];
+  // Tabeller: heltal 1–12, dedupleret og sorteret.
+  if (!Array.isArray(raw.tables) || raw.tables.length > 12) return null;
+  const tables: number[] = [];
+  for (const t of raw.tables as unknown[]) {
+    const n = int(t, 1, 12);
+    if (n === null) return null;
+    if (!tables.includes(n)) tables.push(n);
+  }
+  tables.sort((p, q) => p - q);
+  const title = cleanText(raw.title);
+  if (title === null) return null;
+  const cleanTitle = title.replace(/\s+/g, " ").trim();
+  if (cleanTitle.length > LIMITS.drillTitle) return null;
+  return { ops, count, columns, aMin, aMax, bMin, bMax, tables, division: raw.division, noNegative: raw.noNegative, decimals, title: cleanTitle };
+}
+
+function parseDrill(r: Record<string, unknown>, id: string): DrillObject | null {
+  const x = num(r.x, COORD_MIN, COORD_MAX);
+  const y = num(r.y, COORD_MIN, COORD_MAX);
+  const width = num(r.width, LIMITS.drillWidthMin, LIMITS.drillWidthMax);
+  const seed = int(r.seed, 0, 0xffffffff);
+  const config = parseDrillConfig(r.config);
+  if (x === null || y === null || width === null || seed === null || config === null) return null;
+  return { id, type: "drill", x, y, width, seed, config };
+}
+
+/**
+ * Formelblok. Linjerne gemmes som tekst (de regnes først ud ved visning, af core/formula.ts uden
+ * eval); her tjekkes kun grænserne: 1–20 linjer à højst 80 tegn efter rensning, decimaler 0–4,
+ * titel højst 60 tegn. Alt andet → null (dokumentet afvises).
+ */
+function parseFormula(r: Record<string, unknown>, id: string): FormulaObject | null {
+  const x = num(r.x, COORD_MIN, COORD_MAX);
+  const y = num(r.y, COORD_MIN, COORD_MAX);
+  const width = num(r.width, LIMITS.drillWidthMin, LIMITS.drillWidthMax);
+  const decimals = int(r.decimals, 0, 4) as FormulaObject["decimals"] | null;
+  if (x === null || y === null || width === null || decimals === null) return null;
+  if (!Array.isArray(r.lines) || r.lines.length < 1 || r.lines.length > LIMITS.formulaLines) return null;
+  const lines: string[] = [];
+  for (const l of r.lines as unknown[]) {
+    if (typeof l !== "string") return null;
+    // Én linje: ingen linjeskift, kontroltegn eller usynlige tegn.
+    const clean = l.replace(INVISIBLE, "");
+    if (clean.length > LIMITS.formulaLineChars) return null;
+    lines.push(clean);
+  }
+  const title = cleanText(r.title);
+  if (title === null) return null;
+  const cleanTitle = title.replace(/\s+/g, " ").trim();
+  if (cleanTitle.length > LIMITS.formulaTitle) return null;
+  return { id, type: "formula", x, y, width, lines, decimals, title: cleanTitle };
+}
+
 function parseFigure(r: Record<string, unknown>, id: string, withCalc: ReadonlySet<string>, notes?: string[]): FigureObject | null {
   const def = getFigureDef(r.figure);
   return def ? parseFigureOf(def, r, id, withCalc, notes) : null;
@@ -93,7 +178,8 @@ function parseFigureOf<K extends FigureKind>(
   const aliases: Record<string, string> = {};
   for (const p of def.params) {
     const st = has(rawParams, p.key) && isObj(rawParams[p.key]) ? (rawParams[p.key] as Record<string, unknown>) : {};
-    params[p.key] = { visible: typeof st.visible === "boolean" ? st.visible : true };
+    // Manglende synlighed: alt vises, undtagen afledte mål (nye mål i gamle dokumenter forbliver skjulte).
+    params[p.key] = { visible: typeof st.visible === "boolean" ? st.visible : !p.derived };
     if (typeof st.alias === "string") {
       const alias = clipAlias(st.alias.replace(INVISIBLE, "").trim()).trim();
       if (alias) aliases[p.key] = alias;
@@ -173,6 +259,14 @@ export function parseDocument(input: unknown, notes?: string[]): SheetDoc | null
       if (!f) return null;
       parsed.set(i, f);
       figures.set(f.id, f);
+    } else if (o.type === "drill") {
+      const dr = parseDrill(o, o.id);
+      if (!dr) return null;
+      parsed.set(i, dr);
+    } else if (o.type === "formula") {
+      const fo = parseFormula(o, o.id);
+      if (!fo) return null;
+      parsed.set(i, fo);
     } else if (o.type !== "calc") {
       return null; // ukendt type
     }
