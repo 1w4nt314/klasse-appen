@@ -62,6 +62,15 @@ export type TrapezoidShape = { a: Mm; b: Mm; h: Mm; off: Mm };
 /** Cirkel: radius r i mm; ankeret er centrum. */
 export type CircleShape = { r: Mm };
 
+/**
+ * Kasse (retvinklet prisme) i kavalerperspektiv: længde l (vandret), bredde b (dybden, tegnes halv
+ * størrelse under 45°) og højde h i mm. Ankeret er det forreste nederste venstre hjørne.
+ */
+export type BoxShape = { l: Mm; b: Mm; h: Mm };
+
+/** Terning med side s i mm (tegnes som kassen med l = b = h = s); ankeret som kassen. */
+export type CubeShape = { s: Mm };
+
 // Figurtyperne (FigureKind, FigureShape, FigureObject) afledes af registry'et i
 // figures/registry.ts, så en ny figur kun kræver én ny fil + én linje dér.
 import type { FigureObject } from "../figures/registry";
@@ -72,7 +81,7 @@ export type FigureObjectOf<K extends string, S> = {
   id: string;
   type: "figure";
   figure: K;
-  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C; fri trekant: hjørne A; rektangel: øverste venstre …). */
+  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C; fri trekant: hjørne A; rektangel: øverste venstre; cirkel: centrum; kasse/terning: forreste nederste venstre hjørne …). */
   x: Mm;
   y: Mm;
   shape: S;

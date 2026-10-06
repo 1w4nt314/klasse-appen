@@ -2,6 +2,7 @@
 // sideetiketter, stiplede skjulte kanter, retvinkelmærke og kavalerperspektiv (3D).
 // Importerer kun render/primitives, model/format-typer og figures/types (type) — ikke registry'et.
 
+import type { ReactNode } from "react";
 import { formatByKind } from "../core/format";
 import { displayName } from "../model/params";
 import type { Bounds, ParamDef, ParamState, Point } from "../model/types";
@@ -282,4 +283,38 @@ const C45 = Math.SQRT1_2;
 /** Punkt (x, y, z) i mm → ark-koordinater (y op, z dybde bagud): x + k·z·cos45°, −y − k·z·sin45°. */
 export function project(x: number, y: number, z: number): Point {
   return { x: x + CAVALIER_K * z * C45, y: -y - CAVALIER_K * z * C45 };
+}
+
+/**
+ * Kasse (l × b × h mm, b i dybden) i kavalerperspektiv med det forreste nederste venstre hjørne i
+ * (0, 0): de 8 hjørner (f = forreste, k = bagerste; b/t = bund/top; l/r = venstre/højre), de synlige
+ * kanter (forside, top og højre side) og de 3 skjulte bagkanter fra det bagerste nederste venstre
+ * hjørne — begge som path-data.
+ */
+export function cuboid(l: number, b: number, h: number) {
+  const c = {
+    fbl: project(0, 0, 0),
+    fbr: project(l, 0, 0),
+    ftr: project(l, h, 0),
+    ftl: project(0, h, 0),
+    kbl: project(0, 0, b),
+    kbr: project(l, 0, b),
+    ktr: project(l, h, b),
+    ktl: project(0, h, b),
+  };
+  const pt = (p: Point) => `${r2(p.x)} ${r2(p.y)}`;
+  const visible =
+    `M ${pt(c.fbl)} L ${pt(c.fbr)} L ${pt(c.kbr)} L ${pt(c.ktr)} L ${pt(c.ktl)} L ${pt(c.ftl)} Z ` +
+    `M ${pt(c.ftl)} L ${pt(c.ftr)} L ${pt(c.fbr)} M ${pt(c.ftr)} L ${pt(c.ktr)}`;
+  const hidden = `M ${pt(c.kbl)} L ${pt(c.kbr)} M ${pt(c.kbl)} L ${pt(c.ktl)} M ${pt(c.kbl)} L ${pt(c.fbl)}`;
+  return { corners: c, visible, hidden };
+}
+
+/** Kassens streger: de 3 skjulte bagkanter stiplet (HIDDEN_EDGE) under de synlige kanter. */
+export function cuboidDrawing(l: number, b: number, h: number): ReactNode {
+  const { visible, hidden } = cuboid(l, b, h);
+  return [
+    <path key="hidden" data-ol-role="hidden-edges" d={hidden} fill="none" stroke={INK} {...HIDDEN_EDGE} />,
+    <path key="body" data-ol-role="edges" d={visible} fill="none" stroke={INK} strokeWidth={0.5} strokeLinejoin="round" />,
+  ];
 }

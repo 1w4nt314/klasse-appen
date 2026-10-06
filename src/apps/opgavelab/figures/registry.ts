@@ -20,7 +20,8 @@
 //         handleName?   // aria-label for håndtag (standard "Hjørne {navn}")
 //       };
 //     labels/drawing kan bruge figures/shared.tsx: derivedLabels (mål-boksen med synlige
-//     afledte mål under figuren), sideLabel, rightAngleMark, HIDDEN_EDGE, project og ellipsePath.
+//     afledte mål under figuren), sideLabel, rightAngleMark, HIDDEN_EDGE, project, ellipsePath og
+//     cuboid/cuboidDrawing (kasse i kavalerperspektiv med stiplede bagkanter, se box.tsx/cube.tsx).
 //     Figurfilen må kun importere fra core/*, model/types, model/params, figures/shared,
 //     render/primitives og render/textLayout (type) — IKKE fra model/figures eller dette
 //     registry (det giver en importcyklus).
@@ -31,7 +32,9 @@
 // svarark, nummerering, margen og PDF-eksport er generiske og slår op med defOf(fig).
 // Bliver nøglen og `type` ikke ens, giver TypeScript en fejl på FIGURES.
 
+import { box } from "./box";
 import { circle } from "./circle";
+import { cube } from "./cube";
 import { parallelogram } from "./parallelogram";
 import { rectangle } from "./rectangle";
 import { rightTriangle } from "./rightTriangle";
@@ -49,6 +52,8 @@ const DEFS = {
   parallelogram,
   trapezoid,
   circle,
+  box,
+  cube,
 };
 
 type Defs = typeof DEFS;

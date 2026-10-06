@@ -239,6 +239,11 @@ function FigureSection({
             {t}
           </p>
         ))}
+      {def.group === "rumfigurer" && (
+        <p className="ol-hint" data-ol-depth-hint="">
+          Dybden tegnes halv størrelse (skråbillede).
+        </p>
+      )}
       {def.params.some((p) => p.derived) && (
         <p className="ol-hint" data-ol-derived-hint="">
           Afledte mål (fx areal og omkreds) er skjult som standard. Sæt flueben ved Vis, så står de under figuren.
