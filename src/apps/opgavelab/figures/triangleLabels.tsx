@@ -55,7 +55,29 @@ export type TriangleLabelOpts = {
    * `p`, `q`: de to andre hjørner. Udeladt: vinkelbuens radius (5 mm).
    */
   markRadius?: (k: Corner, shown: boolean, p: Point, q: Point) => number;
+  /**
+   * Valgfrit: den kile (et punkt på hver af de to stråler fra hjørnet), vinkelværdien skal stå
+   * midt i, i stedet for hele vinklen — fx den største delvinkel, når højden deler vinklen ved C.
+   * null/udeladt: hele vinklen (halveringslinjen).
+   */
+  wedge?: (k: Corner) => readonly [Point, Point] | null;
+  /**
+   * Valgfrit: linjer (to punkter), som vinkelværdien skal holde sig på hjørnets side af med
+   * LABEL_GAP luft for at stå inde i vinklen — fx den modstående side i en flad, stump trekant
+   * og den stiplede højde. Holder den ikke, står værdien udenfor ved hjørnenavnet.
+   */
+  clearOf?: (k: Corner) => readonly (readonly [Point, Point])[];
 };
+
+/** Holder boksen (centrum c, halve mål hw/hh) sig på v's side af linjen pq med mindst `gap` luft? */
+function clearOfLine(c: Point, hw: number, hh: number, v: Point, p: Point, q: Point, gap: number): boolean {
+  const d = unit(sub(q, p));
+  const n = { x: -d.y, y: d.x };
+  const sv = (v.x - p.x) * n.x + (v.y - p.y) * n.y;
+  if (Math.abs(sv) < 1e-9) return true;
+  const sc = ((c.x - p.x) * n.x + (c.y - p.y) * n.y) * Math.sign(sv);
+  return sc - (Math.abs(n.x) * hw + Math.abs(n.y) * hh) >= gap;
+}
 
 /**
  * Etiketterne for en trekant, i rækkefølgen hjørnenavn + vinkelværdi pr. hjørne (A, B, C), derefter
@@ -153,17 +175,28 @@ export function triangleLabels(o: TriangleLabelOpts): Label[] {
     // siderne, vinkelbuen eller retvinkel-kvadratet.
     const text = FMT.ang(show.value(k));
     const { hw, hh } = labelBox(text, measure);
-    const along = Math.abs(bis.x) * hw + Math.abs(bis.y) * hh;
-    const across = Math.abs(bis.y) * hw + Math.abs(bis.x) * hh;
-    const theta = (values[k] * Math.PI) / 360; // halv vinkel
+    // Kilen, værdien står i: hele vinklen (standard) eller fx den største delvinkel ved højden.
+    const wedge = o.wedge?.(k) ?? null;
+    let dir = bis;
+    let theta = (values[k] * Math.PI) / 360; // halv vinkel
+    if (wedge) {
+      const wu = unit(sub(wedge[0], v[k]));
+      const wv = unit(sub(wedge[1], v[k]));
+      dir = unit(add(wu, wv));
+      theta = Math.acos(Math.max(-1, Math.min(1, wu.x * wv.x + wu.y * wv.y))) / 2;
+    }
+    const along = Math.abs(dir.x) * hw + Math.abs(dir.y) * hh;
+    const across = Math.abs(dir.y) * hw + Math.abs(dir.x) * hh;
     const dSides = along + (LABEL_GAP + across * Math.cos(theta)) / Math.max(Math.sin(theta), 0.02);
     const inner = o.markRadius ? o.markRadius(k, show.shown(k), p, q) : arcRadius(v[k], p, q, 5);
     const dInner = along + inner + 0.6;
     const minSide = Math.min(Math.hypot(p.x - v[k].x, p.y - v[k].y), Math.hypot(q.x - v[k].x, q.y - v[k].y));
     const want = Math.max(dSides, dInner);
+    const inside = add(v[k], dir, want);
+    const lines = o.clearOf?.(k) ?? [];
     let c: Point;
-    if (want <= 0.6 * minSide) {
-      c = add(v[k], bis, want);
+    if (want <= 0.6 * minSide && lines.every(([lp, lq]) => clearOfLine(inside, hw, hh, v[k], lp, lq, LABEL_GAP))) {
+      c = inside;
     } else {
       // Ikke plads inde i vinklen (små figurer): værdien står udenfor på samme linje som
       // hjørnenavnet, helst lige til højre for det ("A  53,1°"), ellers til venstre.

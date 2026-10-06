@@ -26,6 +26,20 @@ export type RightTriangleShape = {
   mirror: boolean;
 };
 
+/**
+ * Fri trekant (SSS) i dansk notation: a = BC, b = AC, c = AB i mm. Ankeret er hjørne A; B ligger
+ * c mm fra A i retningen `rotation`, og C ligger på den side af AB, `mirror` angiver.
+ */
+export type TriangleShape = {
+  a: Mm;
+  b: Mm;
+  c: Mm;
+  /** Grader, retning A→B (SVG-koordinater, y nedad). */
+  rotation: number;
+  /** false: C ligger til venstre for A→B (over AB, når AB peger mod højre); true: til højre. */
+  mirror: boolean;
+};
+
 /** Rektangel: længde l (vandret) og bredde b (lodret) i mm; ankeret er øverste venstre hjørne. */
 export type RectangleShape = { l: Mm; b: Mm };
 
@@ -45,7 +59,7 @@ export type FigureObjectOf<K extends string, S> = {
   id: string;
   type: "figure";
   figure: K;
-  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C; rektangel: øverste venstre …). */
+  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C; fri trekant: hjørne A; rektangel: øverste venstre …). */
   x: Mm;
   y: Mm;
   shape: S;

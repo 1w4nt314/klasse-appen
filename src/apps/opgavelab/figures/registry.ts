@@ -35,11 +35,13 @@ import { circle } from "./circle";
 import { rectangle } from "./rectangle";
 import { rightTriangle } from "./rightTriangle";
 import { square } from "./square";
+import { triangle } from "./triangle";
 import type { FigureObjectOf } from "../model/types";
 import type { FigureDef, FigureGroup } from "./types";
 
 const DEFS = {
   rightTriangle,
+  triangle,
   rectangle,
   square,
   circle,
