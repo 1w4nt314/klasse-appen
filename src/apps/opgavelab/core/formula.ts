@@ -145,6 +145,33 @@ function symbol(ch: string): Kind | null {
 
 const isDigit = (ch: string | undefined) => ch !== undefined && ch >= "0" && ch <= "9";
 
+/**
+ * Et punktum i et tal (chars[i] === "."). Ligner det et tusindtalspunktum ("1.000", "12.500.000": 1–3 cifre
+ * og derefter grupper på præcis 3 cifre), forklares det med tallet skrevet rigtigt; ellers er det et
+ * decimalpunktum ("2.5").
+ */
+function dotFail(chars: string[], i: number, before: string): Fail {
+  const pos = i + 1;
+  if (/^[0-9]{1,3}$/.test(before)) {
+    let j = i;
+    let digits = before;
+    while (chars[j] === "." && isDigit(chars[j + 1]) && isDigit(chars[j + 2]) && isDigit(chars[j + 3]) && !isDigit(chars[j + 4])) {
+      digits += chars[j + 1] + chars[j + 2] + chars[j + 3];
+      j += 4;
+    }
+    if (j > i && chars[j] !== ".") {
+      // "1.000,5" → "1000,5" (decimalkommaet er rigtigt).
+      let k = j;
+      if (chars[k] === "," && isDigit(chars[k + 1])) {
+        k++;
+        while (isDigit(chars[k])) k++;
+      }
+      return new Fail(`Skriv tallet uden tusindtalspunktum: ${digits}${chars.slice(j, k).join("")} (plads ${pos})`, pos);
+    }
+  }
+  return new Fail(`Brug komma som decimaltegn (plads ${pos})`, pos);
+}
+
 function tokenize(text: string): Token[] {
   const chars = Array.from(text);
   const out: Token[] = [];
@@ -165,13 +192,13 @@ function tokenize(text: string): Token[] {
         i++;
         while (isDigit(chars[i])) s += chars[i++];
       }
-      if (chars[i] === ".") throw new Fail(`Brug komma som decimaltegn (plads ${i + 1})`, i + 1);
+      if (chars[i] === ".") throw dotFail(chars, i, s);
       const value = Number(s.replace(",", "."));
       if (!(value <= FORMULA_MAX_NUMBER)) throw new Fail(`Tallet er for stort (højst 1.000.000.000.000) (plads ${pos})`, pos);
       out.push({ k: "num", text: s, pos, value });
       continue;
     }
-    if (ch === ".") throw new Fail(`Brug komma som decimaltegn (plads ${pos})`, pos);
+    if (ch === ".") throw dotFail(chars, i, "");
     const sup = superDigit(ch);
     if (sup >= 0) {
       // Flere hævede cifre efter hinanden ("2¹⁰") ville blive læst som (2¹)⁰: bed om ^ i stedet.
@@ -192,8 +219,10 @@ function tokenize(text: string): Token[] {
 }
 
 /**
- * "^" med et lille heltal (0–9) skrives hævet: "2^4" → "2⁴", "2^2" → "2²". Kun når der ikke står
- * en ny potens lige efter (2^3^2 = 2^(3^2) må ikke blive (2³)², og 2^3² = 2^9), så værdien er uændret.
+ * "^" med et lille heltal (0–9) skrives hævet: "2^4" → "2⁴", "2^2" → "2²". Kun når potensen står alene, så
+ * værdien er uændret og notationen entydig: ikke når der står en ny potens lige efter (2^3^2 = 2^(3^2) må
+ * ikke blive (2³)², og 2^3² = 2^9), ikke inde i en ^-kæde (2^4^2 forbliver 2^4^2, ikke 2^4²), og ikke efter
+ * en hævet potens (2⁴^2 ville blive "2⁴²", som ikke kan læses).
  */
 function raiseExponents(tokens: Token[]): Token[] {
   const out: Token[] = [];
@@ -201,7 +230,10 @@ function raiseExponents(tokens: Token[]): Token[] {
     const t = tokens[i];
     const n = tokens[i + 1];
     const after = tokens[i + 2];
-    if (t.k === "^" && n && n.k === "num" && /^[0-9]$/.test(n.text) && !(after && (after.k === "^" || isPost(after.k)))) {
+    const base = tokens[i - 1];
+    const beforeBase = tokens[i - 2];
+    const inChain = (after && (after.k === "^" || isPost(after.k))) || (beforeBase && beforeBase.k === "^") || (base && isPost(base.k));
+    if (t.k === "^" && n && n.k === "num" && /^[0-9]$/.test(n.text) && !inChain) {
       const d = n.value;
       out.push({ k: d === 2 ? "²" : d === 3 ? "³" : "sup", text: SUPERSCRIPT[d], pos: t.pos, value: d });
       i++;
@@ -410,6 +442,10 @@ export function evaluate(line: string, decimals: number): FormulaResult {
     tokens = tokenize(text);
   } catch (e) {
     const pretty = text.replace(/\s+/gu, " ").trim();
+    // "A = 2 + 3": et navn før "=" og stykket efter. Kun bogstaver (og tal efter første bogstav) før "=".
+    const name = ignored && /^\s*\p{L}[\p{L}\p{N} ]*$/u.test(text) ? pretty : null;
+    if (name !== null && e instanceof Fail && /^Ukendt tegn/.test(e.msg))
+      return { ok: false, pretty, error: `Skriv kun selve regnestykket — uden "${name} =" foran`, pos: 1, ignored };
     return e instanceof Fail ? { ok: false, pretty, error: e.msg, pos: e.pos, ignored } : { ok: false, pretty, error: "Kan ikke regnes ud", pos: 0, ignored };
   }
   const pretty = prettify(tokens);

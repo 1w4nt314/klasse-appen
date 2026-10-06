@@ -190,8 +190,18 @@ export type BlockObject = DrillObject | FormulaObject;
 
 /** Blokkens udstrækning på arket (mm), ens på opgave og svarark. */
 export function blockBox(obj: BlockObject, number: string, measure: Measure): Bounds {
-  return obj.type === "drill" ? layoutDrill(obj, number, measure).box : layoutFormula(obj, number, measure).box;
+  // Som figureExtent: afhænger kun af blokken (uforanderlig i dokumentet), nummeret og måleren — gemmes, så
+  // nummerering og markering ikke lægger alle regneark ud igen ved hvert træk-trin.
+  let perObj = boxCache.get(measure);
+  if (!perObj) boxCache.set(measure, (perObj = new WeakMap()));
+  let perNumber = perObj.get(obj);
+  if (!perNumber) perObj.set(obj, (perNumber = new Map()));
+  let b = perNumber.get(number);
+  if (!b) perNumber.set(number, (b = obj.type === "drill" ? layoutDrill(obj, number, measure).box : layoutFormula(obj, number, measure).box));
+  return { ...b };
 }
+
+const boxCache = new WeakMap<Measure, WeakMap<BlockObject, Map<string, Bounds>>>();
 
 /**
  * Nummereringen af arket (core/numbering.ts) med blokkenes rigtige udstrækning fra layoutet, så et

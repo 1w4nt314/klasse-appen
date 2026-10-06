@@ -15,7 +15,8 @@ import type { Bounds, CalcObject, Document, DrillObject, FigureObject, FormulaOb
  *    (en lav figur ved siden af en høj, en cirkel ved siden af en trekant, et regneark ved en figur),
  * og den ikke står over/under (vandret overlap > ROW_OVERLAP af den smalleste bredde) en blok, der
  * allerede er i rækken — så to blokke stablet ved siden af en høj figur får hver sit nummer top→bund.
- * Inden for rækken nummereres venstre→højre. Rækkens anker er dens øverste blok (ikke den sidst
+ * Inden for rækken nummereres venstre→højre — dog aldrig en blok før en blok, der står helt over den
+ * (orderRow). Rækkens anker er dens øverste blok (ikke den sidst
  * tilføjede), så rækker ikke "kæder" nedad over arket, og et ryk på 1 mm bytter ikke numre på
  * rækker, der tydeligt ligger under hinanden.
  */
@@ -54,6 +55,23 @@ function besides(a: Bounds, b: Bounds): boolean {
 function stacked(a: Bounds, b: Bounds): boolean {
   const ov = overlapX(a, b);
   return ov > 0 && ov > ROW_OVERLAP * Math.min(a.maxX - a.minX, b.maxX - b.minX);
+}
+
+/**
+ * Rækkefølgen i en række: venstre→højre, men en blok kommer aldrig før en blok, der står helt OVER den
+ * (bunden over dens top). Ved siden af en høj figur kan en blok øverst til højre og en mindre blok
+ * længere nede i midten være i samme række; så læses den øverste først (som en lærer læser arket),
+ * selv om den nederste står lidt længere til venstre.
+ */
+function orderRow<B extends { b: Bounds; i: number }>(row: B[]): B[] {
+  const left = [...row].sort((p, q) => p.b.minX - q.b.minX || p.b.minY - q.b.minY || p.i - q.i);
+  const out: B[] = [];
+  while (left.length > 0) {
+    // Første (venstre→højre), som ingen af de resterende står over. Findes altid: den med mindst top.
+    const k = left.findIndex((f) => !left.some((m) => m !== f && m.b.maxY <= f.b.minY));
+    out.push(left.splice(k < 0 ? 0 : k, 1)[0]);
+  }
+  return out;
 }
 
 /** 0 → "a", 25 → "z", 26 → "aa", 27 → "ab", … */
@@ -103,7 +121,7 @@ export function numberDocument(
     if (row) row.push(f);
     else rows.push([f]);
   }
-  const ordered = rows.flatMap((row) => [...row].sort((p, q) => p.b.minX - q.b.minX || p.b.minY - q.b.minY || p.i - q.i));
+  const ordered = rows.flatMap(orderRow);
 
   const calcs = new Map<string, { calc: CalcObject; i: number }[]>();
   doc.objects.forEach((o, i) => {

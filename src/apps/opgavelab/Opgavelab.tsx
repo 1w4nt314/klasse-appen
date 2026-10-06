@@ -132,6 +132,44 @@ export default function Opgavelab({ userKey }: AppProps) {
   const [askDelete, setAskDelete] = useState<string | null>(null);
   const numbering = useMemo(() => numberSheet(d.doc, measure), [d.doc, measure]);
 
+  // Værktøjsknapperne: faste handlere (ToolPanel er memo), så værktøjspanelet ikke tegnes om ved hvert
+  // træk-trin. Placeringen regnes ud fra det seneste dokument (ref'en opdateres efter hver render).
+  const placeRef = useRef({ doc: d.doc, measure });
+  useEffect(() => {
+    placeRef.current = { doc: d.doc, measure };
+  });
+  const { addText, addFigure, addDrill, addFormula } = d;
+  const toolHandlers = useMemo(
+    () => ({
+      onAddText: () => {
+        // Første ledige plads, så teksten ikke lægges oven på en figur (figurer står nu øverst til venstre).
+        const { doc, measure } = placeRef.current;
+        const at = placeText(doc, makeText("probe", 0), measure);
+        addText({ x: at.x, y: at.y });
+      },
+      onAddFigure: (kind: Parameters<typeof addFigure>[0]) => {
+        // Placering i event-handleren: første ledige plads (som regneark), så figurer ikke lægges oven i hinanden.
+        const { doc, measure } = placeRef.current;
+        const probe = makeFigure("probe", kind, 0);
+        const at = probe ? placeFigure(doc, probe, measure) : null;
+        addFigure(kind, at ? { x: at.x, y: at.y } : undefined);
+      },
+      onAddDrill: () => {
+        // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
+        const { doc, measure } = placeRef.current;
+        const seed = newSeed();
+        const at = placeBlock(doc, makeDrill("probe", 0, seed), measure);
+        addDrill(seed, { x: at.x, y: at.y });
+      },
+      onAddFormula: () => {
+        const { doc, measure } = placeRef.current;
+        const at = placeBlock(doc, makeFormula("probe", 0), measure);
+        addFormula({ x: at.x, y: at.y });
+      },
+    }),
+    [addText, addFigure, addDrill, addFormula],
+  );
+
   // ---- Persistens ----
   const [dialog, setDialog] = useState<DialogState>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -441,27 +479,7 @@ export default function Opgavelab({ userKey }: AppProps) {
         status={status}
       />
       <ToolPanel
-        onAddText={() => {
-          // Første ledige plads, så teksten ikke lægges oven på en figur (figurer står nu øverst til venstre).
-          const at = placeText(d.doc, makeText("probe", 0), measure);
-          d.addText({ x: at.x, y: at.y });
-        }}
-        onAddFigure={(kind) => {
-          // Placering i event-handleren: første ledige plads (som regneark), så figurer ikke lægges oven i hinanden.
-          const probe = makeFigure("probe", kind, 0);
-          const at = probe ? placeFigure(d.doc, probe, measure) : null;
-          d.addFigure(kind, at ? { x: at.x, y: at.y } : undefined);
-        }}
-        onAddDrill={() => {
-          // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
-          const seed = newSeed();
-          const at = placeBlock(d.doc, makeDrill("probe", 0, seed), measure);
-          d.addDrill(seed, { x: at.x, y: at.y });
-        }}
-        onAddFormula={() => {
-          const at = placeBlock(d.doc, makeFormula("probe", 0), measure);
-          d.addFormula({ x: at.x, y: at.y });
-        }}
+        {...toolHandlers}
         full={d.doc.objects.length >= LIMITS.objects}
       />
       <main className="ol-main">

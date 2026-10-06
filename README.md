@@ -58,7 +58,15 @@ værdier).
   parallelogram, trapez, cirkel (2D) og kasse, terning, cylinder, kugle (3D i
   kavalerperspektiv med stiplede skjulte kanter). Afledte mål (areal, omkreds,
   rumfang, overflade) kan vises eller findes. Svararket regner på de *viste* tal
-  og skriver "≈" ved afrunding og ved π.
+  og skriver "≈" ved afrunding og ved π. Formlerne står i én fast form, som
+  eleverne kan genkende i en anden opstilling: cylinderens overflade som
+  `O = 2 · π · r · (r + h)` (= 2 · π · r² + 2 · π · r · h; fra d:
+  `π · d · (d / 2 + h)`), kassens som `O = 2 · (l · b + l · h + b · h)` og
+  terningens som `O = 6 · s²`.
+- **Nummerering:** figurer, regneark og formelblokke får 1, 2, 3 … i
+  læseretning: rækker oppefra, i rækken fra venstre. Det, der står ved siden af
+  en høj figur, hører til dens række; står to ting over hinanden ved siden af
+  den, tælles den øverste først.
 - **Regneark:** plus-, minus-, gange- og divisionsstykker (også "med rest" og
   decimaler) i 1-4 kolonner, nummereret 1a, 1b … Opgaverne laves ud fra et
   gemt seed, så arket er det samme ved genindlæsning; "Nye tal" trækker et nyt.

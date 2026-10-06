@@ -74,6 +74,20 @@ export function numberBox(fig: FigureObject, number: string, measure: Measure): 
  * Editoren holder denne boks inden for arkets margen.
  */
 export function figureExtent(fig: FigureObject, number: string, measure: Measure): Bounds {
+  // Udstrækningen afhænger kun af figur-objektet (uforanderligt i dokumentet), nummeret og måleren: gem den,
+  // så editoren kan regne alle figurers udstrækning ved hvert træk-trin uden at løse og måle etiketterne igen.
+  let perFig = extentCache.get(measure);
+  if (!perFig) extentCache.set(measure, (perFig = new WeakMap()));
+  let perNumber = perFig.get(fig);
+  if (!perNumber) perFig.set(fig, (perNumber = new Map()));
+  let b = perNumber.get(number);
+  if (!b) perNumber.set(number, (b = computeExtent(fig, number, measure)));
+  return { ...b };
+}
+
+const extentCache = new WeakMap<Measure, WeakMap<FigureObject, Map<string, Bounds>>>();
+
+function computeExtent(fig: FigureObject, number: string, measure: Measure): Bounds {
   let b = svararkBounds(fig, measure, labelsInk);
   if (number) {
     const nb = numberBox(fig, number, measure).box;

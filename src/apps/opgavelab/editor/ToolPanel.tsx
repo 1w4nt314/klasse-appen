@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { FIGURES, GROUPS, figuresInGroup } from "../model/figures";
 import type { FigureKind } from "../model/types";
 
-export function ToolPanel({
+/** memo: tegnes kun om, når handlerne eller "full" skifter (ikke ved hvert træk-trin). */
+export const ToolPanel = memo(function ToolPanel({
   onAddText,
   onAddFigure,
   onAddDrill,
@@ -141,4 +142,4 @@ export function ToolPanel({
       </details>
     </aside>
   );
-}
+});

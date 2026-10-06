@@ -7,7 +7,7 @@
 //  - editor-overlay (markering, håndtag) kommer KUN som `children`
 // Figurerne tegnes generisk: streger og etiketter kommer fra figurens FigureDef (defOf).
 
-import { useMemo, type ReactNode, type Ref, type SVGProps } from "react";
+import { memo, useMemo, type ReactNode, type Ref, type SVGProps } from "react";
 import { defOf } from "../figures/registry";
 import type { SheetMode } from "../figures/types";
 import { docSolvedValues } from "../model/figures";
@@ -71,10 +71,12 @@ function renderCalc(doc: SheetDoc, obj: CalcObject, mode: SheetMode, number: str
  * Tre runs pr. opgave: nummer (fed), stykket (højrestillet, så "=" står under hinanden) og
  * svarstregen — på svararket svaret i BRAND i stedet for stregen.
  */
-function renderDrill(obj: DrillObject, mode: SheetMode, number: string, measure: Measure) {
+type BlockViewProps<O> = { obj: O; mode: SheetMode; number: string; measure: Measure };
+
+const DrillView = memo(function DrillView({ obj, mode, number, measure }: BlockViewProps<DrillObject>) {
   const l = layoutDrill(obj, number, measure);
   return (
-    <g key={obj.id} data-ol-id={obj.id} data-ol-type="drill">
+    <g data-ol-id={obj.id} data-ol-type="drill">
       {l.title && (
         <T x={l.title.x} y={l.title.baseline} size={l.sizeMm} bold data-ol-role="title">
           {l.title.text}
@@ -101,7 +103,7 @@ function renderDrill(obj: DrillObject, mode: SheetMode, number: string, measure:
       ))}
     </g>
   );
-}
+});
 
 // ---- formelblok ----
 
@@ -109,10 +111,10 @@ function renderDrill(obj: DrillObject, mode: SheetMode, number: string, measure:
  * Tre runs pr. linje som regnearket: nummer (fed), stykket ("3 · (4 + 5) =") og svarstregen — på
  * svararket facit i BRAND ("27"; afrundet: "2 · π ≈ 6,28"; kan ikke regnes ud: "= ?").
  */
-function renderFormula(obj: FormulaObject, mode: SheetMode, number: string, measure: Measure) {
+const FormulaView = memo(function FormulaView({ obj, mode, number, measure }: BlockViewProps<FormulaObject>) {
   const l = layoutFormula(obj, number, measure);
   return (
-    <g key={obj.id} data-ol-id={obj.id} data-ol-type="formula">
+    <g data-ol-id={obj.id} data-ol-type="formula">
       {l.title && (
         <T x={l.title.x} y={l.title.baseline} size={l.sizeMm} bold data-ol-role="title">
           {l.title.text}
@@ -139,17 +141,35 @@ function renderFormula(obj: FormulaObject, mode: SheetMode, number: string, meas
       ))}
     </g>
   );
-}
+});
 
 // ---- figur ----
 
-function renderFigure(doc: SheetDoc, fig: FigureObject, mode: SheetMode, number: string, measure: Measure) {
+/** Ingen løste værdier (opgavearket): én fast instans, så FigureView ikke tegnes om uden grund. */
+const NO_SOLVED: Record<string, number> = {};
+
+/**
+ * Én figur. memo: et træk ændrer kun den trukne figur (de andre objekter beholder identiteten i
+ * dokumentet), så de andre figurers etiketter løses og måles ikke igen ved hvert træk-trin.
+ */
+const FigureView = memo(function FigureView({
+  fig,
+  mode,
+  number,
+  measure,
+  solved,
+}: {
+  fig: FigureObject;
+  mode: SheetMode;
+  number: string;
+  measure: Measure;
+  solved: Record<string, number>;
+}) {
   const def = defOf(fig);
   const nb = number ? numberBox(fig, number, measure) : null;
-  const labels = def.labels(fig, mode, measure, mode === "svarark" ? docSolvedValues(doc, fig) : {});
+  const labels = def.labels(fig, mode, measure, solved);
   return (
     <g
-      key={fig.id}
       transform={`translate(${r2(fig.x)} ${r2(fig.y)})`}
       data-ol-id={fig.id}
       data-ol-type="figure"
@@ -176,7 +196,7 @@ function renderFigure(doc: SheetDoc, fig: FigureObject, mode: SheetMode, number:
       )}
     </g>
   );
-}
+});
 
 // ---- arket ----
 
@@ -212,9 +232,19 @@ export function SheetSvg({
       <rect x={0} y={0} width={PAGE.w} height={PAGE.h} fill="#ffffff" />
       {doc.objects.map((o) => {
         if (o.type === "text") return renderText(o, measure);
-        if (o.type === "figure") return renderFigure(doc, o, mode, nums.get(o.id) ?? "", measure);
-        if (o.type === "drill") return renderDrill(o, mode, nums.get(o.id) ?? "", measure);
-        if (o.type === "formula") return renderFormula(o, mode, nums.get(o.id) ?? "", measure);
+        if (o.type === "figure")
+          return (
+            <FigureView
+              key={o.id}
+              fig={o}
+              mode={mode}
+              number={nums.get(o.id) ?? ""}
+              measure={measure}
+              solved={mode === "svarark" ? docSolvedValues(doc, o) : NO_SOLVED}
+            />
+          );
+        if (o.type === "drill") return <DrillView key={o.id} obj={o} mode={mode} number={nums.get(o.id) ?? ""} measure={measure} />;
+        if (o.type === "formula") return <FormulaView key={o.id} obj={o} mode={mode} number={nums.get(o.id) ?? ""} measure={measure} />;
         return renderCalc(doc, o, mode, nums.get(o.id) ?? "", measure);
       })}
       {children}

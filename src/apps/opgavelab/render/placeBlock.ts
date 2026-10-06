@@ -79,7 +79,8 @@ export function pushIntoSheet(ext: Bounds, dir: Point = { x: 0, y: 0 }): Point |
   const dx = ext.minX < m ? m - ext.minX : ext.maxX > PAGE.w - m ? PAGE.w - m - ext.maxX : 0;
   const dy = ext.minY < m ? m - ext.minY : ext.maxY > PAGE.h - m ? PAGE.h - m - ext.maxY : 0;
   // Aldrig MOD retningen (et hjørne, der trækkes ud over margenen, stopper som før); på tværs er i orden.
-  // dir = {0, 0} (standard, editoren): alle retninger.
+  // dir = {0, 0} (standard): alle retninger. Editoren (SheetEditor.fitOrPush) vurderer selv retningen ud fra
+  // håndtagets flytning, og om figuren bliver mindre.
   if (dx * dir.x < 0 || dy * dir.y < 0) return null;
   return { x: dx, y: dy };
 }
@@ -119,14 +120,21 @@ export type BlockProblem = {
   covers: string[];
 };
 
+/**
+ * Udstrækninger, der allerede er regnet (editoren: én gang pr. render for alle objekter, som
+ * figureExtent/objectBox med objektets nummer). Udeladt eller uden objektet → regnes her.
+ */
+export type KnownBoxes = ReadonlyMap<string, Bounds>;
+
 /** null når blokken ligger inden for margenen og ikke dækker noget andet. */
 export function blockProblem(
   doc: SheetDoc,
   block: BlockObject,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
+  boxes?: KnownBoxes,
 ): BlockProblem | null {
-  const box = blockBox(block, numbering.get(block.id) ?? "", measure);
+  const box = boxes?.get(block.id) ?? blockBox(block, numbering.get(block.id) ?? "", measure);
   const m = PAGE.margin;
   const outside: BlockProblem["outside"] = [];
   if (box.maxY > PAGE.h - m + EPS) outside.push("bottom");
@@ -138,7 +146,7 @@ export function blockProblem(
   for (const o of doc.objects) {
     if (o.id === block.id) continue;
     const num = numbering.get(o.id);
-    const other = o.type === "figure" ? figureExtent(o, num ?? "00", measure) : objectBox(o, doc, numbering, measure);
+    const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "00", measure) : objectBox(o, doc, numbering, measure));
     // Strengt overlap (ingen luft): en ellers korrekt placeret blok flagges aldrig.
     if (!hits(box, other, -EPS)) continue;
     covers.push(
@@ -165,13 +173,14 @@ export function figureProblem(
   fig: FigureObject,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
+  boxes?: KnownBoxes,
 ): BlockProblem | null {
-  const box = figureExtent(fig, numbering.get(fig.id) ?? "", measure);
+  const box = boxes?.get(fig.id) ?? figureExtent(fig, numbering.get(fig.id) ?? "", measure);
   const covers: string[] = [];
   for (const o of doc.objects) {
     if (o.id === fig.id || o.type === "drill" || o.type === "formula") continue;
     const num = numbering.get(o.id);
-    const other = o.type === "figure" ? figureExtent(o, num ?? "", measure) : objectBox(o, doc, numbering, measure);
+    const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "", measure) : objectBox(o, doc, numbering, measure));
     if (!hits(box, other, -EPS)) continue;
     covers.push(o.type === "figure" ? `${defOf(o).name}${num ? ` ${num}` : ""}` : o.type === "calc" ? `regnestykke ${num ?? ""}`.trim() : "en tekst");
   }
