@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { numberDocument } from "./core/numbering";
 import type { AppProps } from "../runtime";
 import { deleteDoc, listDocs, loadDoc, saveDoc } from "./actions";
@@ -9,14 +10,17 @@ import { ConfirmDialog, fmtTime, fmtWhen, LoadDialog, SaveAsDialog } from "./edi
 import { PropertiesPanel } from "./editor/PropertiesPanel";
 import { SheetEditor } from "./editor/SheetEditor";
 import { ToolPanel } from "./editor/ToolPanel";
-import { TopBar, type TopStatus, type View } from "./editor/TopBar";
+import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
 import { useDocument } from "./editor/useDocument";
+import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
 import { newDocument } from "./model/document";
-import { figureBoundsOnSheet } from "./model/figures";
+import { displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
-import { parseDocument } from "./model/validate";
-import { useSheetMeasure } from "./render/measure";
+import type { Document as SheetDoc, FigureObject } from "./model/types";
+import { cleanName, parseDocument } from "./model/validate";
+import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import { placeCalc } from "./render/placeCalc";
+import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
 function isTyping(t: EventTarget | null): boolean {
@@ -30,7 +34,8 @@ type DialogState =
   | { kind: "load" }
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
-  | { kind: "deleteDoc"; doc: DocSummary };
+  | { kind: "deleteDoc"; doc: DocSummary }
+  | { kind: "exportWarn"; unsolved: string[] };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -44,6 +49,28 @@ async function guarded<T>(fn: () => Promise<T>): Promise<{ value: T } | { thrown
     const stale = /Failed to find Server Action|Server Action .* was not found|failed-to-find-server-action|unexpected response was received|Server action not found/i.test(msg);
     return { thrown: stale ? STALE : OFFLINE };
   }
+}
+
+const EXPORT_FAILED = "PDF-eksporten mislykkedes. Prøv igen — virker det stadig ikke, så genindlæs siden.";
+const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på de to PDF-filer.";
+
+/** Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"]. */
+function unsolvedCalcs(doc: SheetDoc, numbering: ReadonlyMap<string, string>): string[] {
+  const out: string[] = [];
+  for (const o of doc.objects) {
+    if (o.type !== "calc") continue;
+    const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
+    if (fig && solveParam(fig, o.param, doc.settings)) continue;
+    const name = fig ? displayName(fig, o.param) : o.param;
+    const num = numbering.get(o.id);
+    out.push(num ? `${num} (${name})` : name);
+  }
+  return out;
+}
+
+/** "1a (X)" / "1a (X) og 2b (c)". */
+function joinList(items: string[]): string {
+  return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} og ${items[items.length - 1]}`;
 }
 
 /** "Gemt kl. 14.32" (i dag) eller "Gemt 5. okt. kl. 14.32". Kaldes kun fra hændelser, ikke under rendering. */
@@ -68,6 +95,16 @@ export default function Opgavelab({ userKey }: AppProps) {
   const busyRef = useRef(false);
   const [docs, setDocs] = useState<DocSummary[] | null>(null);
   const [docsLoading, setDocsLoading] = useState(false);
+
+  // ---- PDF-eksport ----
+  const [exporting, setExporting] = useState(false);
+  const exportingRef = useRef(false);
+  // Dokumentet, der lige nu eksporteres (monteres skjult uden editor-overlay).
+  const [stageDoc, setStageDoc] = useState<SheetDoc | null>(null);
+  const opgaveSvgRef = useRef<SVGSVGElement>(null);
+  const svarSvgRef = useRef<SVGSVGElement>(null);
+  // Seneste eksport (Blobs), så hver fil kan hentes igen. Gælder kun det uændrede dokument.
+  const [exported, setExported] = useState<{ doc: SheetDoc; files: PdfFiles } | null>(null);
 
   const { select: selectObject, remove: removeObject } = d;
   const select = useCallback(
@@ -199,6 +236,64 @@ export default function Opgavelab({ userKey }: AppProps) {
     void showLoad();
   }
 
+  async function runExport(doc: SheetDoc, name: string) {
+    if (exportingRef.current) return;
+    exportingRef.current = true;
+    setExporting(true);
+    setErr(null);
+    setDialog(null);
+    try {
+      // Biblioteker og fontbytes hentes først nu (ikke i sidens første JavaScript).
+      await Promise.all([preparePdfExport(), loadSheetFonts()]);
+      await document.fonts.ready;
+      flushSync(() => setStageDoc(doc));
+      const opgaveSvg = opgaveSvgRef.current;
+      const svarSvg = svarSvgRef.current;
+      if (!opgaveSvg || !svarSvg) throw new Error("Eksport-arkene blev ikke monteret");
+      const files = await buildPdfs({ opgaveSvg, svarSvg, name });
+      setStageDoc(null);
+      setExported({ doc, files });
+      await downloadBoth(files);
+    } catch (e) {
+      console.warn("Opgavelab: PDF-eksport fejlede", e);
+      setErr(EXPORT_FAILED);
+    } finally {
+      setStageDoc(null);
+      exportingRef.current = false;
+      setExporting(false);
+    }
+  }
+
+  function onExport() {
+    if (exportingRef.current) return;
+    const doc = latest.current.doc;
+    const name = cleanName(doc.name);
+    if (!name) {
+      setDialog(null);
+      setErr(NEED_NAME);
+      document.querySelector<HTMLInputElement>(".ol-name input")?.focus();
+      return;
+    }
+    const unsolved = unsolvedCalcs(doc, numberDocument(doc, figureBoundsOnSheet));
+    if (unsolved.length > 0) {
+      setErr(null);
+      setDialog({ kind: "exportWarn", unsolved });
+    } else void runExport(doc, name);
+  }
+
+  const exportedFiles: ExportedFiles | null =
+    exported && exported.doc === d.doc
+      ? {
+          opgaveName: exported.files.opgave.fileName,
+          svarName: exported.files.svarark.fileName,
+          onAgain: (which) => {
+            const f = exported.files[which];
+            downloadBlob(f.blob, f.fileName);
+          },
+          onClose: () => setExported(null),
+        }
+      : null;
+
   const act = useRef({ save: onSave });
   useEffect(() => {
     act.current = { save: onSave };
@@ -271,6 +366,9 @@ export default function Opgavelab({ userKey }: AppProps) {
         onSave={onSave}
         onSaveCopy={d.savedId ? onSaveCopy : null}
         onLoad={onLoad}
+        onExport={onExport}
+        exporting={exporting}
+        exported={exportedFiles}
         busy={busy !== null}
         status={status}
       />
@@ -371,6 +469,27 @@ export default function Opgavelab({ userKey }: AppProps) {
           onCancel={() => void showLoad()}
           onConfirm={() => void removeDoc(dialog.doc)}
         />
+      )}
+      {dialog?.kind === "exportWarn" && (
+        <ConfirmDialog
+          title="Ikke alle regnestykker kan løses"
+          message={`Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
+            dialog.unsolved.length === 1 ? "den" : "de"
+          } ikke kan findes ud fra det, der er synligt på figuren. Eksportér alligevel?`}
+          confirmLabel="Eksportér alligevel"
+          onCancel={closeDialog}
+          onConfirm={() => {
+            const name = cleanName(latest.current.doc.name);
+            if (name) void runExport(latest.current.doc, name);
+            else closeDialog();
+          }}
+        />
+      )}
+      {stageDoc && (
+        <div className="ol-export-stage" aria-hidden="true" data-ol-export-stage="">
+          <SheetSvg doc={stageDoc} mode="opgave" measure={measureText} svgRef={opgaveSvgRef} />
+          <SheetSvg doc={stageDoc} mode="svarark" measure={measureText} svgRef={svarSvgRef} />
+        </div>
       )}
     </div>
   );

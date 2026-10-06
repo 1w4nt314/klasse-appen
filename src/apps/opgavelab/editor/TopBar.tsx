@@ -5,6 +5,13 @@ import Link from "next/link";
 export type View = "opgave" | "svarark";
 /** Gemmestatus i topbaren: "Gemt kl. 14.32" / "Ikke gemt" / fejl. */
 export type TopStatus = { text: string; tone: "ok" | "warn" | "error" };
+/** Efter en eksport: hent hver fil igen (fra cache), hvis browseren blokerede den ene. */
+export type ExportedFiles = {
+  opgaveName: string;
+  svarName: string;
+  onAgain: (which: "opgave" | "svarark") => void;
+  onClose: () => void;
+};
 
 export function TopBar({
   view,
@@ -17,6 +24,9 @@ export function TopBar({
   onSave,
   onSaveCopy,
   onLoad,
+  onExport,
+  exporting,
+  exported,
   busy,
   status,
 }: {
@@ -31,6 +41,9 @@ export function TopBar({
   /** null = "Gem som kopi" er ikke tilgængelig (opgaven er ikke gemt endnu). */
   onSaveCopy: (() => void) | null;
   onLoad: () => void;
+  onExport: () => void;
+  exporting: boolean;
+  exported: ExportedFiles | null;
   busy: boolean;
   status: TopStatus | null;
 }) {
@@ -94,13 +107,45 @@ export function TopBar({
         <button type="button" className="ol-btn" data-ol-load="" onClick={onLoad} disabled={busy}>
           Indlæs
         </button>
-        <button type="button" className="ol-btn" disabled title="Kommer i et senere trin">
-          Eksporter
+        <button
+          type="button"
+          className="ol-btn"
+          data-ol-export=""
+          onClick={onExport}
+          disabled={busy || exporting}
+          aria-busy={exporting}
+          title="Hent opgaven og svararket som to PDF-filer"
+        >
+          {exporting ? "Eksporterer…" : "Eksporter"}
         </button>
         <button type="button" className="ol-btn ol-btn-strong" onClick={onUndo} disabled={!canUndo}>
           Fortryd
         </button>
       </div>
+      {exported && (
+        <div className="ol-export-note" role="status" data-ol-exported="">
+          <span>
+            Eksporteret: <strong>{exported.opgaveName}</strong> og <strong>{exported.svarName}</strong>. Din browser
+            kan spørge, om siden må hente flere filer.
+          </span>
+          <span className="ol-export-again">
+            <button type="button" className="ol-btn" data-ol-again="opgave" onClick={() => exported.onAgain("opgave")}>
+              Hent opgave igen
+            </button>
+            <button type="button" className="ol-btn" data-ol-again="svarark" onClick={() => exported.onAgain("svarark")}>
+              Hent svarark igen
+            </button>
+            <button
+              type="button"
+              className="ol-btn ol-export-close"
+              aria-label="Luk besked om eksport"
+              onClick={exported.onClose}
+            >
+              ×
+            </button>
+          </span>
+        </div>
+      )}
     </header>
   );
 }
