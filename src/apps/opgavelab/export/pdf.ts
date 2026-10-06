@@ -87,7 +87,13 @@ export type PdfFiles = {
   svarark: { fileName: string; blob: Blob };
 };
 
-async function renderPdf(svg: SVGSVGElement, fonts: FontData[], title: string): Promise<Blob> {
+/**
+ * Én PDF med en side pr. SVG (samme rækkefølge). Fontene tilføjes én gang pr. jsPDF-instans, så de
+ * indlejres én gang for hele dokumentet. svg2pdf tegner på jsPDFs aktuelle side; `addPage` gør den
+ * nye side aktuel, og `setPage` sikrer det eksplicit (skalering og klip er de samme på hver side).
+ */
+async function renderPdf(svgs: readonly SVGSVGElement[], fonts: FontData[], title: string): Promise<Blob> {
+  if (svgs.length === 0) throw new Error("Ingen sider at eksportere");
   const [{ jsPDF }, { svg2pdf }] = await loadLibs();
   // putOnlyUsedFonts: ellers lister PDF'en også jsPDFs 14 standardfonte (ubrugte, ikke indlejrede).
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true, putOnlyUsedFonts: true });
@@ -98,7 +104,13 @@ async function renderPdf(svg: SVGSVGElement, fonts: FontData[], title: string): 
     doc.addFont(f.file, FONT_FAMILY, f.style);
   }
   doc.setFont(FONT_FAMILY, "normal");
-  await svg2pdf(svg, doc, { x: 0, y: 0, width: 210, height: 297 });
+  for (let i = 0; i < svgs.length; i++) {
+    if (i > 0) {
+      doc.addPage("a4", "portrait");
+      doc.setPage(i + 1);
+    }
+    await svg2pdf(svgs[i], doc, { x: 0, y: 0, width: 210, height: 297 });
+  }
   // jsPDF skriver familienavnet som BaseFont for begge snit. Giv dem fontenes egne
   // PostScript-navne, så PDF-læsere (og pdffonts) viser DejaVuSans / DejaVuSans-Bold.
   // Opslag sker via jsPDFs fontmap (stadig "OpgavelabSans"), så tegningen er upåvirket.
@@ -109,20 +121,24 @@ async function renderPdf(svg: SVGSVGElement, fonts: FontData[], title: string): 
   return doc.output("blob");
 }
 
-/** Laver opgave- og svarark-PDF ud fra to monterede eksport-SVG'er (uden editor-overlay). */
+/**
+ * Laver opgave- og svarark-PDF ud fra de monterede eksport-SVG'er (uden editor-overlay), én SVG pr.
+ * side. Svararket har præcis samme sideinddeling som opgaven.
+ */
 export async function buildPdfs({
-  opgaveSvg,
-  svarSvg,
+  opgaveSvgs,
+  svarSvgs,
   name,
 }: {
-  opgaveSvg: SVGSVGElement;
-  svarSvg: SVGSVGElement;
+  opgaveSvgs: readonly SVGSVGElement[];
+  svarSvgs: readonly SVGSVGElement[];
   name: string;
 }): Promise<PdfFiles> {
+  if (opgaveSvgs.length !== svarSvgs.length) throw new Error("Opgave og svarark har forskelligt antal sider");
   const [fonts] = await Promise.all([loadFonts(), loadLibs()]);
   const safe = safeFileName(name);
-  const opgave = await renderPdf(opgaveSvg, fonts, safe);
-  const svarark = await renderPdf(svarSvg, fonts, `${safe} – svarark`);
+  const opgave = await renderPdf(opgaveSvgs, fonts, safe);
+  const svarark = await renderPdf(svarSvgs, fonts, `${safe} – svarark`);
   return {
     opgave: { fileName: `${safe}.pdf`, blob: opgave },
     svarark: { fileName: `${safe}_svarark.pdf`, blob: svarark },

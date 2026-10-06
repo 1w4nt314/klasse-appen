@@ -15,6 +15,7 @@ import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/
 import { useDocument, type FitFigure } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
 import { makeDrill, makeFigure, makeFormula, makeText, newDocument, newSeed } from "./model/document";
+import { emptyPages } from "./model/pages";
 import { calcDriftInfo, defOf, displayName, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject, ParamState } from "./model/types";
@@ -65,7 +66,9 @@ const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på 
  * ikke kan regnes ud (svararket viser "= ?"), fx ["2b (3 · (4 +)"]; regnestykker, hvis facit
  * (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
  * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"]; og blokke, der går ud
- * over arket eller dækker andet, som færdige sætninger.
+ * over arket eller dækker andet, som færdige sætninger. Har dokumentet flere sider, nævnes siden
+ * ("Regneark 5 (side 2) går ud over …", "1a (X, side 2)"), advarslerne kommer side for side, og tomme
+ * sider nævnes til sidst ("Side 3 er tom — …"); et ensidet dokument giver præcis de samme tekster som før.
  */
 function calcWarnings(
   doc: SheetDoc,
@@ -80,7 +83,12 @@ function calcWarnings(
   let drillLayout = false;
   let figureLayout = false;
   let strayLayout = false;
-  for (const o of doc.objects) {
+  const multi = doc.pageCount > 1;
+  /** " (side 2)" ved flere sider, ellers "". */
+  const onPage = (page: number) => (multi ? ` (side ${page + 1})` : "");
+  // Side for side (stabil sortering: inden for en side som i dokumentet).
+  const objects = multi ? [...doc.objects].sort((a, b) => a.page - b.page) : doc.objects;
+  for (const o of objects) {
     if (o.type === "figure") {
       // Figurer, der går ud over margenen (fx et langt navn på en størrelse); overlap markeres kun i editoren.
       const p = figureProblem(doc, o, numbering, measure);
@@ -88,7 +96,7 @@ function calcWarnings(
       figureLayout = true;
       const nr = numbering.get(o.id) ?? "";
       layout.push(
-        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim()).map(
+        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim() + onPage(o.page)).map(
           (t) => `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
         ),
       );
@@ -97,15 +105,18 @@ function calcWarnings(
     if (o.type !== "drill" && o.type !== "formula") continue;
     const nr = numbering.get(o.id) ?? "";
     if (o.type === "formula") {
-      for (const it of layoutFormula(o, nr, measure).items) if (it.error) formula.push(`${it.label} (${it.text.replace(/ =$/, "")})`);
+      for (const it of layoutFormula(o, nr, measure).items)
+        if (it.error) formula.push(`${it.label} (${it.text.replace(/ =$/, "")})${multi ? ` på side ${o.page + 1}` : ""}`);
     }
     const p = blockProblem(doc, o, numbering, measure);
     if (!p) continue;
     if (o.type === "drill") drillLayout = true;
     const suffix = o.type === "drill" ? "flyt det, eller vælg færre opgaver." : "flyt den, eller fjern nogle linjer.";
-    layout.push(...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim()).map((t) => `${t} — ${suffix}`));
+    layout.push(
+      ...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim() + onPage(o.page)).map((t) => `${t} — ${suffix}`),
+    );
   }
-  for (const o of doc.objects) {
+  for (const o of objects) {
     if (o.type !== "calc") continue;
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
     const num = numbering.get(o.id);
@@ -117,21 +128,31 @@ function calcWarnings(
       const figName = `figur ${numbering.get(fig.id) ?? ""}`.trim();
       const kind = stray.type === "figure" ? "figur" : stray.type === "drill" ? "regneark" : "formlerne";
       const otherName = `${kind} ${numbering.get(stray.id) ?? ""}`.trim();
-      layout.push(`Regnestykke ${num ?? ""} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`);
+      layout.push(
+        `Regnestykke ${num ?? ""}${onPage(o.page)} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`,
+      );
     }
     if (fig && solveParam(fig, o.param, doc.settings)) {
       const d = calcDriftInfo(fig, o.param, doc.settings);
       if (d)
         drift.push(
-          `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}, men ${
+          `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}${
+            multi ? ` på side ${o.page + 1}` : ""
+          }, men ${
             kindNoun(d.kind)
           } er tegnet ${d.drawn}`,
         );
       continue;
     }
     const name = fig ? displayName(fig, o.param) : o.param;
-    unsolved.push(num ? `${num} (${name})` : name);
+    const where = multi ? `, side ${o.page + 1}` : "";
+    unsolved.push(num ? `${num} (${name}${where})` : `${name}${multi ? ` (side ${o.page + 1})` : ""}`);
   }
+  // Tomme sider eksporteres som blanke sider (med sidefod) — det er lovligt, men nok en fejl.
+  // Kun ved flere sider: et ensidet, tomt dokument giver (som før) ingen advarsel.
+  const empty = multi ? emptyPages(doc) : [];
+  for (const p of empty) layout.push(`Side ${p + 1} er tom — slet den, eller læg noget på den.`);
+  const otherLayout = layout.length > empty.length; // andre layoutproblemer end tomme sider
   return {
     unsolved,
     formula,
@@ -141,9 +162,13 @@ function calcWarnings(
       ? "Regnearket passer ikke på arket"
       : figureLayout
         ? "En figur går ud over arket"
-        : strayLayout && !layout.some((t) => !t.startsWith("Regnestykke "))
+        : strayLayout && !layout.some((t) => !t.startsWith("Regnestykke ") && !/^Side \d+ er tom/.test(t))
           ? "Et regnestykke står ved en anden figur"
-          : "Formlerne passer ikke på arket",
+          : !otherLayout && empty.length > 0
+            ? empty.length === 1
+              ? "En side er tom"
+              : "Nogle sider er tomme"
+            : "Formlerne passer ikke på arket",
   };
 }
 
@@ -220,8 +245,9 @@ export default function Opgavelab({ userKey }: AppProps) {
   const exportingRef = useRef(false);
   // Dokumentet, der lige nu eksporteres (monteres skjult uden editor-overlay).
   const [stageDoc, setStageDoc] = useState<SheetDoc | null>(null);
-  const opgaveSvgRef = useRef<SVGSVGElement>(null);
-  const svarSvgRef = useRef<SVGSVGElement>(null);
+  // Eksport-scenens SVG'er, én pr. side (callback-refs; indeks = side).
+  const opgaveSvgRefs = useRef<(SVGSVGElement | null)[]>([]);
+  const svarSvgRefs = useRef<(SVGSVGElement | null)[]>([]);
   // Seneste eksport (Blobs), så hver fil kan hentes igen. Gælder kun det uændrede dokument.
   const [exported, setExported] = useState<{ doc: SheetDoc; files: PdfFiles } | null>(null);
 
@@ -416,10 +442,16 @@ export default function Opgavelab({ userKey }: AppProps) {
       await Promise.all([preparePdfExport(), loadSheetFonts()]);
       await document.fonts.ready;
       flushSync(() => setStageDoc(doc));
-      const opgaveSvg = opgaveSvgRef.current;
-      const svarSvg = svarSvgRef.current;
-      if (!opgaveSvg || !svarSvg) throw new Error("Eksport-arkene blev ikke monteret");
-      const files = await buildPdfs({ opgaveSvg, svarSvg, name });
+      const opgaveSvgs: SVGSVGElement[] = [];
+      const svarSvgs: SVGSVGElement[] = [];
+      for (let i = 0; i < doc.pageCount; i++) {
+        const o = opgaveSvgRefs.current[i];
+        const s = svarSvgRefs.current[i];
+        if (!o || !s) throw new Error("Eksport-arkene blev ikke monteret");
+        opgaveSvgs.push(o);
+        svarSvgs.push(s);
+      }
+      const files = await buildPdfs({ opgaveSvgs, svarSvgs, name });
       setStageDoc(null);
       setExported({ doc, files });
       await downloadBoth(files);
@@ -725,8 +757,21 @@ export default function Opgavelab({ userKey }: AppProps) {
       )}
       {stageDoc && (
         <div className="ol-export-stage" aria-hidden="true" data-ol-export-stage="">
-          <SheetSvg doc={stageDoc} mode="opgave" measure={measureText} svgRef={opgaveSvgRef} />
-          <SheetSvg doc={stageDoc} mode="svarark" measure={measureText} svgRef={svarSvgRef} />
+          {/* Alle sider af opgaven, derefter alle sider af svararket (samme sideinddeling). */}
+          {(["opgave", "svarark"] as const).map((mode) =>
+            Array.from({ length: stageDoc.pageCount }, (_, i) => (
+              <SheetSvg
+                key={`${mode}-${i}`}
+                doc={stageDoc}
+                mode={mode}
+                page={i}
+                measure={measureText}
+                svgRef={(el) => {
+                  (mode === "opgave" ? opgaveSvgRefs : svarSvgRefs).current[i] = el;
+                }}
+              />
+            )),
+          )}
         </div>
       )}
     </div>
