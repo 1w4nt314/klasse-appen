@@ -130,11 +130,10 @@ export function ToolPanel({
       <details className="ol-help" ref={help} open>
         <summary>Sådan gør du</summary>
         <ol>
-          <li>Vælg en figur i grupperne (fx Trekanter), og træk i hjørnerne for at ændre den.</li>
-          <li>Skjul eller omdøb en størrelse i panelet (fx A til X).</li>
-          <li>Tryk Find X for at få et regnestykke til den skjulte størrelse.</li>
-          <li>Regneark (under Regning) laver plus-, minus-, gange- og divisionsstykker med svar på svararket.</li>
-          <li>Formler (under Regning): skriv ét stykke pr. linje, fx 3 · (4 + 5) — facit kommer på svararket.</li>
+          <li>Vælg en figur, og træk i hjørnerne eller håndtagene.</li>
+          <li>Skjul eller omdøb en størrelse i panelet, og tryk Find X for at få et regnestykke.</li>
+          <li>Regneark laver regnestykker i flere regningsarter med svar på svararket.</li>
+          <li>Formler: skriv ét stykke pr. linje, fx 3 · (4 + 5) — facit kommer på svararket.</li>
           <li>Eksporter laver opgave og svarark som to PDF-filer.</li>
         </ol>
         <p>Delete sletter, Ctrl+Z fortryder, Esc afmarkerer.</p>

@@ -47,18 +47,41 @@ huskes i browseren.
 
 ### Opgavelab (V1)
 
-Laver opgaveark i A4 med figurer og ét-klik-svarark. Læreren lægger en retvinklet
-trekant på arket, trækker i hjørnerne (sidelængder og vinkler følger med live),
-skjuler og omdøber størrelser (fx vinkel A → X) og trykker "Find X" for at få et
-nummereret regnestykke (`1a  X = ________`). "Eksporter" henter to PDF-filer:
-opgaven (uden facit) og svararket (med udregning og alle værdier).
+Laver opgaveark i A4 med figurer, regneark og formler – og et ét-klik-svarark.
+Læreren lægger objekter på arket, trækker i figurernes hjørner og håndtag (mål
+følger med live), skjuler og omdøber størrelser (fx vinkel A → X) og trykker
+"Find X" for at få et nummereret regnestykke (`1a  X = ________`). "Eksporter"
+henter to PDF-filer: opgaven (uden facit) og svararket (med udregning og alle
+værdier).
 
-- Koden ligger i `src/apps/opgavelab/`: `core/` (ren matematik: sider, vinkler,
-  løsningsformler, hjørnetræk, nummerering — testes uden browser), `model/`
+- **Figurer (11):** retvinklet trekant, fri trekant, rektangel, kvadrat,
+  parallelogram, trapez, cirkel (2D) og kasse, terning, cylinder, kugle (3D i
+  kavalerperspektiv med stiplede skjulte kanter). Afledte mål (areal, omkreds,
+  rumfang, overflade) kan vises eller findes. Svararket regner på de *viste* tal
+  og skriver "≈" ved afrunding og ved π.
+- **Regneark:** plus-, minus-, gange- og divisionsstykker (også "med rest" og
+  decimaler) i 1-4 kolonner, nummereret 1a, 1b … Opgaverne laves ud fra et
+  gemt seed, så arket er det samme ved genindlæsning; "Nye tal" trækker et nyt.
+- **Formler:** egne stykker, ét pr. linje (`3*(4+5)`, `10 : 4`, `2 · π`, `√16`).
+  Facit regnes ud af en lille indbygget parser (ingen `eval`); fejl vises pr.
+  linje i panelet og som "= ?" på svararket. Højst 20 linjer à 80 tegn.
+- **Datamodel:** et dokument er `{ schemaVersion: 1, objects: [...] }` med
+  objekttyperne `text`, `figure` (`figure` = nøglen i registry'et, `shape` = de
+  rå mål i mm, `params` = synlighed/alias), `calc` (Find-regnestykke), `drill`
+  (regneark: `seed` + `config`) og `formula` (`lines`, `decimals`). Typerne ligger
+  i `model/types.ts`, valideringen i `model/validate.ts` (alt fra klienten
+  valideres igen på serveren). Regnearks-opgaver gemmes ikke, kun `seed` og
+  `config`; `core/drill.ts` genskaber dem deterministisk.
+- **Koden** ligger i `src/apps/opgavelab/`: `core/` (ren matematik: figurer,
+  løsningsmotor `solveKit`, regneark, formelparser, nummerering — testes uden
+  browser), `figures/` (tegning og værktøjsknap pr. figur), `model/`
   (dokumentformat og validering), `render/` (arket som ren SVG, samme komponent
   på skærmen og i PDF), `editor/` (værktøjer, ark, egenskabspanel) og `export/`
   (PDF med jsPDF + svg2pdf.js og indlejret DejaVu Sans fra `public/fonts/`).
-- Ny figurtype: tilføj en `FigureDef` i `model/figures.ts` (se `model/types.ts`).
+- **Ny figur:** lav `core/<figur>.ts` (geometri + Find-regler som en `FigureSpec`),
+  `figures/<figur>.tsx` (tegning og etiketter) og tilføj én linje i `DEFS` i
+  `figures/registry.ts`, hvor fremgangsmåden står trin for trin. Værktøjsknap,
+  validering, træk, svarark, nummerering og PDF følger automatisk.
 - Gem/indlæs sker som server actions i `actions.ts` på lærerens egen konto
   (ejerskab tjekkes i hver action; JSON maks. 200 KB og valideres i
   `model/validate.ts`).

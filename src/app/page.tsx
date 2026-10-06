@@ -63,8 +63,8 @@ export default async function Home() {
             </p>
             <p className="mt-3 max-w-xl leading-relaxed text-muted">
               Fx Stillezoonen til ro i timen, Navnetrækker til tilfældige elever
-              og Opgavelab, hvor du laver opgaveark med figurer og får svararket
-              med ét klik.
+              og Opgavelab, hvor du laver opgaveark med figurer, regneark og
+              formler og får svararket med ét klik.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
