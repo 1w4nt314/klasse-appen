@@ -4,7 +4,7 @@
 import { FMT } from "../core/format";
 import { defOf, displayName, displayNames, figureBoundsOnSheet, visibleParams } from "../model/figures";
 import { PT_MM } from "../model/types";
-import { layoutDrill } from "./drillLayout";
+import { blockBox } from "./drillLayout";
 import type { Bounds, CalcObject, Document as SheetDoc, FigureObject, SheetObject, TextObject } from "../model/types";
 
 export { PT_MM };
@@ -114,8 +114,8 @@ export function objectBox(
     const l = layoutText(obj, measure);
     return { minX: obj.x, minY: obj.y, maxX: obj.x + obj.width, maxY: obj.y + l.height };
   }
-  // Regneark: ens på opgave og svarark (pladsen til svaret er den bredeste af streg og svar).
-  if (obj.type === "drill") return layoutDrill(obj, numbering.get(obj.id) ?? "", measure).box;
+  // Regneark og formelblokke: ens på opgave og svarark (pladsen til svaret er den bredeste af streg og svar).
+  if (obj.type === "drill" || obj.type === "formula") return blockBox(obj, numbering.get(obj.id) ?? "", measure);
   const c = calcContent(doc, obj, mode, numbering.get(obj.id) ?? "", measure);
   return { minX: obj.x, minY: obj.y, maxX: obj.x + c.widthMm, maxY: obj.y + c.sizeMm * LINE_HEIGHT };
 }

@@ -6,8 +6,8 @@
 import { useId, useState } from "react";
 import { DRILL_OPS, OP_SIGN } from "../core/drill";
 import { newSeed } from "../model/document";
-import { drillProblem, drillProblemText } from "../render/placeDrill";
-import { layoutDrill } from "../render/drillLayout";
+import { blockProblem, blockProblemText } from "../render/placeBlock";
+import { layoutDrill, layoutFormula } from "../render/drillLayout";
 import type { Measure } from "../render/textLayout";
 import { formatByKind } from "../core/format";
 import {
@@ -29,6 +29,7 @@ import type {
   DrillObject,
   DrillOp,
   FigureObject,
+  FormulaObject,
   ParamState,
   SheetObject,
 } from "../model/types";
@@ -84,7 +85,9 @@ export function PropertiesPanel({
         ? `${def?.name ?? "Figur"}${numbering.get(selected.id) ? ` ${numbering.get(selected.id)}` : ""}`
         : selected.type === "drill"
           ? `Regneark ${numbering.get(selected.id) ?? ""}`.trim()
-          : `Regnestykke ${numbering.get(selected.id) ?? ""}`.trim();
+          : selected.type === "formula"
+            ? `Formler ${numbering.get(selected.id) ?? ""}`.trim()
+            : `Regnestykke ${numbering.get(selected.id) ?? ""}`.trim();
 
   const calcs = selected.type === "figure" ? doc.objects.filter((o): o is CalcObject => o.type === "calc" && o.figureId === selected.id) : [];
   const confirming = askDelete === selected.id;
@@ -122,6 +125,9 @@ export function PropertiesPanel({
       {selected.type === "drill" && (
         <DrillSection key={selected.id} drill={selected} doc={doc} numbering={numbering} measure={measure} onUpdate={onUpdate} />
       )}
+      {selected.type === "formula" && (
+        <FormulaSection key={selected.id} formula={selected} doc={doc} numbering={numbering} measure={measure} onUpdate={onUpdate} />
+      )}
 
       {confirming ? (
         <ConfirmDelete
@@ -142,7 +148,9 @@ export function PropertiesPanel({
               ? "Slet regnestykke"
               : selected.type === "drill"
                 ? "Slet regneark"
-                : "Slet"}
+                : selected.type === "formula"
+                  ? "Slet formler"
+                  : "Slet"}
         </button>
       )}
       <p className="ol-hint">Objekter på arket: {doc.objects.length}</p>
@@ -579,8 +587,8 @@ function DrillSection({
     onUpdate(drill.id, { config: { ...c, ...patch } }, key ? `drill:${drill.id}:${key}` : undefined);
   const hasDecimalOps = c.ops.includes("add") || c.ops.includes("sub");
   const layout = layoutDrill(drill, numbering.get(drill.id) ?? "", measure);
-  const problem = drillProblem(doc, drill, numbering, measure);
-  const warnings = problem ? drillProblemText(problem, "Regnearket") : [];
+  const problem = blockProblem(doc, drill, numbering, measure);
+  const warnings = problem ? blockProblemText(problem, "Regnearket") : [];
 
   return (
     <>
@@ -720,6 +728,145 @@ function DrillSection({
             maxLength={LIMITS.drillTitle}
             value={c.title}
             onChange={(e) => set({ title: e.target.value }, "title")}
+          />
+        </label>
+      </fieldset>
+    </>
+  );
+}
+
+/** Linjerne i tekstfeltet → fejl, hvis der er for mange eller en er for lang (så gemmes de ikke). */
+function linesError(lines: string[]): string | null {
+  if (lines.length > LIMITS.formulaLines) return `Højst ${LIMITS.formulaLines} linjer`;
+  const long = lines.findIndex((l) => l.length > LIMITS.formulaLineChars);
+  return long >= 0 ? `Linje ${long + 1} er for lang (højst ${LIMITS.formulaLineChars} tegn)` : null;
+}
+
+function FormulaSection({
+  formula,
+  doc,
+  numbering,
+  measure,
+  onUpdate,
+}: {
+  formula: FormulaObject;
+  doc: SheetDoc;
+  numbering: ReadonlyMap<string, string>;
+  measure: Measure;
+  onUpdate: (id: string, patch: ObjectPatch, key?: string) => void;
+}) {
+  // Kladde: kun en ugyldig tekst (for mange/lange linjer) holdes her; gyldig tekst gemmes straks.
+  const [draft, setDraft] = useState<string | null>(null);
+  const errId = useId();
+  const helpId = useId();
+  const shown = draft ?? formula.lines.join("\n");
+  const draftError = draft !== null ? linesError(draft.split("\n")) : null;
+  const layout = layoutFormula(formula, numbering.get(formula.id) ?? "", measure);
+  const problem = blockProblem(doc, formula, numbering, measure);
+  const warnings = problem ? blockProblemText(problem, "Formelblokken") : [];
+
+  return (
+    <>
+      <label className="ol-field">
+        <span>Regnestykker (ét pr. linje)</span>
+        <textarea
+          rows={6}
+          data-ol-formula="lines"
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          maxLength={LIMITS.formulaLines * (LIMITS.formulaLineChars + 1)}
+          value={shown}
+          aria-invalid={draftError ? true : undefined}
+          aria-describedby={draftError ? `${errId} ${helpId}` : helpId}
+          onChange={(e) => {
+            const text = e.target.value.replace(/\r\n?/g, "\n");
+            const lines = text.split("\n");
+            if (linesError(lines)) {
+              setDraft(text);
+              return;
+            }
+            setDraft(null);
+            onUpdate(formula.id, { lines }, `formula:${formula.id}:lines`);
+          }}
+        />
+      </label>
+      {draftError && (
+        <p id={errId} className="ol-field-error" role="alert" data-ol-formula-error="lines">
+          {`${draftError} — ændringen er ikke gemt.`}
+        </p>
+      )}
+      <p className="ol-hint" id={helpId}>
+        {"Brug + − · : ^ ² ³ √ π og parenteser, og komma som decimaltegn. * og / virker også. \"=\" til sidst kan udelades."}
+      </p>
+
+      {warnings.length > 0 && (
+        <p className="ol-warn ol-warn-sticky" role="status" data-ol-formula-warning={formula.id}>
+          {`${warnings.join(". ")}. Flyt blokken, eller fjern nogle linjer.`}
+        </p>
+      )}
+
+      <div className="ol-formula-results" data-ol-formula-results="">
+        <h3 className="ol-subtitle">Facit</h3>
+        {layout.items.length === 0 ? (
+          <p className="ol-hint">Ingen regnestykker endnu.</p>
+        ) : (
+          <ul className="ol-formula-list">
+            {layout.items.map((it) =>
+              it.error ? (
+                <li key={it.label} className="ol-formula-bad" role="status" data-ol-formula-line={it.label} data-ol-formula-status="error">
+                  <span className="ol-formula-label">{it.label}</span>
+                  <span>
+                    <span className="ol-formula-expr">{it.text}</span> <span className="ol-field-error">{it.error}</span>
+                  </span>
+                </li>
+              ) : (
+                <li key={it.label} data-ol-formula-line={it.label} data-ol-formula-status="ok">
+                  <span className="ol-formula-label">{it.label}</span>
+                  <span className="ol-formula-expr">{`${it.textSvar} ${it.answer}`}</span>
+                </li>
+              ),
+            )}
+          </ul>
+        )}
+      </div>
+
+      <fieldset className="ol-snap ol-drill-group">
+        <legend>Layout</legend>
+        <label className="ol-drill-field">
+          <span>Decimaler i facit</span>
+          <select
+            data-ol-formula="decimals"
+            value={formula.decimals}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              onUpdate(formula.id, { decimals: (Number.isInteger(n) && n >= 0 && n <= 4 ? n : 2) as FormulaObject["decimals"] });
+            }}
+          >
+            {[0, 1, 2, 3, 4].map((n) => (
+              <option key={n} value={n}>
+                {n === 0 ? "Ingen (hele tal)" : n === 1 ? "Højst 1" : `Højst ${n}`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <IntField
+          name="width"
+          label="Bredde"
+          unit="mm"
+          value={Math.round(formula.width)}
+          min={LIMITS.drillWidthMin}
+          max={LIMITS.drillWidthMax}
+          onCommit={(width) => onUpdate(formula.id, { width }, `formula:${formula.id}:width`)}
+        />
+        <label className="ol-drill-field">
+          <span>Overskrift</span>
+          <input
+            type="text"
+            data-ol-formula="title"
+            maxLength={LIMITS.formulaTitle}
+            value={formula.title}
+            onChange={(e) => onUpdate(formula.id, { title: e.target.value }, `formula:${formula.id}:title`)}
           />
         </label>
       </fieldset>

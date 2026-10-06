@@ -8,12 +8,15 @@ export function ToolPanel({
   onAddText,
   onAddFigure,
   onAddDrill,
+  onAddFormula,
   full,
 }: {
   onAddText: () => void;
   onAddFigure: (kind: FigureKind) => void;
   /** Læg et regneark på arket (seedet laves i handleren). */
   onAddDrill: () => void;
+  /** Læg en formelblok på arket. */
+  onAddFormula: () => void;
   /** Arket har nået grænsen for antal objekter. */
   full: boolean;
 }) {
@@ -96,6 +99,26 @@ export function ToolPanel({
               </svg>
               Regneark
             </button>
+            <button
+              type="button"
+              className="ol-tool"
+              data-ol-tool="formula"
+              aria-label="Formler — skriv dine egne regnestykker, fx 3 · (4 + 5), med facit på svararket"
+              onClick={onAddFormula}
+              disabled={full}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M3 13h3l3 6 5-14h7"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Formler
+            </button>
           </div>
         </fieldset>
       </div>
@@ -111,6 +134,7 @@ export function ToolPanel({
           <li>Skjul eller omdøb en størrelse i panelet (fx A til X).</li>
           <li>Tryk Find X for at få et regnestykke til den skjulte størrelse.</li>
           <li>Regneark (under Regning) laver plus-, minus-, gange- og divisionsstykker med svar på svararket.</li>
+          <li>Formler (under Regning): skriv ét stykke pr. linje, fx 3 · (4 + 5) — facit kommer på svararket.</li>
           <li>Eksporter laver opgave og svarark som to PDF-filer.</li>
         </ol>
         <p>Delete sletter, Ctrl+Z fortryder, Esc afmarkerer.</p>

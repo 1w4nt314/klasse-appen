@@ -15,6 +15,7 @@ import type {
   DrillObject,
   DrillOp,
   Document as SheetDoc,
+  FormulaObject,
   FigureObject,
   ParamDef,
   ParamState,
@@ -128,6 +129,33 @@ function parseDrill(r: Record<string, unknown>, id: string): DrillObject | null 
   return { id, type: "drill", x, y, width, seed, config };
 }
 
+/**
+ * Formelblok. Linjerne gemmes som tekst (de regnes først ud ved visning, af core/formula.ts uden
+ * eval); her tjekkes kun grænserne: 1–20 linjer à højst 80 tegn efter rensning, decimaler 0–4,
+ * titel højst 60 tegn. Alt andet → null (dokumentet afvises).
+ */
+function parseFormula(r: Record<string, unknown>, id: string): FormulaObject | null {
+  const x = num(r.x, COORD_MIN, COORD_MAX);
+  const y = num(r.y, COORD_MIN, COORD_MAX);
+  const width = num(r.width, LIMITS.drillWidthMin, LIMITS.drillWidthMax);
+  const decimals = int(r.decimals, 0, 4) as FormulaObject["decimals"] | null;
+  if (x === null || y === null || width === null || decimals === null) return null;
+  if (!Array.isArray(r.lines) || r.lines.length < 1 || r.lines.length > LIMITS.formulaLines) return null;
+  const lines: string[] = [];
+  for (const l of r.lines as unknown[]) {
+    if (typeof l !== "string") return null;
+    // Én linje: ingen linjeskift, kontroltegn eller usynlige tegn.
+    const clean = l.replace(INVISIBLE, "");
+    if (clean.length > LIMITS.formulaLineChars) return null;
+    lines.push(clean);
+  }
+  const title = cleanText(r.title);
+  if (title === null) return null;
+  const cleanTitle = title.replace(/\s+/g, " ").trim();
+  if (cleanTitle.length > LIMITS.formulaTitle) return null;
+  return { id, type: "formula", x, y, width, lines, decimals, title: cleanTitle };
+}
+
 function parseFigure(r: Record<string, unknown>, id: string, withCalc: ReadonlySet<string>, notes?: string[]): FigureObject | null {
   const def = getFigureDef(r.figure);
   return def ? parseFigureOf(def, r, id, withCalc, notes) : null;
@@ -235,6 +263,10 @@ export function parseDocument(input: unknown, notes?: string[]): SheetDoc | null
       const dr = parseDrill(o, o.id);
       if (!dr) return null;
       parsed.set(i, dr);
+    } else if (o.type === "formula") {
+      const fo = parseFormula(o, o.id);
+      if (!fo) return null;
+      parsed.set(i, fo);
     } else if (o.type !== "calc") {
       return null; // ukendt type
     }

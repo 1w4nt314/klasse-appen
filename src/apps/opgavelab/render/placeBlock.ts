@@ -1,14 +1,15 @@
-// Opgavelab — hvor et nyt regneark lægges, og om et regneark passer på arket. Ren TS.
+// Opgavelab — hvor en ny blok (regneark eller formelblok) lægges, og om en blok passer på arket.
+// Ren TS.
 //
-// placeDrill: første ledige plads top→bund (derefter venstre→højre) inden for margenen, uden at
-// dække figurer, tekst, regnestykker eller andre regneark. Er der intet ledigt, lægges blokken
-// nederst (og drillProblem markerer den, fordi den så overlapper eller går ud over arket).
-// drillProblem: bruges af panelet (advarsel), editor-overlayet (markering) og eksport-dialogen.
+// placeBlock: første ledige plads top→bund (derefter venstre→højre) inden for margenen, uden at
+// dække figurer, tekst, regnestykker eller andre blokke. Er der intet ledigt, lægges blokken
+// nederst (og blockProblem markerer den, fordi den så overlapper eller går ud over arket).
+// blockProblem: bruges af panelet (advarsel), editor-overlayet (markering) og eksport-dialogen.
 
 import { defOf } from "../figures/registry";
 import { PAGE } from "../model/types";
-import type { Bounds, Document as SheetDoc, DrillObject, Point } from "../model/types";
-import { layoutDrill } from "./drillLayout";
+import type { Bounds, Document as SheetDoc, Point } from "../model/types";
+import { blockBox, type BlockObject } from "./drillLayout";
 import { figureExtent } from "./figureLayout";
 import { takenBoxes } from "./placeCalc";
 import { objectBox, type Measure } from "./textLayout";
@@ -24,12 +25,12 @@ const hits = (a: Bounds, b: Bounds, pad: number) =>
   a.minX < b.maxX + pad && a.maxX > b.minX - pad && a.minY < b.maxY + pad && a.maxY > b.minY - pad;
 
 /**
- * Placering af et nyt regneark (`drill` er ikke i `doc` endnu; kun dets størrelse bruges).
+ * Placering af en ny blok (`block` er ikke i `doc` endnu; kun dens størrelse bruges).
  * @returns x/y (mm) og `free`: false når arket er fuldt, og blokken er lagt nederst.
  */
-export function placeDrill(doc: SheetDoc, drill: DrillObject, measure: Measure): Point & { free: boolean } {
+export function placeBlock(doc: SheetDoc, block: BlockObject, measure: Measure): Point & { free: boolean } {
   // Mål blokken ved (0, 0); nummeret "00" er et bredt nok bud på etiketbredden.
-  const box = layoutDrill({ ...drill, x: 0, y: 0 }, "00", measure).box;
+  const box = blockBox({ ...block, x: 0, y: 0 }, "00", measure);
   const w = box.maxX - box.minX;
   const h = box.maxY - box.minY;
   const taken = takenBoxes(doc, measure);
@@ -49,23 +50,23 @@ export function placeDrill(doc: SheetDoc, drill: DrillObject, measure: Measure):
   return { x: PAGE.margin, y: r2(Math.max(lo, hiY)), free: false };
 }
 
-export type DrillProblem = {
+export type BlockProblem = {
   /** Kanter, blokken går ud over (margenen). */
   outside: ("bottom" | "right" | "left" | "top")[];
   /** Navne på andre objekter, blokken dækker, fx "Retvinklet trekant 1". */
   covers: string[];
 };
 
-/** null når regnearket ligger inden for margenen og ikke dækker noget andet. */
-export function drillProblem(
+/** null når blokken ligger inden for margenen og ikke dækker noget andet. */
+export function blockProblem(
   doc: SheetDoc,
-  drill: DrillObject,
+  block: BlockObject,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
-): DrillProblem | null {
-  const box = layoutDrill(drill, numbering.get(drill.id) ?? "", measure).box;
+): BlockProblem | null {
+  const box = blockBox(block, numbering.get(block.id) ?? "", measure);
   const m = PAGE.margin;
-  const outside: DrillProblem["outside"] = [];
+  const outside: BlockProblem["outside"] = [];
   if (box.maxY > PAGE.h - m + EPS) outside.push("bottom");
   if (box.maxX > PAGE.w - m + EPS) outside.push("right");
   if (box.minX < m - EPS) outside.push("left");
@@ -73,17 +74,19 @@ export function drillProblem(
 
   const covers: string[] = [];
   for (const o of doc.objects) {
-    if (o.id === drill.id) continue;
+    if (o.id === block.id) continue;
     const num = numbering.get(o.id);
     const other = o.type === "figure" ? figureExtent(o, num ?? "00", measure) : objectBox(o, doc, numbering, measure);
-    // Strengt overlap (ingen luft): et ellers korrekt placeret regneark flagges aldrig.
+    // Strengt overlap (ingen luft): en ellers korrekt placeret blok flagges aldrig.
     if (!hits(box, other, -EPS)) continue;
     covers.push(
       o.type === "figure"
         ? `${defOf(o).name}${num ? ` ${num}` : ""}`
         : o.type === "drill"
           ? `regneark ${num ?? ""}`.trim()
-          : o.type === "calc"
+          : o.type === "formula"
+            ? `formler ${num ?? ""}`.trim()
+            : o.type === "calc"
             ? `regnestykke ${num ?? ""}`.trim()
             : "en tekst",
     );
@@ -96,7 +99,7 @@ function joinNames(items: string[]): string {
 }
 
 /** Sætninger til panelet og eksport-dialogen; `subject` fx "Regneark 1" (første ord med stort). */
-export function drillProblemText(p: DrillProblem, subject: string): string[] {
+export function blockProblemText(p: BlockProblem, subject: string): string[] {
   const out: string[] = [];
   if (p.outside.includes("bottom")) out.push(`${subject} går ud over arkets bund`);
   if (p.outside.includes("right")) out.push(`${subject} går ud over arkets højre margen`);

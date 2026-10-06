@@ -1,7 +1,7 @@
 // Opgavelab — nyt dokument, nye objekter og id-generator (ren TS).
 
 import { PAGE, DEFAULT_SETTINGS } from "./types";
-import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, SheetObject, TextObject } from "./types";
+import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, FormulaObject, SheetObject, TextObject } from "./types";
 import { DEFAULT_DRILL_CONFIG } from "../core/drill";
 import { FIGURES, asFigure, type FigureKind } from "../figures/registry";
 import { defaultParams, figureBoundsOnSheet } from "./figures";
@@ -89,6 +89,25 @@ export function makeDrill(id: string, existing: number, seed: number): DrillObje
     width: DRILL_WIDTH,
     seed: seed >>> 0,
     config: { ...DEFAULT_DRILL_CONFIG, ops: [...DEFAULT_DRILL_CONFIG.ops], tables: [...DEFAULT_DRILL_CONFIG.tables] },
+  };
+}
+
+export const FORMULA_WIDTH = 120;
+export const DEFAULT_FORMULA_LINES = ["3 · (4 + 5) ="];
+export const DEFAULT_FORMULA_TITLE = "Regn ud";
+
+/** Ny formelblok med ét eksempel-stykke: ved venstre margen, let forskudt nedad pr. eksisterende blok. */
+export function makeFormula(id: string, existing: number): FormulaObject {
+  const o = cascade(existing);
+  return {
+    id,
+    type: "formula",
+    x: PAGE.margin,
+    y: PAGE.margin + 15 + o,
+    width: FORMULA_WIDTH,
+    lines: [...DEFAULT_FORMULA_LINES],
+    decimals: 2,
+    title: DEFAULT_FORMULA_TITLE,
   };
 }
 

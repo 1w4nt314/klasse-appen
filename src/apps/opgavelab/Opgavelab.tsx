@@ -14,7 +14,7 @@ import { ToolPanel } from "./editor/ToolPanel";
 import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
 import { useDocument } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
-import { makeDrill, newDocument, newSeed } from "./model/document";
+import { makeDrill, makeFormula, newDocument, newSeed } from "./model/document";
 import { calcDriftInfo, displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject } from "./model/types";
@@ -22,7 +22,8 @@ import { cleanName, parseDocument } from "./model/validate";
 import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
 import { placeCalc } from "./render/placeCalc";
-import { drillProblem, drillProblemText, placeDrill } from "./render/placeDrill";
+import { layoutFormula } from "./render/drillLayout";
+import { blockProblem, blockProblemText, placeBlock } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
@@ -38,7 +39,7 @@ type DialogState =
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
   | { kind: "deleteDoc"; doc: DocSummary }
-  | { kind: "exportWarn"; unsolved: string[]; drift: string[]; layout: string[] };
+  | { kind: "exportWarn"; unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -58,23 +59,34 @@ const EXPORT_FAILED = "PDF-eksporten mislykkedes. Prøv igen — virker det stad
 const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på de to PDF-filer.";
 
 /**
- * Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"], og regnestykker,
- * hvis facit (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
- * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"].
+ * Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"]; formel-linjer, der
+ * ikke kan regnes ud (svararket viser "= ?"), fx ["2b (3 · (4 +)"]; regnestykker, hvis facit
+ * (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
+ * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"]; og blokke, der går ud
+ * over arket eller dækker andet, som færdige sætninger.
  */
 function calcWarnings(
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
-): { unsolved: string[]; drift: string[]; layout: string[] } {
+): { unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string } {
   const unsolved: string[] = [];
+  const formula: string[] = [];
   const drift: string[] = [];
-  // Regneark, der går ud over arket eller dækker andre objekter, fx ["Regneark 1 går ud over arkets bund"].
+  // Blokke, der går ud over arket eller dækker andre objekter, fx "Regneark 1 går ud over arkets bund — …".
   const layout: string[] = [];
+  let drillLayout = false;
   for (const o of doc.objects) {
-    if (o.type !== "drill") continue;
-    const p = drillProblem(doc, o, numbering, measure);
-    if (p) layout.push(...drillProblemText(p, `Regneark ${numbering.get(o.id) ?? ""}`.trim()));
+    if (o.type !== "drill" && o.type !== "formula") continue;
+    const nr = numbering.get(o.id) ?? "";
+    if (o.type === "formula") {
+      for (const it of layoutFormula(o, nr, measure).items) if (it.error) formula.push(`${it.label} (${it.text.replace(/ =$/, "")})`);
+    }
+    const p = blockProblem(doc, o, numbering, measure);
+    if (!p) continue;
+    if (o.type === "drill") drillLayout = true;
+    const suffix = o.type === "drill" ? "flyt det, eller vælg færre opgaver." : "flyt den, eller fjern nogle linjer.";
+    layout.push(...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim()).map((t) => `${t} — ${suffix}`));
   }
   for (const o of doc.objects) {
     if (o.type !== "calc") continue;
@@ -93,7 +105,13 @@ function calcWarnings(
     const name = fig ? displayName(fig, o.param) : o.param;
     unsolved.push(num ? `${num} (${name})` : name);
   }
-  return { unsolved, drift, layout };
+  return {
+    unsolved,
+    formula,
+    drift,
+    layout,
+    layoutTitle: drillLayout ? "Regnearket passer ikke på arket" : "Formlerne passer ikke på arket",
+  };
 }
 
 /** "1a (X)" / "1a (X) og 2b (c)". */
@@ -309,10 +327,10 @@ export default function Opgavelab({ userKey }: AppProps) {
       document.querySelector<HTMLInputElement>(".ol-name input")?.focus();
       return;
     }
-    const { unsolved, drift, layout } = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet), measure);
-    if (unsolved.length > 0 || drift.length > 0 || layout.length > 0) {
+    const w = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet), measure);
+    if (w.unsolved.length > 0 || w.formula.length > 0 || w.drift.length > 0 || w.layout.length > 0) {
       setErr(null);
-      setDialog({ kind: "exportWarn", unsolved, drift, layout });
+      setDialog({ kind: "exportWarn", ...w });
     } else void runExport(doc, name);
   }
 
@@ -429,8 +447,12 @@ export default function Opgavelab({ userKey }: AppProps) {
         onAddDrill={() => {
           // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
           const seed = newSeed();
-          const at = placeDrill(d.doc, makeDrill("probe", 0, seed), measure);
+          const at = placeBlock(d.doc, makeDrill("probe", 0, seed), measure);
           d.addDrill(seed, { x: at.x, y: at.y });
+        }}
+        onAddFormula={() => {
+          const at = placeBlock(d.doc, makeFormula("probe", 0), measure);
+          d.addFormula({ x: at.x, y: at.y });
         }}
         full={d.doc.objects.length >= LIMITS.objects}
       />
@@ -537,9 +559,11 @@ export default function Opgavelab({ userKey }: AppProps) {
           title={
             dialog.unsolved.length > 0
               ? "Ikke alle regnestykker kan løses"
-              : dialog.drift.length > 0
-                ? "Svararket afviger fra figuren"
-                : "Regnearket passer ikke på arket"
+              : dialog.formula.length > 0
+                ? "Ikke alle formler kan regnes ud"
+                : dialog.drift.length > 0
+                  ? "Svararket afviger fra figuren"
+                  : dialog.layoutTitle
           }
           message={[
             dialog.unsolved.length > 0
@@ -547,8 +571,13 @@ export default function Opgavelab({ userKey }: AppProps) {
                   dialog.unsolved.length === 1 ? "den" : "de"
                 } ikke kan findes ud fra det, der er synligt på figuren.`
               : "",
+            dialog.formula.length > 0
+              ? `Svararket vil vise ? for ${joinList(dialog.formula)}, fordi ${
+                  dialog.formula.length === 1 ? "stykket" : "stykkerne"
+                } ikke kan regnes ud — se fejlen i formelblokkens panel.`
+              : "",
             ...dialog.drift.map((t) => `${t} — vis fx andre størrelser.`),
-            ...dialog.layout.map((t) => `${t} — flyt det, eller vælg færre opgaver.`),
+            ...dialog.layout,
             "Eksportér alligevel?",
           ]
             .filter(Boolean)

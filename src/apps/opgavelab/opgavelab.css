@@ -929,3 +929,41 @@
     box-shadow: none;
   }
 }
+
+/* ---------- Formelblok (egenskabspanel) ---------- */
+
+.ol-field textarea[data-ol-formula="lines"] {
+  font-variant-numeric: tabular-nums;
+}
+.ol-field textarea[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.ol-formula-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+.ol-formula-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.ol-formula-label {
+  flex: 0 0 2.2rem;
+  font-weight: 800;
+}
+.ol-formula-bad {
+  padding: 4px 6px;
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+}
+.ol-formula-bad .ol-formula-expr {
+  color: var(--ink);
+}

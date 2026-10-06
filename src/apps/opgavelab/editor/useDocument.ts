@@ -4,7 +4,7 @@
 // Historik pushes ved commit (slip af træk / panel-ændring), ikke ved hvert musetræk.
 
 import { useMemo, useReducer } from "react";
-import { makeCalc, makeDrill, makeFigure, makeText, newDocument, newId } from "../model/document";
+import { makeCalc, makeDrill, makeFigure, makeFormula, makeText, newDocument, newId } from "../model/document";
 import { aliasConflict, clipAlias } from "../model/figures";
 import { LIMITS } from "../model/types";
 import type {
@@ -14,6 +14,7 @@ import type {
   DocSettings,
   DrillObject,
   FigureKind,
+  FormulaObject,
   FigureObject,
   ParamState,
   SheetObject,
@@ -38,12 +39,13 @@ export type DocState = {
 export type ObjectPatch = Partial<Omit<TextObject, "id" | "type">> &
   Partial<Omit<FigureObject, "id" | "type">> &
   Partial<Omit<CalcObject, "id" | "type">> &
-  Partial<Omit<DrillObject, "id" | "type">>;
+  Partial<Omit<DrillObject, "id" | "type">> &
+  Partial<Omit<FormulaObject, "id" | "type">>;
 type Patch = ObjectPatch;
 
 export type DocAction =
-  /** seed og at: kun regneark (seed laves i event-handleren med newSeed, så reduceren er deterministisk; at = ledig plads fra placeDrill). */
-  | { type: "addNew"; id: string; kind: "text" | "drill" | FigureKind; seed?: number; at?: { x: number; y: number } }
+  /** seed: kun regneark (laves i event-handleren med newSeed, så reduceren er deterministisk); at: regneark og formelblokke (ledig plads fra placeBlock). */
+  | { type: "addNew"; id: string; kind: "text" | "drill" | "formula" | FigureKind; seed?: number; at?: { x: number; y: number } }
   | { type: "addCalc"; id: string; figureId: string; param: string; x?: number; y?: number }
   | { type: "update"; id: string; patch: Patch; key?: string }
   | { type: "move"; id: string; x: number; y: number }
@@ -92,14 +94,16 @@ export function reducer(s: DocState, a: DocAction): DocState {
   switch (a.type) {
     case "addNew": {
       if (s.doc.objects.length >= LIMITS.objects) return s;
-      const sameType = a.kind === "text" || a.kind === "drill" ? a.kind : "figure";
+      const sameType = a.kind === "text" || a.kind === "drill" || a.kind === "formula" ? a.kind : "figure";
       const existing = s.doc.objects.filter((o) => o.type === sameType).length;
       const obj =
         a.kind === "text"
           ? makeText(a.id, existing)
           : a.kind === "drill"
             ? { ...makeDrill(a.id, existing, a.seed ?? 0), ...(a.at ?? {}) }
-            : makeFigure(a.id, a.kind, existing);
+            : a.kind === "formula"
+              ? { ...makeFormula(a.id, existing), ...(a.at ?? {}) }
+              : makeFigure(a.id, a.kind, existing);
       if (!obj) return s;
       return commitChange(s, { ...s.doc, objects: [...s.doc.objects, obj] }, null, { selectedId: obj.id });
     }
@@ -220,9 +224,11 @@ export function useDocument() {
     () => ({
       addText: () => dispatch({ type: "addNew", id: newId(), kind: "text" }),
       addFigure: (kind: FigureKind) => dispatch({ type: "addNew", id: newId(), kind }),
-      /** seed: fra newSeed() i event-handleren; at: placering (fra placeDrill), ellers standardplaceringen. */
+      /** seed: fra newSeed() i event-handleren; at: placering (fra placeBlock), ellers standardplaceringen. */
       addDrill: (seed: number, at?: { x: number; y: number }) =>
         dispatch({ type: "addNew", id: newId("d"), kind: "drill", seed, at }),
+      /** at: placering (fra placeBlock), ellers standardplaceringen. */
+      addFormula: (at?: { x: number; y: number }) => dispatch({ type: "addNew", id: newId("f"), kind: "formula", at }),
       addCalc: (figureId: string, param: string, x?: number, y?: number) =>
         dispatch({ type: "addCalc", id: newId("c"), figureId, param, x, y }),
       update: (id: string, patch: Patch, key?: string) => dispatch({ type: "update", id, patch, key }),

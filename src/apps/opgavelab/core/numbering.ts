@@ -1,11 +1,11 @@
-// Opgavelab — semi-automatisk nummerering: blokke (figurer og regneark) "1", "2", … efter
-// placering (top→bund, venstre→højre), regnestykker "1a", "1b", … pr. figur efter (y, x),
-// og opgaverne i et regneark "3a"–"3t" (itemLabel). Fritstående tekst nummereres ikke.
+// Opgavelab — semi-automatisk nummerering: blokke (figurer, regneark og formelblokke) "1", "2", …
+// efter placering (top→bund, venstre→højre), regnestykker "1a", "1b", … pr. figur efter (y, x),
+// og opgaverne i et regneark / linjerne i en formelblok "3a"–"3t" (itemLabel). Fritstående tekst nummereres ikke.
 // Samme map bruges til opgave og svarark.
 //
 // Ingen runtime-imports (kun `import type`).
 
-import type { Bounds, CalcObject, Document, DrillObject, FigureObject } from "../model/types";
+import type { Bounds, CalcObject, Document, DrillObject, FigureObject, FormulaObject } from "../model/types";
 
 /**
  * Rækketolerance i mm. Figurerne sorteres efter top; en ny række starter, når en figurs
@@ -38,15 +38,18 @@ export function itemLabel(nr: string, i: number, count: number): string {
 }
 
 /**
- * @param figureBounds bounding box for figuren i ARK-koordinater (mm). Andre blokke (regneark)
- *   placeres efter deres øverste venstre hjørne (x, y).
- * @returns objekt-id → nummer ("1" for figurer og regneark, "1a" for regnestykker).
+ * @param figureBounds bounding box for figuren i ARK-koordinater (mm). Andre blokke (regneark og
+ *   formelblokke) placeres efter deres øverste venstre hjørne (x, y).
+ * @returns objekt-id → nummer ("1" for figurer og blokke, "1a" for regnestykker).
  */
 export function numberDocument(doc: Document, figureBounds: (fig: FigureObject) => Bounds): Map<string, string> {
   const result = new Map<string, string>();
   const blocks = doc.objects
     .map((fig, i) => ({ fig, i }))
-    .filter((p): p is { fig: FigureObject | DrillObject; i: number } => p.fig.type === "figure" || p.fig.type === "drill")
+    .filter(
+      (p): p is { fig: FigureObject | DrillObject | FormulaObject; i: number } =>
+        p.fig.type === "figure" || p.fig.type === "drill" || p.fig.type === "formula",
+    )
     .map(({ fig, i }) => ({ fig, i, b: fig.type === "figure" ? figureBounds(fig) : { minX: fig.x, minY: fig.y, maxX: fig.x, maxY: fig.y } }));
   blocks.sort((p, q) => p.b.minY - q.b.minY || p.b.minX - q.b.minX || p.i - q.i);
   const rows: (typeof blocks)[] = [];

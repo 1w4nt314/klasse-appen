@@ -137,7 +137,26 @@ export type DrillObject = {
   config: DrillConfig;
 };
 
-export type SheetObject = TextObject | FigureObject | CalcObject | DrillObject;
+/**
+ * Formelblok: ét regnestykke pr. linje (fx "3 · (4 + 5) ="), regnet ud af core/formula.ts (ingen
+ * eval) med facit på svararket. Tomme linjer springes over. Ankeret er øverste venstre hjørne.
+ */
+export type FormulaObject = {
+  id: string;
+  type: "formula";
+  x: Mm;
+  y: Mm;
+  /** Blokkens bredde i mm (LIMITS.drillWidthMin–drillWidthMax). */
+  width: Mm;
+  /** 1–LIMITS.formulaLines linjer à højst LIMITS.formulaLineChars tegn. */
+  lines: string[];
+  /** Højst så mange decimaler i facit (kun de nødvendige vises). */
+  decimals: 0 | 1 | 2 | 3 | 4;
+  /** Overskrift (højst LIMITS.formulaTitle tegn; tom = ingen). */
+  title: string;
+};
+
+export type SheetObject = TextObject | FigureObject | CalcObject | DrillObject | FormulaObject;
 
 export type DocSettings = {
   /** "power" → tan⁻¹, "arc" → arctan. */
@@ -172,6 +191,10 @@ export const LIMITS = {
   drillNumberMax: 10_000,
   drillWidthMin: 20,
   drillWidthMax: 190,
+  /** Formelblok: højst så mange linjer, tegn pr. linje og tegn i titlen. */
+  formulaLines: 20,
+  formulaLineChars: 80,
+  formulaTitle: 60,
 } as const;
 
 /** Højst så mange tegn (kodepunkter) i et alias. */

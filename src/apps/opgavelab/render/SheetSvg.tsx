@@ -13,8 +13,8 @@ import { defOf } from "../figures/registry";
 import type { SheetMode } from "../figures/types";
 import { docSolvedValues, figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
-import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, TextObject } from "../model/types";
-import { DRILL_BLANK, layoutDrill } from "./drillLayout";
+import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, FormulaObject, TextObject } from "../model/types";
+import { DRILL_BLANK, layoutDrill, layoutFormula } from "./drillLayout";
 import { numberBox } from "./figureLayout";
 import { FONT_FAMILY, measureText } from "./measure";
 import { BRAND, LABEL_MM, NUMBER_MM, T, labelBaseline, r2 } from "./primitives";
@@ -104,6 +104,44 @@ function renderDrill(obj: DrillObject, mode: SheetMode, number: string, measure:
   );
 }
 
+// ---- formelblok ----
+
+/**
+ * Tre runs pr. linje som regnearket: nummer (fed), stykket ("3 · (4 + 5) =") og svarstregen — på
+ * svararket facit i BRAND ("27"; afrundet: "2 · π ≈ 6,28"; kan ikke regnes ud: "= ?").
+ */
+function renderFormula(obj: FormulaObject, mode: SheetMode, number: string, measure: Measure) {
+  const l = layoutFormula(obj, number, measure);
+  return (
+    <g key={obj.id} data-ol-id={obj.id} data-ol-type="formula">
+      {l.title && (
+        <T x={l.title.x} y={l.title.baseline} size={l.sizeMm} bold data-ol-role="title">
+          {l.title.text}
+        </T>
+      )}
+      {l.items.map((it) => (
+        <g key={it.label} data-ol-item={it.label} data-ol-error={it.error ? "" : undefined}>
+          <T x={it.xLabel} y={it.baseline} size={l.sizeMm} bold data-ol-role="number">
+            {it.label}
+          </T>
+          <T x={it.xText} y={it.baseline} size={l.sizeMm} data-ol-role="body">
+            {mode === "svarark" ? it.textSvar : it.text}
+          </T>
+          {mode === "svarark" ? (
+            <T x={it.xAnswer} y={it.baseline} size={l.sizeMm} fill={BRAND} data-ol-role="answer">
+              {it.answer}
+            </T>
+          ) : (
+            <T x={it.xAnswer} y={it.baseline} size={l.sizeMm} data-ol-role="blank">
+              {DRILL_BLANK}
+            </T>
+          )}
+        </g>
+      ))}
+    </g>
+  );
+}
+
 // ---- figur ----
 
 function renderFigure(doc: SheetDoc, fig: FigureObject, mode: SheetMode, number: string, measure: Measure) {
@@ -177,6 +215,7 @@ export function SheetSvg({
         if (o.type === "text") return renderText(o, measure);
         if (o.type === "figure") return renderFigure(doc, o, mode, nums.get(o.id) ?? "", measure);
         if (o.type === "drill") return renderDrill(o, mode, nums.get(o.id) ?? "", measure);
+        if (o.type === "formula") return renderFormula(o, mode, nums.get(o.id) ?? "", measure);
         return renderCalc(doc, o, mode, nums.get(o.id) ?? "", measure);
       })}
       {children}

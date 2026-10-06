@@ -19,7 +19,7 @@ import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
-import { drillProblem } from "../render/placeDrill";
+import { blockProblem } from "../render/placeBlock";
 import { toSvg } from "./pointer";
 
 const BRAND = "#1a4f8b";
@@ -446,12 +446,14 @@ function Overlay({
             ? `Tekst${number ? ` ${number}` : ""}: ${o.text.replace(/\s+/g, " ").trim().slice(0, 40) || "tom"}`
             : o.type === "drill"
               ? `Regneark ${number ?? ""}`.trim()
-              : `Regnestykke ${number ?? ""}`.trim();
+              : o.type === "formula"
+                ? `Formler ${number ?? ""}`.trim()
+                : `Regnestykke ${number ?? ""}`.trim();
         const b = objectBox(o, doc, numbering, measure, mode);
         const fig = o.type === "calc" ? doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId) : null;
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
-        // Regneark, der går ud over arket eller dækker andre objekter (kun markering i editoren).
-        const layoutProblem = o.type === "drill" ? drillProblem(doc, o, numbering, measure) : null;
+        // Regneark og formelblokke, der går ud over arket eller dækker andre objekter (kun markering i editoren).
+        const layoutProblem = o.type === "drill" || o.type === "formula" ? blockProblem(doc, o, numbering, measure) : null;
         const drift = o.type === "calc" && fig && !problem ? calcDrift(fig, o.param, doc.settings) : null;
         return (
           <g key={o.id}>
@@ -472,7 +474,7 @@ function Overlay({
               />
             )}
             {layoutProblem && (
-              // Kun i editoren: regnearket går ud over arket eller dækker noget.
+              // Kun i editoren: blokken går ud over arket eller dækker noget.
               <rect
                 data-ol-layout-warn={o.id}
                 x={b.minX - 1.2}

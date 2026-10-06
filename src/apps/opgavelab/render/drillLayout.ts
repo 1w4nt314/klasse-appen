@@ -1,11 +1,12 @@
-// Opgavelab — layout af et regneark (ren TS, ingen React/DOM). Bruges af SheetSvg (tegning)
-// og af objectBox (markering, flyt, margen, placeCalc). Layoutet er ens på opgave og svarark:
-// pladsen til svaret er den bredeste af svarstregen og svarene, så intet flytter sig.
+// Opgavelab — layout af regneark og formelblokke (ren TS, ingen React/DOM). Bruges af SheetSvg
+// (tegning) og af objectBox (markering, flyt, margen, placeCalc). Layoutet er ens på opgave og
+// svarark: pladsen til svaret er den bredeste af svarstregen og svarene, så intet flytter sig.
 
 import { generate, type DrillItem } from "../core/drill";
+import { evaluate, formulaItems } from "../core/formula";
 import { itemLabel } from "../core/numbering";
 import { PT_MM } from "../model/types";
-import type { Bounds, DrillObject } from "../model/types";
+import type { Bounds, DrillObject, FormulaObject } from "../model/types";
 import type { Measure } from "./textLayout";
 
 /** Skriftstørrelse (pt) for titel og opgaver. */
@@ -101,4 +102,89 @@ export function layoutDrill(obj: DrillObject, number: string, measure: Measure):
       maxY: lastBaseline + sizeMm * DESCENT,
     },
   };
+}
+
+// ---- formelblok ----
+
+export type FormulaRun = {
+  /** "4a" (fed). */
+  label: string;
+  /** Opgavearket: "3 · (4 + 5) =" (fejl-linjer som skrevet, også med "="). */
+  text: string;
+  /** Svararket: "3 · (4 + 5) =", eller "2 · π ≈" når facit er afrundet. */
+  textSvar: string;
+  /** Facit på svararket ("27", "6,28"), "?" når linjen ikke kan regnes ud. */
+  answer: string;
+  /** Fejlen (dansk), når linjen ikke kan regnes ud. */
+  error: string | null;
+  xLabel: number;
+  /** Venstre kant af stykket. */
+  xText: number;
+  /** Svarstreg/facit: lige efter stykket (bredeste af de to visninger). */
+  xAnswer: number;
+  baseline: number;
+};
+
+export type FormulaLayout = {
+  sizeMm: number;
+  title: { text: string; x: number; baseline: number } | null;
+  items: FormulaRun[];
+  box: Bounds;
+};
+
+/**
+ * Formelblok: én linje pr. stykke ("4a  3 · (4 + 5) = ______"); tomme linjer springes over.
+ * Stykket står venstrestillet efter nummeret, og svarstregen/facit lige efter "=".
+ * @param number blokkens nummer ("4"); linjerne får "4a", "4b", …
+ */
+export function layoutFormula(obj: FormulaObject, number: string, measure: Measure): FormulaLayout {
+  const sizeMm = DRILL_PT * PT_MM;
+  const lines = formulaItems(obj.lines);
+  const labels = lines.map((_, i) => itemLabel(number, i, lines.length));
+  const labelW = Math.max(0, ...labels.map((l) => measure(l, DRILL_PT, true)));
+  const blankW = measure(DRILL_BLANK, DRILL_PT);
+
+  const title = obj.title.trim();
+  const titleRun = title ? { text: title, x: obj.x, baseline: obj.y + sizeMm * ASCENT } : null;
+  const top = obj.y + (titleRun ? sizeMm * ASCENT + sizeMm * DESCENT + TITLE_GAP : 0);
+  const first = top + sizeMm * ASCENT;
+  const xText = obj.x + labelW + LABEL_GAP;
+
+  let maxX = obj.x + obj.width;
+  const items: FormulaRun[] = lines.map((line, i) => {
+    const r = evaluate(line, obj.decimals);
+    const text = `${r.pretty} =`;
+    const textSvar = r.ok && r.approx ? `${r.pretty} ≈` : text;
+    const answer = r.ok ? r.result : "?";
+    const xAnswer = xText + Math.max(measure(text, DRILL_PT), measure(textSvar, DRILL_PT)) + ANSWER_GAP;
+    maxX = Math.max(maxX, xAnswer + Math.max(blankW, measure(answer, DRILL_PT)));
+    return {
+      label: labels[i],
+      text,
+      textSvar,
+      answer,
+      error: r.ok ? null : r.error,
+      xLabel: obj.x,
+      xText,
+      xAnswer,
+      baseline: first + i * DRILL_ROW_MM,
+    };
+  });
+  if (titleRun) maxX = Math.max(maxX, obj.x + measure(title, DRILL_PT, true));
+  // Uden linjer fylder blokken stadig én række (så den kan ses og markeres).
+  const lastBaseline = first + Math.max(0, items.length - 1) * DRILL_ROW_MM;
+  return {
+    sizeMm,
+    title: titleRun,
+    items,
+    box: { minX: obj.x, minY: obj.y, maxX, maxY: lastBaseline + sizeMm * DESCENT },
+  };
+}
+
+/** Regneark og formelblokke: blokke med opgaver og svar, placeret og advaret om ens. */
+export type BlockObject = DrillObject | FormulaObject;
+
+/** Blokkens udstrækning på arket (mm), ens på opgave og svarark. */
+export function blockBox(obj: BlockObject, number: string, measure: Measure): Bounds {
+  return obj.type === "drill" ? layoutDrill(obj, number, measure).box : layoutFormula(obj, number, measure).box;
 }
