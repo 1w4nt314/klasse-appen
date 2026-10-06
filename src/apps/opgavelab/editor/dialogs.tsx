@@ -240,12 +240,15 @@ export function ConfirmDialog({
   danger,
   busy,
   error,
+  wide,
   onConfirm,
   onCancel,
 }: {
   title: string;
-  message: string;
+  /** En tekst (ét afsnit) eller færdig opmærkning (fx eksport-advarslernes liste pr. side). */
+  message: ReactNode;
   confirmLabel: string;
+  wide?: boolean;
   danger?: boolean;
   busy?: boolean;
   error?: string | null;
@@ -253,10 +256,16 @@ export function ConfirmDialog({
   onCancel: () => void;
 }) {
   return (
-    <Modal title={title} onClose={onCancel} name="confirm">
-      <p className="ol-dialog-note" data-ol-confirm-message="">
-        {message}
-      </p>
+    <Modal title={title} onClose={onCancel} name="confirm" wide={wide}>
+      {typeof message === "string" ? (
+        <p className="ol-dialog-note" data-ol-confirm-message="">
+          {message}
+        </p>
+      ) : (
+        <div className="ol-dialog-note" data-ol-confirm-message="">
+          {message}
+        </div>
+      )}
       {error && (
         <p className="ol-dialog-error" role="alert" data-ol-dialog-error="">
           {error}

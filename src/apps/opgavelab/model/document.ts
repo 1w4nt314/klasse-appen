@@ -139,8 +139,3 @@ export function findObject(doc: SheetDoc, id: string | null): SheetObject | unde
 export function pageObjects(doc: SheetDoc, page: number): SheetObject[] {
   return doc.objects.filter((o) => o.page === page);
 }
-
-/** Siden (0-baseret), objektet står på — eller null, hvis det ikke findes. */
-export function pageOf(doc: SheetDoc, id: string | null): number | null {
-  return findObject(doc, id)?.page ?? null;
-}

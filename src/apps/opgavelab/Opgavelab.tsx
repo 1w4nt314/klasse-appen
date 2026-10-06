@@ -24,13 +24,29 @@ import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
 import { calcStray, placeCalc } from "./render/placeCalc";
 import { layoutFormula, numberSheet } from "./render/drillLayout";
-import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeOnPage, placeText } from "./render/placeBlock";
+import {
+  blockProblem,
+  blockProblemText,
+  calcOutside,
+  figureProblem,
+  fitFigure,
+  followToPage,
+  placeBlock,
+  placeFigure,
+  placeOnPage,
+  placeText,
+} from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
 function isTyping(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
   return t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT";
+}
+
+/** Fokus i et tekstfelt, hvor Ctrl+Z fortryder tastningen (et <select> har ingen egen fortryd). */
+function isTextEntry(t: EventTarget | null): boolean {
+  return isTyping(t) && !(t instanceof HTMLSelectElement);
 }
 
 type DialogState =
@@ -42,7 +58,11 @@ type DialogState =
   | { kind: "deleteDoc"; doc: DocSummary }
   /** Slet siden `index` (0-baseret), som har `count` objekter (regnestykker tæller med). */
   | { kind: "deletePage"; index: number; count: number }
-  | { kind: "exportWarn"; unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string };
+  | ({ kind: "exportWarn" } & ExportWarnings);
+
+/** En layout-advarsel og siden (0-baseret), den gælder. */
+type LayoutWarning = { page: number; text: string };
+type ExportWarnings = { unsolved: string[]; formula: string[]; drift: string[]; layout: LayoutWarning[]; layoutTitle: string };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -69,19 +89,22 @@ const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på 
  * over arket eller dækker andet, som færdige sætninger. Har dokumentet flere sider, nævnes siden
  * ("Regneark 5 (side 2) går ud over …", "1a (X, side 2)"), advarslerne kommer side for side, og tomme
  * sider nævnes til sidst ("Side 3 er tom — …"); et ensidet dokument giver præcis de samme tekster som før.
+ * Et regnestykke, hvis svararks-boks går ud over margenen, nævnes som en blok ("Regnestykke 2a går ud over arkets
+ * højre margen — flyt det."). Layout-advarslerne har deres side med (dialogen grupperer dem pr. side).
  */
 function calcWarnings(
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
-): { unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string } {
+): ExportWarnings {
   const unsolved: string[] = [];
   const formula: string[] = [];
   const drift: string[] = [];
   // Blokke, der går ud over arket eller dækker andre objekter, fx "Regneark 1 går ud over arkets bund — …".
-  const layout: string[] = [];
+  const layout: LayoutWarning[] = [];
   let drillLayout = false;
   let figureLayout = false;
+  let calcLayout = false;
   let strayLayout = false;
   const multi = doc.pageCount > 1;
   /** " (side 2)" ved flere sider, ellers "". */
@@ -96,9 +119,10 @@ function calcWarnings(
       figureLayout = true;
       const nr = numbering.get(o.id) ?? "";
       layout.push(
-        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim() + onPage(o.page)).map(
-          (t) => `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
-        ),
+        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim() + onPage(o.page)).map((t) => ({
+          page: o.page,
+          text: `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
+        })),
       );
       continue;
     }
@@ -113,7 +137,10 @@ function calcWarnings(
     if (o.type === "drill") drillLayout = true;
     const suffix = o.type === "drill" ? "flyt det, eller vælg færre opgaver." : "flyt den, eller fjern nogle linjer.";
     layout.push(
-      ...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim() + onPage(o.page)).map((t) => `${t} — ${suffix}`),
+      ...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim() + onPage(o.page)).map((t) => ({
+        page: o.page,
+        text: `${t} — ${suffix}`,
+      })),
     );
   }
   for (const o of objects) {
@@ -121,16 +148,28 @@ function calcWarnings(
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
     const num = numbering.get(o.id);
     // Regnestykket står ved en anden figur (eller et regneark) end sin egen: eleven kan ikke se, hvad "2a" hører til.
-    const strayId = fig ? calcStray(doc, o, numbering, measure) : null;
+    // Regnestykket (svararket, med facit) går ud over arkets margen: det klippes i PDF'en.
+    const off = calcOutside(doc, o, numbering, measure);
+    if (off.length > 0) {
+      calcLayout = true;
+      layout.push(
+        ...blockProblemText({ outside: off, covers: [] }, `Regnestykke ${num ?? ""}`.trim() + onPage(o.page)).map((t) => ({
+          page: o.page,
+          text: `${t} — flyt det.`,
+        })),
+      );
+    }
+    const strayId = fig && off.length === 0 ? calcStray(doc, o, numbering, measure) : null;
     const stray = strayId ? doc.objects.find((x) => x.id === strayId) : undefined;
     if (fig && stray) {
       strayLayout = true;
       const figName = `figur ${numbering.get(fig.id) ?? ""}`.trim();
       const kind = stray.type === "figure" ? "figur" : stray.type === "drill" ? "regneark" : "formlerne";
       const otherName = `${kind} ${numbering.get(stray.id) ?? ""}`.trim();
-      layout.push(
-        `Regnestykke ${num ?? ""}${onPage(o.page)} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`,
-      );
+      layout.push({
+        page: o.page,
+        text: `Regnestykke ${num ?? ""}${onPage(o.page)} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`,
+      });
     }
     if (fig && solveParam(fig, o.param, doc.settings)) {
       const d = calcDriftInfo(fig, o.param, doc.settings);
@@ -151,30 +190,89 @@ function calcWarnings(
   // Tomme sider eksporteres som blanke sider (med sidefod) — det er lovligt, men nok en fejl.
   // Kun ved flere sider: et ensidet, tomt dokument giver (som før) ingen advarsel.
   const empty = multi ? emptyPages(doc) : [];
-  for (const p of empty) layout.push(`Side ${p + 1} er tom — slet den, eller læg noget på den.`);
+  for (const p of empty) layout.push({ page: p, text: `Side ${p + 1} er tom — slet den, eller læg noget på den.` });
   const otherLayout = layout.length > empty.length; // andre layoutproblemer end tomme sider
   return {
     unsolved,
     formula,
     drift,
-    layout,
+    // Side for side (stabil: inden for en side figurer og blokke, så regnestykker, så "tom").
+    layout: multi ? [...layout].sort((a, b) => a.page - b.page) : layout,
     layoutTitle: drillLayout
       ? "Regnearket passer ikke på arket"
       : figureLayout
         ? "En figur går ud over arket"
-        : strayLayout && !layout.some((t) => !t.startsWith("Regnestykke ") && !/^Side \d+ er tom/.test(t))
-          ? "Et regnestykke står ved en anden figur"
-          : !otherLayout && empty.length > 0
-            ? empty.length === 1
-              ? "En side er tom"
-              : "Nogle sider er tomme"
-            : "Formlerne passer ikke på arket",
+        : calcLayout
+          ? "Et regnestykke går ud over arket"
+          : strayLayout && !layout.some(({ text }) => !text.startsWith("Regnestykke ") && !/^Side \d+ er tom/.test(text))
+            ? "Et regnestykke står ved en anden figur"
+            : !otherLayout && empty.length > 0
+              ? empty.length === 1
+                ? "En side er tom"
+                : "Nogle sider er tomme"
+              : "Formlerne passer ikke på arket",
   };
 }
 
 /** "1a (X)" / "1a (X) og 2b (c)". */
 function joinList(items: string[]): string {
   return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} og ${items[items.length - 1]}`;
+}
+
+/**
+ * Eksport-advarslens tekst: først de uløselige regnestykker/formler og afvigelserne (som ét afsnit), så
+ * layout-advarslerne som en liste — ved flere sider grupperet pr. side ("Side 2" med sine punkter) — i en boks
+ * med højst ~40 % af skærmens højde (rul), og til sidst spørgsmålet. Mellemrum mellem punkterne, så teksten
+ * (textContent) læses som før.
+ */
+function ExportWarnMessage({ w, multi }: { w: ExportWarnings; multi: boolean }) {
+  const intro = [
+    w.unsolved.length > 0
+      ? `Svararket vil vise ? for ${joinList(w.unsolved)}, fordi ${
+          w.unsolved.length === 1 ? "den" : "de"
+        } ikke kan findes ud fra det, der er synligt på figuren.`
+      : "",
+    w.formula.length > 0
+      ? `Svararket vil vise ? for ${joinList(w.formula)}, fordi ${
+          w.formula.length === 1 ? "stykket" : "stykkerne"
+        } ikke kan regnes ud — se fejlen i formelblokkens panel.`
+      : "",
+    ...w.drift.map((t) => `${t} — vis fx andre størrelser.`),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const groups: { page: number; items: string[] }[] = [];
+  for (const l of w.layout) {
+    const last = groups[groups.length - 1];
+    if (multi && last && last.page === l.page) last.items.push(l.text);
+    else if (!multi && last) last.items.push(l.text);
+    else groups.push({ page: l.page, items: [l.text] });
+  }
+  const list = (items: string[]) => (
+    <ul className="ol-export-warn-items">
+      {items.map((t, i) => (
+        <li key={i}>{`${t} `}</li>
+      ))}
+    </ul>
+  );
+  return (
+    <>
+      {intro && <p className="ol-export-warn-intro">{`${intro} `}</p>}
+      {groups.length > 0 && (
+        <div className="ol-export-warn-list" data-ol-export-warn-list="" role="region" aria-label="Advarsler" tabIndex={0}>
+          {multi
+            ? groups.map((g) => (
+                <section key={g.page} className="ol-export-warn-page" data-ol-export-warn-page={g.page + 1}>
+                  <h3>{`Side ${g.page + 1} `}</h3>
+                  {list(g.items)}
+                </section>
+              ))
+            : list(groups[0].items)}
+        </div>
+      )}
+      <p className="ol-export-warn-ask">Eksportér alligevel?</p>
+    </>
+  );
 }
 
 /** "Gemt kl. 14.32" (i dag) eller "Gemt 5. okt. kl. 14.32". Kaldes kun fra hændelser, ikke under rendering. */
@@ -291,8 +389,10 @@ export default function Opgavelab({ userKey }: AppProps) {
       const o = doc.objects.find((x) => x.id === id);
       if (!o || o.type === "calc" || o.page === page) return;
       const at = placeOnPage(doc, o, page, measure);
+      // Regnestykkerne følger figuren med deres boks inden for margenen (eller lægges ved den, se followToPage).
+      const follow = o.type === "figure" ? followToPage(doc, o, page, at, measure) : undefined;
       setAskDelete(null);
-      moveToPageRaw(id, page, at);
+      moveToPageRaw(id, page, at, follow);
     },
     [moveToPageRaw],
   );
@@ -522,12 +622,16 @@ export default function Opgavelab({ userKey }: AppProps) {
         }
         return;
       }
-      if (isTyping(e.target)) return;
       const cur = latest.current;
+      // Ctrl+Z virker også med fokus i et <select> (fx panelets "Side"); kun tekstfelter har deres egen fortryd.
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "z") {
+        if (isTextEntry(e.target)) return;
         e.preventDefault();
         cur.undo();
-      } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && cur.selectedId) {
+        return;
+      }
+      if (isTyping(e.target)) return;
+      if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && cur.selectedId) {
         e.preventDefault();
         const sel = cur.selected;
         // En figur med regnestykker spørger først (PropertiesPanel viser bekræftelsen).
@@ -729,23 +833,8 @@ export default function Opgavelab({ userKey }: AppProps) {
                   ? "Svararket afviger fra figuren"
                   : dialog.layoutTitle
           }
-          message={[
-            dialog.unsolved.length > 0
-              ? `Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
-                  dialog.unsolved.length === 1 ? "den" : "de"
-                } ikke kan findes ud fra det, der er synligt på figuren.`
-              : "",
-            dialog.formula.length > 0
-              ? `Svararket vil vise ? for ${joinList(dialog.formula)}, fordi ${
-                  dialog.formula.length === 1 ? "stykket" : "stykkerne"
-                } ikke kan regnes ud — se fejlen i formelblokkens panel.`
-              : "",
-            ...dialog.drift.map((t) => `${t} — vis fx andre størrelser.`),
-            ...dialog.layout,
-            "Eksportér alligevel?",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          message={<ExportWarnMessage w={dialog} multi={d.doc.pageCount > 1} />}
+          wide={dialog.layout.length > 3}
           confirmLabel="Eksportér alligevel"
           onCancel={closeDialog}
           onConfirm={() => {

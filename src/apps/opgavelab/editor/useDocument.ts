@@ -27,10 +27,10 @@ export const HISTORY_MAX = 50;
 export type DocState = {
   doc: SheetDoc;
   selectedId: string | null;
-  /** Den aktive side (0-baseret). Hører til editoren, ikke til dokumentet eller historikken; altid i [0, pageCount − 1]. */
+  /** Den aktive side (0-baseret). Hører til editoren, ikke til dokumentet; altid i [0, pageCount − 1]. */
   page: number;
-  /** Tidligere versioner (ældst først). */
-  history: SheetDoc[];
+  /** Tidligere versioner (ældst først), hver med den side, editoren stod på, da den blev afløst. */
+  history: HistoryEntry[];
   /** Dokumentet som det så ud da et igangværende træk begyndte (null = intet træk). */
   pending: SheetDoc | null;
   /** Nøgle for den sidste sammenlægbare ændring (fx tastning i et felt). */
@@ -91,6 +91,12 @@ export type DocAction =
   /** Dokumentets række på serveren er væk (slettet): det regnes for ugemt. */
   | { type: "markUnsaved" };
 
+/**
+ * Et fortryd-trin: dokumentet før ændringen og den side, editoren stod på, da ændringen skete (fx siden, hvorfra
+ * en side blev tilføjet, slettet eller flyttet, eller et objekt flyttet til en anden side) — så fortryd viser den.
+ */
+export type HistoryEntry = { doc: SheetDoc; page: number };
+
 /** Et objekts nye placering (DocAction "move"). */
 export type MoveTo = { id: string; x: number; y: number };
 
@@ -113,7 +119,7 @@ export function initState(doc: SheetDoc = newDocument()): DocState {
 /** Lægger den aktuelle version i historikken og anvender ændringen. */
 function commitChange(s: DocState, doc: SheetDoc, key: string | null = null, extra: Partial<DocState> = {}): DocState {
   const coalesce = key !== null && key === s.lastKey;
-  const history = coalesce ? s.history : [...s.history, s.doc].slice(-HISTORY_MAX);
+  const history = coalesce ? s.history : [...s.history, { doc: s.doc, page: s.page }].slice(-HISTORY_MAX);
   return { ...s, doc, history, pending: null, lastKey: key, ...extra };
 }
 
@@ -217,7 +223,7 @@ export function reducer(s: DocState, a: DocAction): DocState {
         ...s,
         pending: null,
         lastKey: null,
-        history: changed ? [...s.history, s.pending].slice(-HISTORY_MAX) : s.history,
+        history: changed ? [...s.history, { doc: s.pending, page: s.page }].slice(-HISTORY_MAX) : s.history,
       };
     }
     case "cancel":
@@ -296,17 +302,19 @@ export function reducer(s: DocState, a: DocAction): DocState {
     case "undo": {
       const base = s.pending ?? null;
       if (base) return { ...s, doc: base, pending: null, page: pageFor(base, s.selectedId, s.page) };
-      const prev = s.history[s.history.length - 1];
-      if (!prev) return s;
+      const entry = s.history[s.history.length - 1];
+      if (!entry) return s;
+      const prev = entry.doc;
       const selectedId = s.selectedId && prev.objects.some((o) => o.id === s.selectedId) ? s.selectedId : null;
-      // Navnet hører ikke til historikken: behold det aktuelle. Siden: det markeredes side, ellers den gamle klemt.
+      // Navnet hører ikke til historikken: behold det aktuelle. Siden: det markeredes side, ellers siden, hvor
+      // ændringen skete (så fortryd af tilføj/slet/flyt side og "flyt til side" viser den gendannede tilstand).
       return {
         ...s,
         doc: { ...prev, name: s.doc.name },
         history: s.history.slice(0, -1),
         lastKey: null,
         selectedId,
-        page: pageFor(prev, selectedId, s.page),
+        page: pageFor(prev, selectedId, entry.page),
       };
     }
     case "replace":

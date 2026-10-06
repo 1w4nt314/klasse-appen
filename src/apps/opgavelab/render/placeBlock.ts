@@ -9,10 +9,10 @@
 
 import { defOf } from "../figures/registry";
 import { PAGE } from "../model/types";
-import type { Bounds, Document as SheetDoc, FigureObject, Point, TextObject } from "../model/types";
+import type { Bounds, CalcObject, Document as SheetDoc, FigureObject, Point, SheetObject, TextObject } from "../model/types";
 import { blockBox, numberSheet, type BlockObject } from "./drillLayout";
 import { figureExtent } from "./figureLayout";
-import { takenBoxes } from "./placeCalc";
+import { calcStray, placeCalc, takenBoxes } from "./placeCalc";
 import { objectBox, type Measure } from "./textLayout";
 
 const PAD = 1.5; // mm luft mellem det nye objekt og andre objekter
@@ -113,11 +113,25 @@ export function placeFigure(doc: SheetDoc, fig: FigureObject, measure: Measure, 
   return { x: at.x - ext.minX, y: at.y - ext.minY, free: at.free };
 }
 
+function clampRange(v: number, lo: number, hi: number): number {
+  return hi < lo ? lo : Math.min(Math.max(v, lo), hi);
+}
+
+/** Forskydning (dx, dy) begrænset, så boksen bliver inden for arkets margen (SheetEditor: træk og piletaster). */
+export function clampDelta(box: Bounds, dx: number, dy: number): Point {
+  const m = PAGE.margin;
+  return {
+    x: clampRange(dx, m - box.minX, PAGE.w - m - box.maxX),
+    y: clampRange(dy, m - box.minY, PAGE.h - m - box.maxY),
+  };
+}
+
 /**
  * Ankeret (x, y), som objektet `obj` får, når det flyttes til siden `page`: de samme koordinater, hvis pladsen
  * dér er fri (inden for margenen og uden at røre sidens objekter — for en figur også dens regnestykker, der
- * følger med), ellers første ledige plads på siden (som et nyt objekt). Er siden fuld, bliver objektet lagt, hvor det
- * dækker mindst; blockProblem/figureProblem markerer det så som altid. `obj` skal stå i `doc`.
+ * følger med), ellers første ledige plads på siden (som et nyt objekt; en figur med regnestykker helst med plads til
+ * dem alle i samme opstilling). Er siden fuld, bliver objektet lagt, hvor det dækker mindst; blockProblem/figureProblem
+ * markerer det så som altid. `obj` skal stå i `doc`.
  */
 export function placeOnPage(
   doc: SheetDoc,
@@ -141,9 +155,91 @@ export function placeOnPage(
   const m = PAGE.margin;
   const inside = own.minX >= m - EPS && own.minY >= m - EPS && own.maxX <= PAGE.w - m + EPS && own.maxY <= PAGE.h - m + EPS;
   if (inside && !parts.some((b) => taken.some((t) => hits(b, t, PAD)))) return { x: obj.x, y: obj.y };
+  if (parts.length > 1) {
+    // En figur med regnestykker: helst en ledig plads til det hele (figur og regnestykker med samme indbyrdes
+    // placering), så lærerens opstilling bevares. Er der ingen, lægges figuren alene (followToPage ordner resten).
+    const all: Bounds = {
+      minX: Math.min(...parts.map((b) => b.minX)),
+      minY: Math.min(...parts.map((b) => b.minY)),
+      maxX: Math.max(...parts.map((b) => b.maxX)),
+      maxY: Math.max(...parts.map((b) => b.maxY)),
+    };
+    const w = all.maxX - all.minX;
+    const h = all.maxY - all.minY;
+    if (w <= PAGE.w - 2 * m && h <= PAGE.h - 2 * m) {
+      const spot = placeBox(doc, w, h, measure, page);
+      if (spot.free) return { x: obj.x + spot.x - all.minX, y: obj.y + spot.y - all.minY };
+    }
+  }
   const at =
     obj.type === "figure" ? placeFigure(doc, obj, measure, page) : obj.type === "text" ? placeText(doc, obj, measure, page) : placeBlock(doc, obj, measure, page);
   return { x: at.x, y: at.y };
+}
+
+/**
+ * Hvor figurens regnestykker skal stå, når figuren flyttes til siden `page` med ankeret `at` (fra placeOnPage):
+ * samme forskydning som figuren, med hvert regnestykkes (svararks-)boks holdt inden for margenen (som ved træk).
+ * Går et regnestykke så ud over arket, står det ved en anden figur/blok end sin egen (calcStray), eller dækker
+ * det noget på målsiden, lægges det i stedet som et nyt regnestykke ved figuren (placeCalc). `fig` skal stå i `doc`.
+ */
+export function followToPage(
+  doc: SheetDoc,
+  fig: FigureObject,
+  page: number,
+  at: Point,
+  measure: Measure,
+): { id: string; x: number; y: number }[] {
+  const calcs = doc.objects.filter((o): o is CalcObject => o.type === "calc" && o.figureId === fig.id);
+  if (calcs.length === 0) return [];
+  const numbering = numberSheet(doc, measure);
+  const dx = at.x - fig.x;
+  const dy = at.y - fig.y;
+  const pos = new Map<string, Point>();
+  for (const c of calcs) {
+    const d = clampDelta(objectBox(c, doc, numbering, measure), dx, dy);
+    pos.set(c.id, { x: r2(c.x + d.x), y: r2(c.y + d.y) });
+  }
+  const own = new Set<string>([fig.id, ...calcs.map((c) => c.id)]);
+  const place = (o: SheetObject): SheetObject => {
+    if (o.id === fig.id) return { ...o, page, x: at.x, y: at.y };
+    const p = pos.get(o.id);
+    return p ? { ...o, page, x: p.x, y: p.y } : o;
+  };
+  let moved: SheetDoc = { ...doc, objects: doc.objects.map(place) };
+  for (const c of calcs) {
+    const nums = numberSheet(moved, measure);
+    const cur = moved.objects.find((o): o is CalcObject => o.id === c.id && o.type === "calc");
+    if (!cur) continue;
+    const box = objectBox(cur, moved, nums, measure);
+    const covers = moved.objects.some(
+      (o) =>
+        o.page === page &&
+        !own.has(o.id) &&
+        hits(box, o.type === "figure" ? figureExtent(o, nums.get(o.id) ?? "", measure) : objectBox(o, moved, nums, measure), -EPS),
+    );
+    if (!covers && outsideOf(box).length === 0 && calcStray(moved, cur, nums, measure) === null) continue;
+    const rest: SheetDoc = { ...moved, objects: moved.objects.filter((o) => o.id !== c.id) };
+    const f = rest.objects.find((o): o is FigureObject => o.id === fig.id && o.type === "figure");
+    if (!f) continue;
+    const p = placeCalc(rest, f, c.param, measure);
+    pos.set(c.id, { x: p.x, y: p.y });
+    moved = { ...moved, objects: moved.objects.map((o) => (o.id === c.id ? { ...o, x: p.x, y: p.y } : o)) };
+  }
+  return calcs.map((c) => ({ id: c.id, ...(pos.get(c.id) ?? { x: c.x, y: c.y }) }));
+}
+
+/**
+ * Kanter (margenen), regnestykkets svararks-boks går ud over — fx efter et nyt, langt navn på en størrelse. Tom,
+ * når det er på arket. `boxes`: allerede regnede bokse (editoren: svararks-boksen).
+ */
+export function calcOutside(
+  doc: SheetDoc,
+  calc: CalcObject,
+  numbering: ReadonlyMap<string, string>,
+  measure: Measure,
+  boxes?: KnownBoxes,
+): BlockProblem["outside"] {
+  return outsideOf(boxes?.get(calc.id) ?? objectBox(calc, doc, numbering, measure));
 }
 
 export type BlockProblem = {

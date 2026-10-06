@@ -2,13 +2,13 @@
 
 // Opgavelab — sidebjælken over arket: "Side 2 af 3", én knap pr. side, Forrige/Næste og side-handlinger
 // (tilføj, flyt frem/tilbage, slet). Ren visning; Opgavelab.tsx ejer tilstanden og bekræftelsen ved sletning.
-// Tastatur: knapperne er almindelige knapper (Tab); PageUp/PageDown skifter side (SheetEditor).
+// Tastatur: knapperne er almindelige knapper (Tab); PageUp/PageDown skifter side (SheetEditor; i listen her selv).
 
 import { useId } from "react";
 import { LIMITS } from "../model/types";
 
 /** Over så mange sider erstattes side-knapperne af en liste (så bjælken ikke fylder en hel række på telefonen). */
-export const PAGE_TABS_MAX = 8;
+const PAGE_TABS_MAX = 8;
 
 export function PageBar({
   page,
@@ -74,6 +74,14 @@ export function PageBar({
             aria-label="Gå til side"
             value={page}
             onChange={(e) => onPage(Number(e.target.value))}
+            onKeyDown={(e) => {
+              // PageUp/PageDown: én side frem/tilbage som overalt i editoren (feltet ville ellers springe flere sider).
+              if ((e.key === "PageUp" || e.key === "PageDown") && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                e.preventDefault();
+                const next = page + (e.key === "PageDown" ? 1 : -1);
+                if (next >= 0 && next < pageCount) onPage(next);
+              }
+            }}
           >
             {Array.from({ length: pageCount }, (_, i) => (
               <option key={i} value={i}>

@@ -22,7 +22,7 @@ import { keyStep } from "../core/keyStep";
 import { pushAllowed } from "../core/pushRule";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
-import { blockProblem, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
+import { blockProblem, calcOutside, clampDelta, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
 import { numberSheet } from "../render/drillLayout";
 import { calcStray } from "../render/placeCalc";
 import { toSvg } from "./pointer";
@@ -83,20 +83,7 @@ function handleLabel(def: { handleName?: (key: string, displayName: string) => s
   return def.handleName ? def.handleName(key, name) : `Hjørne ${name}`;
 }
 
-function clampRange(v: number, lo: number, hi: number): number {
-  return hi < lo ? lo : Math.min(Math.max(v, lo), hi);
-}
-
 const r2 = (v: number) => Math.round(v * 100) / 100;
-
-/** Forskydning (dx, dy) begrænset, så boksen bliver inden for arkets margen. */
-function clampDelta(box: Bounds, dx: number, dy: number): Point {
-  const m = PAGE.margin;
-  return {
-    x: clampRange(dx, m - box.minX, PAGE.w - m - box.maxX),
-    y: clampRange(dy, m - box.minY, PAGE.h - m - box.maxY),
-  };
-}
 
 /**
  * Figurens regnestykker (id, placering, svararks-boks), som flytter med figuren — så et regnestykke aldrig bliver
@@ -225,8 +212,10 @@ export function SheetEditor({
             ? blockProblem(doc, o, numbering, measure, boxes)
             : null;
       if (p) out.add(o.id);
-      // Et regnestykke, der står ved en anden figur end sin egen (fx flyttet med musen hen til den).
-      else if (o.type === "calc" && calcStray(doc, o, numbering, measure, boxes)) out.add(o.id);
+      // Et regnestykke, der går ud over arket (fx et langt navn) eller står ved en anden figur end sin egen
+      // (fx flyttet med musen hen til den).
+      else if (o.type === "calc" && (calcOutside(doc, o, numbering, measure, boxes).length > 0 || calcStray(doc, o, numbering, measure, boxes)))
+        out.add(o.id);
     }
     return out;
   }, [doc, pageObjs, numbering, measure, boxes]);
@@ -312,8 +301,9 @@ export function SheetEditor({
         if (drag.current || document.querySelector("dialog[open]")) return;
         const { page: p, doc: dd, onPage: go } = latest.current;
         const next = p + (e.key === "PageDown" ? 1 : -1);
-        e.preventDefault();
+        // Første/sidste side: intet sideskift — browserens egen PageUp/PageDown (rul) virker som normalt.
         if (next < 0 || next >= dd.pageCount) return;
+        e.preventDefault();
         // Fokus på et objekt (der forsvinder med siden) flyttes til arket, så tastaturbrugeren ikke mister sin plads.
         if (e.target instanceof Element && svgRef.current?.contains(e.target)) svgRef.current.focus({ preventScroll: true });
         go(next);
@@ -653,8 +643,12 @@ function Overlay({
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
         // Regneark og formelblokke, der går ud over arket eller dækker andre objekter (kun markering i editoren).
         const layoutProblem = (o.type === "drill" || o.type === "formula") && layoutWarn.has(o.id);
-        // Regnestykket står ved en anden figur end sin egen (calcStray).
-        const stray = o.type === "calc" && layoutWarn.has(o.id);
+        // Regnestykket går ud over arket (calcOutside) eller står ved en anden figur end sin egen (calcStray).
+        const calcWarn = o.type === "calc" && layoutWarn.has(o.id);
+        const calcOff = calcWarn && calcOutside(doc, o, numbering, measure, boxes).length > 0;
+        const stray = calcWarn && !calcOff;
+        // Svararks-boksen (med facit), som er den, der går ud over margenen.
+        const ob = calcOff ? (boxes.get(o.id) ?? b) : b;
         const drift = o.type === "calc" && fig && !problem ? calcDrift(fig, o.param, doc.settings) : null;
         return (
           <g key={o.id}>
@@ -682,6 +676,22 @@ function Overlay({
                 y={b.minY - 1.2}
                 width={b.maxX - b.minX + 2.4}
                 height={b.maxY - b.minY + 2.4}
+                rx={1}
+                fill={WARN_FILL}
+                stroke={WARN}
+                strokeWidth={0.6}
+                strokeDasharray="2 1.2"
+                pointerEvents="none"
+              />
+            )}
+            {calcOff && (
+              // Kun i editoren: regnestykkets svararks-boks (det bredeste, med facit) går ud over arkets margen.
+              <rect
+                data-ol-layout-warn={o.id}
+                x={ob.minX - 1.2}
+                y={ob.minY - 1.2}
+                width={ob.maxX - ob.minX + 2.4}
+                height={ob.maxY - ob.minY + 2.4}
                 rx={1}
                 fill={WARN_FILL}
                 stroke={WARN}

@@ -3,10 +3,10 @@
 // Opgavelab — egenskabspanelet: parametertabel (live-værdi, Vis, Navn, Find …),
 // advarsler, regnestykke-visning og sletning.
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { DRILL_OPS, OP_SIGN } from "../core/drill";
 import { newSeed } from "../model/document";
-import { blockProblem, blockProblemText, figureProblem } from "../render/placeBlock";
+import { blockProblem, blockProblemText, calcOutside, figureProblem } from "../render/placeBlock";
 import { layoutDrill, layoutFormula } from "../render/drillLayout";
 import type { Measure } from "../render/textLayout";
 import { formatByKind } from "../core/format";
@@ -102,25 +102,7 @@ export function PropertiesPanel({
       </p>
       <h2 className="ol-panel-title">{title}</h2>
       {doc.pageCount > 1 && selected.type !== "calc" && (
-        <label className="ol-field ol-page-field">
-          <span>Side</span>
-          <select
-            data-ol-move-page=""
-            value={selected.page + 1}
-            onChange={(e) => onMoveToPage(selected.id, Number(e.target.value) - 1)}
-          >
-            {Array.from({ length: doc.pageCount }, (_, i) => (
-              <option key={i} value={i + 1}>
-                {`Side ${i + 1}`}
-              </option>
-            ))}
-          </select>
-          {calcs.length > 0 && (
-            <span className="ol-hint" data-ol-move-note="">
-              {calcs.length === 1 ? "Regnestykket flytter med figuren." : "Regnestykkerne flytter med figuren."}
-            </span>
-          )}
-        </label>
+        <PageMoveField obj={selected} pageCount={doc.pageCount} calcCount={calcs.length} onMoveToPage={onMoveToPage} />
       )}
       {selected.type === "text" && (
         <label className="ol-field">
@@ -146,7 +128,7 @@ export function PropertiesPanel({
           onSettings={onSettings}
         />
       )}
-      {selected.type === "calc" && <CalcSection calc={selected} doc={doc} onSelect={onSelect} />}
+      {selected.type === "calc" && <CalcSection calc={selected} doc={doc} numbering={numbering} measure={measure} onSelect={onSelect} />}
       {selected.type === "drill" && (
         <DrillSection key={selected.id} drill={selected} doc={doc} numbering={numbering} measure={measure} onUpdate={onUpdate} />
       )}
@@ -421,13 +403,106 @@ function AliasInput({
   );
 }
 
+/**
+ * Panelets "Side": flytter objektet til en anden side. Et valg med musen flytter straks; et valg med tastaturet
+ * (piletaster, Home/End, bogstaver …) vælger kun — så vises "Flyt til side N", og Enter (eller knappen) flytter,
+ * Escape fortryder valget. PageUp/PageDown gør intet her (de skifter ellers side og ville
+ * springe mellem siderne i feltet). Ctrl+Z virker også med fokus i feltet (Opgavelab).
+ */
+function PageMoveField({
+  obj,
+  pageCount,
+  calcCount,
+  onMoveToPage,
+}: {
+  obj: Exclude<SheetObject, CalcObject>;
+  pageCount: number;
+  calcCount: number;
+  onMoveToPage: (id: string, page: number) => void;
+}) {
+  const id = useId();
+  // Valgt med tastaturet, men ikke flyttet endnu: gælder kun for dette objekt på denne side.
+  const [choice, setChoice] = useState<{ id: string; from: number; to: number } | null>(null);
+  const pending = choice && choice.id === obj.id && choice.from === obj.page && choice.to !== obj.page ? choice.to : null;
+  // Sidste ændring kom fra tastaturet (keydown før change); en mus nulstiller det.
+  const keyed = useRef(false);
+  const move = (to: number) => {
+    setChoice(null);
+    keyed.current = false;
+    if (to !== obj.page) onMoveToPage(obj.id, to);
+  };
+  return (
+    <div className="ol-field ol-page-field">
+      <label htmlFor={id}>Side</label>
+      <div className="ol-page-move">
+        <select
+          id={id}
+          data-ol-move-page=""
+          value={(pending ?? obj.page) + 1}
+          onPointerDown={() => {
+            keyed.current = false;
+          }}
+          onBlur={() => {
+            keyed.current = false;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "PageUp" || e.key === "PageDown") {
+              e.preventDefault();
+            } else if (e.key === "Enter" && pending !== null) {
+              e.preventDefault();
+              move(pending);
+            } else if (e.key === "Escape" && pending !== null) {
+              // Kun valget fortrydes (objektet forbliver markeret).
+              e.preventDefault();
+              setChoice(null);
+            } else if (e.key !== "Enter") {
+              keyed.current = true;
+            }
+          }}
+          onChange={(e) => {
+            const to = Number(e.target.value) - 1;
+            if (!Number.isInteger(to) || to < 0 || to >= pageCount) return;
+            if (keyed.current) setChoice({ id: obj.id, from: obj.page, to });
+            else move(to);
+          }}
+        >
+          {Array.from({ length: pageCount }, (_, i) => (
+            <option key={i} value={i + 1}>
+              {`Side ${i + 1}`}
+            </option>
+          ))}
+        </select>
+        {pending !== null && (
+          <button type="button" className="ol-btn ol-btn-strong" data-ol-move-page-go="" onClick={() => move(pending)}>
+            {`Flyt til side ${pending + 1}`}
+          </button>
+        )}
+      </div>
+      {pending !== null && (
+        <span className="ol-hint" data-ol-move-pending="">
+          Tryk Enter eller klik Flyt for at flytte — Escape fortryder valget.
+        </span>
+      )}
+      {calcCount > 0 && (
+        <span className="ol-hint" data-ol-move-note="">
+          {calcCount === 1 ? "Regnestykket flytter med figuren." : "Regnestykkerne flytter med figuren."}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function CalcSection({
   calc,
   doc,
+  numbering,
+  measure,
   onSelect,
 }: {
   calc: CalcObject;
   doc: SheetDoc;
+  numbering: ReadonlyMap<string, string>;
+  measure: Measure;
   onSelect: (id: string | null) => void;
 }) {
   const fig = doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === calc.figureId);
@@ -436,6 +511,8 @@ function CalcSection({
   const problem = calcProblem(fig, calc.param, doc.settings);
   const drift = calcDrift(fig, calc.param, doc.settings);
   const rhs = sol && sol.formula.includes(" = ") ? sol.formula.slice(sol.formula.indexOf(" = ") + 3) : "";
+  // Svararkets boks (med facit) går ud over margenen: den ville blive klippet i PDF'en.
+  const off = calcOutside(doc, calc, numbering, measure);
   return (
     <>
       <dl className="ol-calc-info" data-ol-calc-info="">
@@ -462,6 +539,13 @@ function CalcSection({
       {(problem ?? drift) && (
         <p className="ol-warn" role="status" data-ol-warning={calc.id}>
           {problem ?? drift}
+        </p>
+      )}
+      {off.length > 0 && (
+        <p className="ol-warn" role="status" data-ol-calc-outside={calc.id}>
+          {`Regnestykket går ud over arkets ${[
+            ...new Set(off.map((e) => (e === "bottom" ? "bund" : e === "right" ? "højre margen" : "margen"))),
+          ].join(" og ")} på svararket — flyt det længere ind på arket.`}
         </p>
       )}
       <button type="button" className="ol-btn" data-ol-goto-figure="" onClick={() => onSelect(fig.id)}>
