@@ -20,7 +20,7 @@ import type { Document as SheetDoc, FigureObject, ParamState } from "./model/typ
 import { cleanName, parseDocument } from "./model/validate";
 import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
-import { placeCalc } from "./render/placeCalc";
+import { calcStray, placeCalc } from "./render/placeCalc";
 import { layoutFormula, numberSheet } from "./render/drillLayout";
 import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeText } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
@@ -76,6 +76,7 @@ function calcWarnings(
   const layout: string[] = [];
   let drillLayout = false;
   let figureLayout = false;
+  let strayLayout = false;
   for (const o of doc.objects) {
     if (o.type === "figure") {
       // Figurer, der går ud over margenen (fx et langt navn på en størrelse); overlap markeres kun i editoren.
@@ -105,6 +106,16 @@ function calcWarnings(
     if (o.type !== "calc") continue;
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
     const num = numbering.get(o.id);
+    // Regnestykket står ved en anden figur (eller et regneark) end sin egen: eleven kan ikke se, hvad "2a" hører til.
+    const strayId = fig ? calcStray(doc, o, numbering, measure) : null;
+    const stray = strayId ? doc.objects.find((x) => x.id === strayId) : undefined;
+    if (fig && stray) {
+      strayLayout = true;
+      const figName = `figur ${numbering.get(fig.id) ?? ""}`.trim();
+      const kind = stray.type === "figure" ? "figur" : stray.type === "drill" ? "regneark" : "formlerne";
+      const otherName = `${kind} ${numbering.get(stray.id) ?? ""}`.trim();
+      layout.push(`Regnestykke ${num ?? ""} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`);
+    }
     if (fig && solveParam(fig, o.param, doc.settings)) {
       const d = calcDriftInfo(fig, o.param, doc.settings);
       if (d)
@@ -127,7 +138,9 @@ function calcWarnings(
       ? "Regnearket passer ikke på arket"
       : figureLayout
         ? "En figur går ud over arket"
-        : "Formlerne passer ikke på arket",
+        : strayLayout && !layout.some((t) => !t.startsWith("Regnestykke "))
+          ? "Et regnestykke står ved en anden figur"
+          : "Formlerne passer ikke på arket",
   };
 }
 
