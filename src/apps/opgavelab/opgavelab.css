@@ -767,7 +767,8 @@
   outline: 3px solid var(--brand);
   outline-offset: 0;
 }
-.ol-root[data-ol-input="pointer"] .ol-sheet :is([data-ol-hit], [data-ol-handle]):focus-visible {
+/* Chromium sætter :focus på SVG-objekter ved museklik (uden :focus-visible) og tegner sin egen ring. */
+.ol-sheet :is([data-ol-hit], [data-ol-handle]):focus:not(:focus-visible) {
   outline: none;
 }
 
