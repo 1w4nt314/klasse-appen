@@ -1,9 +1,10 @@
-// Opgavelab — figuren "Retvinklet trekant": geometri fra core/rightTriangle.ts
-// (Node-testbar) + tegning, etiketter, ikon og oprettelse.
+// Opgavelab — figuren "Retvinklet trekant": geometri og regler fra core/rightTriangle.ts
+// (Node-testbar), Find-motoren fra core/solveKit.ts + tegning, etiketter, ikon og oprettelse.
 
 import type { ReactNode } from "react";
 import { FMT } from "../core/format";
-import { rightTriangleGeometry, vertices } from "../core/rightTriangle";
+import { compute, rightTriangleSpec, vertices } from "../core/rightTriangle";
+import { makeSolver } from "../core/solveKit";
 import { displayName, visibleParams } from "../model/params";
 import type { FigureObjectOf, Point, RightTriangleShape } from "../model/types";
 import {
@@ -50,7 +51,7 @@ function arcPath(v: Point, p: Point, q: Point, radius: number): string {
 function labels(fig: Fig, mode: SheetMode, measure: Measure, solved: Record<string, number> = {}): Label[] {
   const shape = fig.shape;
   const v = vertices(shape);
-  const values = rightTriangleGeometry.compute(shape);
+  const values = compute(shape);
   const textValue = (k: string) => (mode === "svarark" && Object.prototype.hasOwnProperty.call(solved, k) ? solved[k] : values[k]);
   const vis = visibleParams(fig);
   const answer = mode === "svarark";
@@ -224,7 +225,8 @@ function drawing(fig: Fig, mode: SheetMode): ReactNode {
 }
 
 export const rightTriangle: FigureDef<"rightTriangle", RightTriangleShape> = {
-  ...rightTriangleGeometry,
+  ...rightTriangleSpec,
+  ...makeSolver(rightTriangleSpec),
   type: "rightTriangle",
   name: "Retvinklet trekant",
   icon: () => (
@@ -233,7 +235,7 @@ export const rightTriangle: FigureDef<"rightTriangle", RightTriangleShape> = {
       <path d="M5 15h5v5" stroke="currentColor" strokeWidth="1.5" fill="none" />
     </>
   ),
-  newShape: () => ({ ...rightTriangleGeometry.defaultShape(), a: NEW_MM.a, b: NEW_MM.b }),
+  newShape: () => ({ ...rightTriangleSpec.defaultShape(), a: NEW_MM.a, b: NEW_MM.b }),
   labels,
   drawing,
 };

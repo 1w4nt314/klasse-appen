@@ -36,7 +36,7 @@ export type FigureObjectOf<K extends string, S> = {
   id: string;
   type: "figure";
   figure: K;
-  /** Anker på arket (for retvinklet trekant = hjørne C). */
+  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C). */
   x: Mm;
   y: Mm;
   shape: S;
@@ -84,8 +84,14 @@ export const DEFAULT_SETTINGS: DocSettings = { inverseNotation: "power", snapCm:
 
 // ---- Figurgeometri (implementeres i core/*; den fulde FigureDef i figures/types.ts) ----
 
-export type ParamKind = "length" | "angle" | "area";
-export type ParamDef = { key: string; label: string; kind: ParamKind };
+export type ParamKind = "length" | "angle" | "area" | "volume";
+export type ParamDef = {
+  key: string;
+  label: string;
+  kind: ParamKind;
+  /** Afledt mål (areal, omkreds, rumfang …): standard skjult og tegnes kun når synligt. */
+  derived?: true;
+};
 
 /** Formatering injiceres i solve, så core-filerne ikke har runtime-imports. */
 export type Fmt = {
@@ -93,6 +99,10 @@ export type Fmt = {
   len: (cm: number) => string;
   /** Vinkel i grader med gradtegn, fx "36,9°" / "90°". */
   ang: (deg: number) => string;
+  /** Areal i cm² med enhed, fx "14,4 cm²". */
+  area: (cm2: number) => string;
+  /** Rumfang i cm³ med enhed, fx "141,4 cm³". */
+  vol: (cm3: number) => string;
   /** Rent tal med decimalkomma og U+2212-minus, fx "8,0". */
   num: (n: number, decimals: number) => string;
 };
@@ -151,4 +161,28 @@ export type FigureGeometry<S> = {
   validateShape(raw: unknown): S | null;
   /** Lokal bounding box relativt til ankeret. */
   bounds(shape: S): Bounds;
+  /** Klik-flade (polygon i lokale mm); udeladt → hjørnerne fra vertices(). */
+  outline?(shape: S): Point[];
 };
+
+/** En Find-regel: givne parametre, højreside og udregning (core/solveKit.ts). */
+export type Rule = {
+  given: string[];
+  /** Højreside med {param} for parametre og {inv:fn} for inverse trig-funktioner; π skrives som "π". */
+  rhs: string;
+  /** Udregningen på de viste tal (π som Math.PI). */
+  value: (v: Record<string, number>) => number;
+};
+
+/** Data til makeSolver i core/solveKit.ts. */
+export type SolveSpec = {
+  /** Parameter → størrelsestype (formatering og tolerance). */
+  kinds: Record<string, ParamKind>;
+  /** Target → regler i prioriteret rækkefølge (første inden for tolerancen vinder). */
+  rules: Record<string, Rule[]>;
+  /** Faste værdier (fx C = 90° i den retvinklede trekant), brugt i stedet for compute(). */
+  fixed?: Record<string, number>;
+};
+
+/** Hvad en core-fil eksporterer: geometrien + regeldata; solve/solvableFrom laves af makeSolver. */
+export type FigureSpec<S> = Omit<FigureGeometry<S>, "solve" | "solvableFrom"> & SolveSpec;

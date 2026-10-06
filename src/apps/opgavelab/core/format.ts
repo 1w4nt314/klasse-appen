@@ -2,7 +2,7 @@
 // Ingen runtime-imports (kun `import type`), så filen kan køres i Node med
 // --experimental-strip-types.
 
-import type { Fmt } from "../model/types";
+import type { Fmt, ParamKind } from "../model/types";
 
 /** Typografisk minus (U+2212). */
 export const MINUS = "−";
@@ -42,8 +42,28 @@ export function fmtAng(deg: number): string {
   return (text.endsWith(",0") ? text.slice(0, -2) : text) + DEG;
 }
 
+/** Areal i cm²: altid 1 decimal, fx "14,4 cm²". */
+export function fmtArea(cm2: number): string {
+  return `${fmtNum(cm2, 1)} cm²`;
+}
+
+/** Rumfang i cm³: altid 1 decimal, fx "141,4 cm³". */
+export function fmtVol(cm3: number): string {
+  return `${fmtNum(cm3, 1)} cm³`;
+}
+
 /** Standard-formatering til solve(). */
-export const FMT: Fmt = { len: fmtLen, ang: fmtAng, num: fmtNum };
+export const FMT: Fmt = { len: fmtLen, ang: fmtAng, area: fmtArea, vol: fmtVol, num: fmtNum };
+
+/** En værdi formateret efter sin størrelsestype (med enhed). */
+export function formatByKind(kind: ParamKind, x: number): string {
+  return kind === "angle" ? fmtAng(x) : kind === "area" ? fmtArea(x) : kind === "volume" ? fmtVol(x) : fmtLen(x);
+}
+
+/** Navneord med bestemt artikel til tekster som "men siden er tegnet …". */
+export function kindNoun(kind: ParamKind): string {
+  return kind === "angle" ? "vinklen" : kind === "area" ? "arealet" : kind === "volume" ? "rumfanget" : "siden";
+}
 
 /** Afrund v til nærmeste multiplum af step; step <= 0 giver v uændret. */
 export function snap(v: number, step: number): number {

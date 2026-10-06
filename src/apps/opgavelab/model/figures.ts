@@ -2,7 +2,7 @@
 // advarsler, svararkets facit. Generiske — intet her kender en bestemt figur.
 
 import { FMT } from "../core/format";
-import { DRIFT_CM, DRIFT_DEG, parseShown } from "../core/rightTriangle";
+import { DRIFT_CM, DRIFT_DEG, parseShown, tolerance } from "../core/solveKit";
 import { defOf } from "../figures/registry";
 import { displayName, visibleParams } from "./params";
 import { ALIAS_MAX } from "./types";
@@ -139,7 +139,8 @@ export function calcDriftInfo(
   if (!sol) return null;
   const truth = def.compute(fig.shape)[param];
   const drawn = sol.kind === "angle" ? FMT.ang(truth) : FMT.len(truth);
-  if (Math.abs(parseShown(sol.result) - parseShown(drawn)) <= (sol.kind === "angle" ? DRIFT_DEG : DRIFT_CM) + 1e-9) return null;
+  const shownTruth = parseShown(drawn);
+  if (Math.abs(parseShown(sol.result) - shownTruth) <= tolerance(sol.kind, shownTruth) + 1e-9) return null;
   return { name: displayName(fig, param), result: sol.result, drawn, approx: sol.approx, kind: sol.kind };
 }
 
