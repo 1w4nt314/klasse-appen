@@ -23,7 +23,9 @@ import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
 import { blockProblem, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
 import { numberSheet } from "../render/drillLayout";
+import { calcStray } from "../render/placeCalc";
 import { toSvg } from "./pointer";
+import type { MoveTo } from "./useDocument";
 
 const BRAND = "#1a4f8b";
 const WARN = "#b7791f";
@@ -43,8 +45,12 @@ type MoveDrag = {
   start: Point;
   origin: Point;
   box: Bounds;
+  /** En figurs regnestykker: flytter med figuren (samme forskydning, hver holdt inden for margenen). */
+  follow: Follower[];
   active: boolean;
 };
+
+type Follower = { id: string; origin: Point; box: Bounds };
 
 type VertexDrag = {
   kind: "vertex";
@@ -89,6 +95,28 @@ function clampDelta(box: Bounds, dx: number, dy: number): Point {
     x: clampRange(dx, m - box.minX, PAGE.w - m - box.maxX),
     y: clampRange(dy, m - box.minY, PAGE.h - m - box.maxY),
   };
+}
+
+/**
+ * Figurens regnestykker (id, placering, svararks-boks), som flytter med figuren — så et regnestykke aldrig bliver
+ * stående ved en anden figur, når figurerne bytter plads (og numre).
+ */
+function followersOf(obj: SheetObject, doc: SheetDoc, boxes: KnownBoxes): Follower[] {
+  if (obj.type !== "figure") return [];
+  const out: Follower[] = [];
+  for (const o of doc.objects) {
+    const box = o.type === "calc" && o.figureId === obj.id ? boxes.get(o.id) : undefined;
+    if (box) out.push({ id: o.id, origin: { x: o.x, y: o.y }, box });
+  }
+  return out;
+}
+
+/** Regnestykkernes nye placering ved figurens forskydning d (hvert holdt inden for margenen). */
+function followTo(follow: readonly Follower[], d: Point): MoveTo[] {
+  return follow.map((f) => {
+    const c = clampDelta(f.box, d.x, d.y);
+    return { id: f.id, x: r2(f.origin.x + c.x), y: r2(f.origin.y + c.y) };
+  });
 }
 
 /** Ligger boksen inden for arkets margen? */
@@ -145,7 +173,8 @@ export function SheetEditor({
   selectedId: string | null;
   measure: Measure;
   onSelect: (id: string | null) => void;
-  onMove: (id: string, x: number, y: number) => void;
+  /** follow: en figurs regnestykker, der flytter med. */
+  onMove: (id: string, x: number, y: number, follow?: readonly MoveTo[]) => void;
   onReshape: (id: string, shape: FigureShape, x: number, y: number) => void;
   onCommit: () => void;
 }) {
@@ -187,6 +216,8 @@ export function SheetEditor({
             ? blockProblem(doc, o, numbering, measure, boxes)
             : null;
       if (p) out.add(o.id);
+      // Et regnestykke, der står ved en anden figur end sin egen (fx flyttet med musen hen til den).
+      else if (o.type === "calc" && calcStray(doc, o, numbering, measure, boxes)) out.add(o.id);
     }
     return out;
   }, [doc, numbering, measure, boxes]);
@@ -289,7 +320,7 @@ export function SheetEditor({
       if (!box) return;
       const d = clampDelta(box, v.x * step, v.y * step);
       if (d.x === 0 && d.y === 0) return;
-      cur.onMove(obj.id, r2(obj.x + d.x), r2(obj.y + d.y));
+      cur.onMove(obj.id, r2(obj.x + d.x), r2(obj.y + d.y), followTo(followersOf(obj, cur.doc, cur.boxes), d));
       cur.onCommit();
     }
     window.addEventListener("keydown", onKey);
@@ -359,6 +390,7 @@ export function SheetEditor({
       start: pt,
       origin: { x: obj.x, y: obj.y },
       box: boxes.get(obj.id) ?? boxFor(obj, doc, numbering, measure),
+      follow: followersOf(obj, doc, boxes),
       active: false,
     };
     setDragging(true);
@@ -450,7 +482,10 @@ export function SheetEditor({
       return;
     }
     const c = clampDelta(d.box, dx, dy);
-    onMove(d.id, r2(d.origin.x + c.x), r2(d.origin.y + c.y));
+    // Figurens forskydning (efter afrunding), så regnestykkerne flytter præcis lige så meget.
+    const fx = r2(d.origin.x + c.x);
+    const fy = r2(d.origin.y + c.y);
+    onMove(d.id, fx, fy, followTo(d.follow, { x: fx - d.origin.x, y: fy - d.origin.y }));
   }
 
   return (
@@ -592,6 +627,8 @@ function Overlay({
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
         // Regneark og formelblokke, der går ud over arket eller dækker andre objekter (kun markering i editoren).
         const layoutProblem = (o.type === "drill" || o.type === "formula") && layoutWarn.has(o.id);
+        // Regnestykket står ved en anden figur end sin egen (calcStray).
+        const stray = o.type === "calc" && layoutWarn.has(o.id);
         const drift = o.type === "calc" && fig && !problem ? calcDrift(fig, o.param, doc.settings) : null;
         return (
           <g key={o.id}>
@@ -615,6 +652,22 @@ function Overlay({
               // Kun i editoren: blokken går ud over arket eller dækker noget.
               <rect
                 data-ol-layout-warn={o.id}
+                x={b.minX - 1.2}
+                y={b.minY - 1.2}
+                width={b.maxX - b.minX + 2.4}
+                height={b.maxY - b.minY + 2.4}
+                rx={1}
+                fill={WARN_FILL}
+                stroke={WARN}
+                strokeWidth={0.6}
+                strokeDasharray="2 1.2"
+                pointerEvents="none"
+              />
+            )}
+            {stray && (
+              // Kun i editoren: regnestykket står nærmere en anden figur end sin egen.
+              <rect
+                data-ol-stray={o.id}
                 x={b.minX - 1.2}
                 y={b.minY - 1.2}
                 width={b.maxX - b.minX + 2.4}

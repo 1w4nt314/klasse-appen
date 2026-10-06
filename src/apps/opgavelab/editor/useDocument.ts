@@ -48,7 +48,8 @@ export type DocAction =
   | { type: "addNew"; id: string; kind: "text" | "drill" | "formula" | FigureKind; seed?: number; at?: { x: number; y: number } }
   | { type: "addCalc"; id: string; figureId: string; param: string; x?: number; y?: number }
   | { type: "update"; id: string; patch: Patch; key?: string }
-  | { type: "move"; id: string; x: number; y: number }
+  /** follow: figurens regnestykker, der flytter med (SheetEditor: samme forskydning, holdt på arket). */
+  | { type: "move"; id: string; x: number; y: number; follow?: readonly MoveTo[] }
   | { type: "reshape"; id: string; shape: FigureShape; x: number; y: number }
   | { type: "commit" }
   | { type: "cancel" }
@@ -70,6 +71,9 @@ export type DocAction =
   | { type: "markSaved"; id: string; name?: string; snapshot?: SheetDoc; prevName?: string }
   /** Dokumentets række på serveren er væk (slettet): det regnes for ugemt. */
   | { type: "markUnsaved" };
+
+/** Et objekts nye placering (DocAction "move"). */
+export type MoveTo = { id: string; x: number; y: number };
 
 /** Se DocAction "setParam". */
 export type FitFigure = (fig: FigureObject, doc: SheetDoc) => FigureObject;
@@ -136,11 +140,27 @@ export function reducer(s: DocState, a: DocAction): DocState {
     }
     case "move": {
       const o = s.doc.objects.find((x) => x.id === a.id);
-      if (!o || (o.x === a.x && o.y === a.y)) return s;
+      if (!o) return s;
+      // En figurs regnestykker flytter med (kun figurens egne; andre id'er ignoreres).
+      const to = new Map<string, MoveTo>([[a.id, a]]);
+      if (o.type === "figure")
+        for (const f of a.follow ?? [])
+          if (s.doc.objects.some((c) => c.id === f.id && c.type === "calc" && c.figureId === o.id)) to.set(f.id, f);
+      const moves = (x: SheetObject) => {
+        const t = to.get(x.id);
+        return t !== undefined && (x.x !== t.x || x.y !== t.y);
+      };
+      if (!s.doc.objects.some(moves)) return s;
       return {
         ...s,
         pending: s.pending ?? s.doc,
-        doc: mapObject(s.doc, a.id, (x) => ({ ...x, x: a.x, y: a.y })),
+        doc: {
+          ...s.doc,
+          objects: s.doc.objects.map((x) => {
+            const t = to.get(x.id);
+            return t && moves(x) ? { ...x, x: t.x, y: t.y } : x;
+          }),
+        },
       };
     }
     case "reshape": {
@@ -249,7 +269,7 @@ export function useDocument() {
       addCalc: (figureId: string, param: string, x?: number, y?: number) =>
         dispatch({ type: "addCalc", id: newId("c"), figureId, param, x, y }),
       update: (id: string, patch: Patch, key?: string) => dispatch({ type: "update", id, patch, key }),
-      move: (id: string, x: number, y: number) => dispatch({ type: "move", id, x, y }),
+      move: (id: string, x: number, y: number, follow?: readonly MoveTo[]) => dispatch({ type: "move", id, x, y, follow }),
       reshape: (id: string, shape: FigureShape, x: number, y: number) => dispatch({ type: "reshape", id, shape, x, y }),
       commit: () => dispatch({ type: "commit" }),
       cancel: () => dispatch({ type: "cancel" }),
