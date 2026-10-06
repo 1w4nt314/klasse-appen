@@ -13,7 +13,8 @@ import { LIMITS } from "./model/types";
 import type { Document as SheetDoc } from "./model/types";
 
 export type DocSummary = { id: string; name: string; subject: string; updatedAt: number };
-export type LoadResult = { ok: true; doc: SheetDoc; name: string; id: string } | { ok: false; error: string };
+/** `notes`: beskeder om rettelser ved indlæsning (fx dublet-aliasser i gamle dokumenter). */
+export type LoadResult = { ok: true; doc: SheetDoc; name: string; id: string; notes: string[] } | { ok: false; error: string };
 export type SaveResult =
   | { ok: true; id: string; name: string; updatedAt: number }
   | { ok: false; error: string; existsId?: string };
@@ -58,14 +59,15 @@ export async function loadDoc(id: unknown): Promise<LoadResult> {
       .get(id, teacher.id) as { id: string; name: string; data: string } | undefined;
     if (!row) return { ok: false, error: NOT_FOUND };
     let parsed: SheetDoc | null = null;
+    const notes: string[] = [];
     try {
-      parsed = parseDocument(JSON.parse(row.data));
+      parsed = parseDocument(JSON.parse(row.data), notes);
     } catch {
       parsed = null;
     }
     if (!parsed) return { ok: false, error: "Opgaven kan ikke åbnes — indholdet er beskadiget." };
     // Rækkens navn er autoritativt.
-    return { ok: true, doc: { ...parsed, name: row.name }, name: row.name, id: row.id };
+    return { ok: true, doc: { ...parsed, name: row.name }, name: row.name, id: row.id, notes };
   } catch {
     return { ok: false, error: FAILED };
   }

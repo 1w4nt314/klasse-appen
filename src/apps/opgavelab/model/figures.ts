@@ -78,6 +78,7 @@ export function figureBoundsOnSheet(fig: FigureObject): Bounds {
 export function dragOpts(settings: DocSettings, coarse = false): DragOpts {
   return {
     snapMm: settings.snapCm > 0 ? settings.snapCm * 10 : 1,
+    free: !(settings.snapCm > 0),
     snapDeg: settings.snapDeg || coarse,
     degStep: coarse ? 15 : 1,
   };
@@ -124,15 +125,23 @@ export const DRIFT_DEG = 1;
  * sin⁻¹/cos⁻¹ mere end 0,1° i ca. 38 % af tilfældene, men mere end 1° i kun ca. 4 %.
  */
 export function calcDrift(fig: FigureObject, param: string, settings: DocSettings): string | null {
+  const d = calcDriftInfo(fig, param, settings);
+  return d ? `Afrunding: med de viste tal bliver ${d.name} ≈ ${d.result}, men figuren måler ${d.drawn} — vis fx andre størrelser` : null;
+}
+
+/** Afvigelsen bag calcDrift som data (til eksport-dialogen). null = ingen advarsel. */
+export function calcDriftInfo(
+  fig: FigureObject,
+  param: string,
+  settings: DocSettings,
+): { name: string; result: string; drawn: string; approx: boolean; kind: Solution["kind"] } | null {
   const def = defOf(fig);
   const sol = solveParam(fig, param, settings);
   if (!sol) return null;
   const truth = def.compute(fig.shape)[param];
-  const shownTruth = parseShown(sol.kind === "angle" ? FMT.ang(truth) : FMT.len(truth));
-  if (Math.abs(parseShown(sol.result) - shownTruth) <= (sol.kind === "angle" ? DRIFT_DEG : DRIFT_CM) + 1e-9) return null;
-  const name = displayName(fig, param);
-  const fig1 = sol.kind === "angle" ? FMT.ang(truth) : FMT.len(truth);
-  return `Afrunding: med de viste tal bliver ${name} ≈ ${sol.result}, men figuren måler ${fig1} — vis fx andre størrelser`;
+  const drawn = sol.kind === "angle" ? FMT.ang(truth) : FMT.len(truth);
+  if (Math.abs(parseShown(sol.result) - parseShown(drawn)) <= (sol.kind === "angle" ? DRIFT_DEG : DRIFT_CM) + 1e-9) return null;
+  return { name: displayName(fig, param), result: sol.result, drawn, approx: sol.approx, kind: sol.kind };
 }
 
 /** "a og b" / "A, B og C". */

@@ -12,6 +12,7 @@ import type {
   DocSettings,
   Document as SheetDoc,
   FigureObject,
+  ParamDef,
   ParamState,
   SheetObject,
   Subject,
@@ -70,12 +71,18 @@ function parseText(r: Record<string, unknown>, id: string): TextObject | null {
   return { id, type: "text", x, y, width, text, sizePt };
 }
 
-function parseFigure(r: Record<string, unknown>, id: string): FigureObject | null {
+function parseFigure(r: Record<string, unknown>, id: string, withCalc: ReadonlySet<string>, notes?: string[]): FigureObject | null {
   const def = getFigureDef(r.figure);
-  return def ? parseFigureOf(def, r, id) : null;
+  return def ? parseFigureOf(def, r, id, withCalc, notes) : null;
 }
 
-function parseFigureOf<K extends FigureKind>(def: FigureDefFor<K>, r: Record<string, unknown>, id: string): FigureObject | null {
+function parseFigureOf<K extends FigureKind>(
+  def: FigureDefFor<K>,
+  r: Record<string, unknown>,
+  id: string,
+  withCalc: ReadonlySet<string>,
+  notes?: string[],
+): FigureObject | null {
   const x = num(r.x, COORD_MIN, COORD_MAX);
   const y = num(r.y, COORD_MIN, COORD_MAX);
   if (x === null || y === null) return null;
@@ -93,11 +100,16 @@ function parseFigureOf<K extends FigureKind>(def: FigureDefFor<K>, r: Record<str
     }
   }
   const fig: FigureObjectFor<K> = { id, type: "figure", figure: def.type, x, y, shape, params };
-  // Aliasser tilføjes i parameterrækkefølge; et alias, der allerede er i brug (som navn
-  // eller nøgle på en anden parameter), smides væk.
-  for (const p of def.params) {
+  // Dublet-aliasser (gamle dokumenter fra før aliasConflict): parametre med et regnestykke
+  // får aliaset først, derefter vinkler før sider, ellers parameterrækkefølgen. Et alias, der
+  // allerede er i brug (som navn eller nøgle på en anden parameter), smides væk med en besked.
+  const rank = (p: ParamDef) => (withCalc.has(`${id}:${p.key}`) ? 0 : 2) + (p.kind === "angle" ? 0 : 1);
+  const ordered = def.params.map((p, i) => ({ p, i })).sort((x, y) => rank(x.p) - rank(y.p) || x.i - y.i);
+  for (const { p } of ordered) {
     const alias = aliases[p.key];
-    if (alias && !aliasConflict(fig, p.key, alias)) params[p.key] = { ...params[p.key], alias };
+    if (!alias) continue;
+    if (!aliasConflict(fig, p.key, alias)) params[p.key] = { ...params[p.key], alias };
+    else notes?.push(`Navnet ${alias} var brugt to gange — ${p.key} hedder igen ${p.key}`);
   }
   return asFigure(fig);
 }
@@ -122,7 +134,11 @@ function migrateDocument(raw: Record<string, unknown>): Record<string, unknown> 
 }
 
 /** Kontrolleret oversættelse af ukendt JSON til et Document — eller null. */
-export function parseDocument(input: unknown): SheetDoc | null {
+/**
+ * `notes` (valgfri) får en dansk besked pr. dublet-alias, der blev smidt væk ved indlæsning,
+ * fx "Navnet X var brugt to gange — a hedder igen a".
+ */
+export function parseDocument(input: unknown, notes?: string[]): SheetDoc | null {
   if (!isObj(input)) return null;
   const raw = migrateDocument(input);
   if (!raw) return null;
@@ -134,7 +150,13 @@ export function parseDocument(input: unknown): SheetDoc | null {
   const name = raw.name.trim() === "" ? "" : cleanName(raw.name);
   if (name === null) return null;
 
+  // Hvilke (figur, parameter) har et regnestykke — afgør, hvem der beholder et dublet-alias.
+  const withCalc = new Set<string>();
+  for (const o of raw.objects as unknown[]) {
+    if (isObj(o) && o.type === "calc" && typeof o.figureId === "string" && typeof o.param === "string") withCalc.add(`${o.figureId}:${o.param}`);
+  }
   // Første gennemløb: alle objekter undtagen regnestykker (som afhænger af figurerne).
+  const figNotes: string[] = [];
   const seen = new Set<string>();
   const parsed = new Map<number, SheetObject>();
   const figures = new Map<string, FigureObject>();
@@ -147,7 +169,7 @@ export function parseDocument(input: unknown): SheetDoc | null {
       if (!t) return null;
       parsed.set(i, t);
     } else if (o.type === "figure") {
-      const f = parseFigure(o, o.id);
+      const f = parseFigure(o, o.id, withCalc, figNotes);
       if (!f) return null;
       parsed.set(i, f);
       figures.set(f.id, f);
@@ -170,6 +192,7 @@ export function parseDocument(input: unknown): SheetDoc | null {
     parsed.set(i, c);
   }
   const objects = [...parsed.entries()].sort((a, b) => a[0] - b[0]).map(([, o]) => o);
+  notes?.push(...figNotes);
 
   return { schemaVersion: SCHEMA_VERSION, subject: raw.subject as Subject, name, settings: parseSettings(raw.settings), objects };
 }

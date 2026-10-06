@@ -14,7 +14,7 @@ import {
 } from "react";
 import { numberDocument } from "../core/numbering";
 import { FMT } from "../core/format";
-import { calcProblem, defOf, displayName, dragOpts, figureBoundsOnSheet } from "../model/figures";
+import { calcDrift, calcProblem, defOf, displayName, dragOpts, figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
@@ -24,6 +24,9 @@ import { toSvg } from "./pointer";
 const BRAND = "#1a4f8b";
 const WARN = "#b7791f";
 const WARN_FILL = "rgba(245, 190, 60, 0.22)";
+/** Facit afviger tydeligt fra figuren (calcDrift): orange i stedet for gul. */
+const DRIFT = "#c2410c";
+const DRIFT_FILL = "rgba(234, 120, 40, 0.16)";
 const DRAG_THRESHOLD_MM = 1;
 /** Piletaster flytter det markerede objekt så mange mm (Shift: NUDGE_BIG). */
 const NUDGE = 1;
@@ -436,8 +439,25 @@ function Overlay({
         const b = objectBox(o, doc, numbering, measure, mode);
         const fig = o.type === "calc" ? doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId) : null;
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
+        const drift = o.type === "calc" && fig && !problem ? calcDrift(fig, o.param, doc.settings) : null;
         return (
           <g key={o.id}>
+            {drift && (
+              // Kun i editoren: facit regnet på de viste tal afviger tydeligt fra figuren.
+              <rect
+                data-ol-drift={o.id}
+                x={b.minX - 1.2}
+                y={b.minY - 1.2}
+                width={b.maxX - b.minX + 2.4}
+                height={b.maxY - b.minY + 2.4}
+                rx={1}
+                fill={DRIFT_FILL}
+                stroke={DRIFT}
+                strokeWidth={0.4}
+                strokeDasharray="1.2 0.8"
+                pointerEvents="none"
+              />
+            )}
             {problem && (
               // Kun i editoren: regnestykket kan ikke udregnes ud fra de synlige størrelser.
               <rect

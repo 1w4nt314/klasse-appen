@@ -118,6 +118,11 @@ export type DragOpts = {
   snapDeg: boolean;
   /** Vinkelsnap-trin i grader (standard 1; fx 15 med shift). */
   degStep?: number;
+  /**
+   * Snap slået fra på arket (snapCm 0, "fri"): B og A tager stadig snapMm-trin, men et
+   * C-træk bevarer c præcist i stedet for at runde kateterne til hele mm.
+   */
+  free?: boolean;
 };
 
 /** Resultat af et hjørnetræk. offset lægges til figurens anker (x, y). */

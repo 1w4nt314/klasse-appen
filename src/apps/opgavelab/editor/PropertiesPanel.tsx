@@ -287,6 +287,9 @@ function AliasInput({
   onSetParam: (id: string, param: string, patch: Partial<ParamState>, key?: string) => void;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
+  // Det indtastede, mens feltet redigeres: reduceren gemmer aliaset trimmet, så et mellemrum
+  // midt i et navn ("v 1") kan skrives færdigt uden at forsvinde undervejs.
+  const [typing, setTyping] = useState<string | null>(null);
   const errId = `ol-alias-err-${fig.id}-${param}`;
   return (
     <>
@@ -299,8 +302,7 @@ function AliasInput({
         aria-describedby={draft !== null ? errId : undefined}
         placeholder={param}
         maxLength={ALIAS_MAX * 2}
-        style={draft !== null ? { borderColor: "#a3271b" } : undefined}
-        value={draft ?? alias ?? ""}
+        value={draft ?? typing ?? alias ?? ""}
         onChange={(e) => {
           const v = clipAlias(e.target.value);
           if (aliasConflict(fig, param, v)) {
@@ -308,19 +310,16 @@ function AliasInput({
             return;
           }
           setDraft(null);
+          setTyping(v);
           onSetParam(fig.id, param, { alias: v === "" ? undefined : v }, `alias:${fig.id}:${param}`);
         }}
-        onBlur={() => setDraft(null)}
+        onBlur={() => {
+          setDraft(null);
+          setTyping(null);
+        }}
       />
       {draft !== null && (
-        // CSS-filen er uden for denne rundes scope: fejlens farve og placering (efter Find-knappen) står inline.
-        <span
-          id={errId}
-          className="ol-find-why"
-          role="alert"
-          data-ol-alias-error={param}
-          style={{ order: 1, color: "#a3271b", fontWeight: 600 }}
-        >
+        <span id={errId} className="ol-alias-error" role="alert" data-ol-alias-error={param}>
           Navnet er allerede i brug
         </span>
       )}

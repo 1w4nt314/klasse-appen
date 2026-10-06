@@ -110,8 +110,9 @@ export function compute(shape: RightTriangleShape): Record<string, number> {
  * - B: a = |p| (snappet, clampet), rotation = retningen C→p (evt. vinkelsnap).
  * - A: b = |projektionen af p på normalen til CB|; skifter projektionen fortegn, spejles figuren.
  * - C: C projiceres på Thales-cirklen over AB (90° bevares). Kateterne holdes inden for
- *   min/max ved at standse C på cirklen og snappes til hele mm (c ændres ≤ ~0,7 mm; AB
- *   beholder midtpunkt og retning). Ankeret flyttes (offset).
+ *   min/max ved at standse C på cirklen. Med snap (snapMm > 0 og ikke `free`) rundes de til
+ *   hele mm (c ændres ≤ ~0,7 mm; AB beholder midtpunkt og retning); fri: c bevares præcist.
+ *   Ankeret flyttes (offset).
  */
 export function dragVertex(
   shape: RightTriangleShape,
@@ -163,20 +164,23 @@ export function dragVertex(
     if (a < MIN_SIDE_MM - EPS || a > MAX_SIDE_MM + EPS || b < MIN_SIDE_MM - EPS || b > MAX_SIDE_MM + EPS) {
       return { shape, offset: none }; // umuligt inden for grænserne: afvis trækket
     }
-    // Hele mm, så de viste sidelængder er eksakte: af de (op til) fire kombinationer af
-    // op-/nedrunding vælges den, hvis hypotenuse ligger tættest på c. c ændres derfor
-    // højst ca. 0,7 mm, og A og B flytter sig højst det halve langs AB.
-    let best: { a: number; b: number; dc: number } | null = null;
-    for (const ra of [Math.floor(a + EPS), Math.ceil(a - EPS)]) {
-      for (const rb of [Math.floor(b + EPS), Math.ceil(b - EPS)]) {
-        if (ra < MIN_SIDE_MM || ra > MAX_SIDE_MM || rb < MIN_SIDE_MM || rb > MAX_SIDE_MM) continue;
-        const dc = Math.abs(Math.hypot(ra, rb) - c);
-        if (!best || dc < best.dc - EPS) best = { a: ra, b: rb, dc };
+    // Med snap: hele mm, så de viste sidelængder er eksakte: af de (op til) fire kombinationer
+    // af op-/nedrunding vælges den, hvis hypotenuse ligger tættest på c. c ændres derfor
+    // højst ca. 0,7 mm, og A og B flytter sig højst det halve langs AB. Fri: ingen afrunding.
+    const snapWhole = opts.snapMm > 0 && !opts.free;
+    if (snapWhole) {
+      let best: { a: number; b: number; dc: number } | null = null;
+      for (const ra of [Math.floor(a + EPS), Math.ceil(a - EPS)]) {
+        for (const rb of [Math.floor(b + EPS), Math.ceil(b - EPS)]) {
+          if (ra < MIN_SIDE_MM || ra > MAX_SIDE_MM || rb < MIN_SIDE_MM || rb > MAX_SIDE_MM) continue;
+          const dc = Math.abs(Math.hypot(ra, rb) - c);
+          if (!best || dc < best.dc - EPS) best = { a: ra, b: rb, dc };
+        }
       }
-    }
-    if (best) {
-      a = best.a;
-      b = best.b;
+      if (best) {
+        a = best.a;
+        b = best.b;
+      }
     }
     // AB beholder midtpunkt og retning; A' og B' ligger c'/2 fra midtpunktet.
     const c2 = Math.hypot(a, b);
@@ -228,7 +232,7 @@ const tan = (deg: number) => Math.tan(deg * RAD);
 const unit = (x: number) => (x < -1 ? -1 : x > 1 ? 1 : x);
 const deg = (rad: number) => rad / RAD;
 
-/** Regeltabel i prioriteret rækkefølge: den første, hvis givne alle er synlige, bruges. */
+/** Regeltabel i prioriteret rækkefølge (tie-break i solve, når flere regler giver lige tæt facit). */
 const RULES: Record<string, Rule[]> = {
   c: [
     { given: ["a", "b"], rhs: "√({a}² + {b}²)", value: (v) => Math.hypot(v.a, v.b) },
@@ -305,26 +309,40 @@ export function solve(
   settings: DocSettings,
 ): Solution | null {
   if (!Object.prototype.hasOwnProperty.call(RULES, target) || visible.has(target)) return null;
-  const rule = RULES[target].find((r) => r.given.every((g) => visible.has(g)));
-  if (!rule) return null;
+  const kind = KIND[target];
   const shownText = (key: string, x: number) => (KIND[key] === "angle" ? fmt.ang(x) : fmt.num(x, 1));
-  const v: Record<string, number> = { C: 90 };
-  for (const g of rule.given) {
-    const raw = g === "C" ? 90 : values[g];
-    if (!Number.isFinite(raw)) return null;
-    v[g] = parseShown(shownText(g, raw));
-    if (!Number.isFinite(v[g])) return null;
+  const resultText = (x: number) => (kind === "angle" ? fmt.ang(x) : fmt.len(x));
+  // W7: af de anvendelige regler (alle givne synlige) bruges den, hvis facit — regnet på de
+  // viste tal og vist som på arket — ligger tættest på figurens egen (viste) værdi; ved
+  // uafgjort vinder tabellens rækkefølge. Fx a = c · sin A frem for √(c² − b²), når den
+  // sidste giver 0,0 cm for en side på 1 cm.
+  const truthRaw = target === "C" ? 90 : values[target];
+  const truth = Number.isFinite(truthRaw) ? parseShown(resultText(truthRaw)) : NaN;
+  let best: { rule: Rule; v: Record<string, number>; value: number; dev: number } | null = null;
+  for (const rule of RULES[target]) {
+    if (!rule.given.every((g) => visible.has(g))) continue;
+    const v: Record<string, number> = { C: 90 };
+    let okGiven = true;
+    for (const g of rule.given) {
+      const raw = g === "C" ? 90 : values[g];
+      v[g] = Number.isFinite(raw) ? parseShown(shownText(g, raw)) : NaN;
+      if (!Number.isFinite(v[g])) okGiven = false;
+    }
+    if (!okGiven) continue;
+    const value = rule.value(v);
+    if (!Number.isFinite(value)) continue;
+    const dev = Number.isFinite(truth) ? Math.abs(parseShown(resultText(value)) - truth) : 0;
+    if (!best || dev < best.dev - 1e-9) best = { rule, v, value, dev };
   }
-  const value = rule.value(v);
-  if (!Number.isFinite(value)) return null;
+  if (!best) return null;
+  const { rule, v, value } = best;
 
   const name = (key: string) => {
     const n = names[key];
     return typeof n === "string" && n.trim() !== "" ? n.trim() : key;
   };
   const inv = (fn: string) => (settings.inverseNotation === "arc" ? `arc${fn}` : `${fn}⁻¹`);
-  const kind = KIND[target];
-  const result = kind === "angle" ? fmt.ang(value) : fmt.len(value);
+  const result = resultText(value);
   const rounded = parseShown(result);
 
   return {

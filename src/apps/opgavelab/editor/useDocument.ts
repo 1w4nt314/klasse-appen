@@ -160,7 +160,8 @@ export function reducer(s: DocState, a: DocAction): DocState {
       const patch = { ...a.patch };
       if ("alias" in patch) {
         // Et navn, der allerede er i brug på figuren, gemmes ikke (panelet viser fejlen).
-        const alias = patch.alias === undefined ? "" : clipAlias(patch.alias);
+        // Trimmet (som displayName og validate.ts): kun mellemrum = intet alias.
+        const alias = patch.alias === undefined ? "" : clipAlias(patch.alias.trim()).trim();
         if (aliasConflict(fig, a.param, alias)) return s;
         patch.alias = alias === "" ? undefined : alias;
       }

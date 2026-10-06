@@ -465,6 +465,17 @@
   color: var(--muted);
   opacity: 0.8;
 }
+.ol-alias[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+/* Fejlen står efter Find-knappen på sin egen linje. */
+.ol-alias-error {
+  order: 1;
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger);
+}
 .ol-find {
   flex: 1 1 auto;
   min-width: 0;

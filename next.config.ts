@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
       {
         // Opgavelabs fontfiler (1,5 MB) ændrer sig aldrig: lang cache i stedet for
         // Next-standarden max-age=0 for public/. Skift filnavnet, hvis en font udskiftes.
-        source: "/fonts/:file*",
+        // Kun .ttf: licensteksten (DejaVuSans-LICENSE.txt) beholder Next-standarden.
+        source: "/fonts/:file([^/]+\\.ttf)",
         headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];

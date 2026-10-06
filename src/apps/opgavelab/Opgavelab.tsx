@@ -14,7 +14,7 @@ import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/
 import { useDocument } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
 import { newDocument } from "./model/document";
-import { displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
+import { calcDriftInfo, displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject } from "./model/types";
 import { cleanName, parseDocument } from "./model/validate";
@@ -35,7 +35,7 @@ type DialogState =
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
   | { kind: "deleteDoc"; doc: DocSummary }
-  | { kind: "exportWarn"; unsolved: string[] };
+  | { kind: "exportWarn"; unsolved: string[]; drift: string[] };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -54,18 +54,32 @@ async function guarded<T>(fn: () => Promise<T>): Promise<{ value: T } | { thrown
 const EXPORT_FAILED = "PDF-eksporten mislykkedes. Prøv igen — virker det stadig ikke, så genindlæs siden.";
 const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på de to PDF-filer.";
 
-/** Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"]. */
-function unsolvedCalcs(doc: SheetDoc, numbering: ReadonlyMap<string, string>): string[] {
-  const out: string[] = [];
+/**
+ * Regnestykker, som svararket ikke kan udregne (vises som "?"), fx ["1a (X)"], og regnestykker,
+ * hvis facit (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
+ * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"].
+ */
+function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { unsolved: string[]; drift: string[] } {
+  const unsolved: string[] = [];
+  const drift: string[] = [];
   for (const o of doc.objects) {
     if (o.type !== "calc") continue;
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
-    if (fig && solveParam(fig, o.param, doc.settings)) continue;
-    const name = fig ? displayName(fig, o.param) : o.param;
     const num = numbering.get(o.id);
-    out.push(num ? `${num} (${name})` : name);
+    if (fig && solveParam(fig, o.param, doc.settings)) {
+      const d = calcDriftInfo(fig, o.param, doc.settings);
+      if (d)
+        drift.push(
+          `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}, men ${
+            d.kind === "angle" ? "vinklen" : "siden"
+          } er tegnet ${d.drawn}`,
+        );
+      continue;
+    }
+    const name = fig ? displayName(fig, o.param) : o.param;
+    unsolved.push(num ? `${num} (${name})` : name);
   }
-  return out;
+  return { unsolved, drift };
 }
 
 /** "1a (X)" / "1a (X) og 2b (c)". */
@@ -91,6 +105,8 @@ export default function Opgavelab({ userKey }: AppProps) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [err, setErr] = useState<string | null>(null);
   const [savedText, setSavedText] = useState<string | null>(null);
+  // Besked efter indlæsning (fx "Navnet X var brugt to gange — a hedder igen a"); vises til næste ændring.
+  const [loadNote, setLoadNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<"save" | "other" | null>(null);
   const busyRef = useRef(false);
   const [docs, setDocs] = useState<DocSummary[] | null>(null);
@@ -153,6 +169,7 @@ export default function Opgavelab({ userKey }: AppProps) {
     if (res.ok) {
       d.markSaved(res.id, res.name, snapshot, prevName);
       setSavedText(savedLabel(res.updatedAt));
+      setLoadNote(null);
       setDialog(null);
     } else if (res.error === "exists") {
       const name = rawName.replace(/\s+/g, " ").trim();
@@ -195,6 +212,7 @@ export default function Opgavelab({ userKey }: AppProps) {
     setAskDelete(null);
     setErr(null);
     setSavedText(null);
+    setLoadNote(null);
     d.replace(newDocument());
     setDialog(null);
   }
@@ -216,11 +234,13 @@ export default function Opgavelab({ userKey }: AppProps) {
     const res = r.value;
     if (!res.ok) return setErr(res.error);
     // Valideres igen i klienten, før det når editoren.
-    const parsed = parseDocument(res.doc);
+    const notes = [...(Array.isArray(res.notes) ? res.notes : [])];
+    const parsed = parseDocument(res.doc, notes);
     if (!parsed) return setErr("Opgaven kan ikke åbnes — indholdet er beskadiget.");
     setAskDelete(null);
     d.replace({ ...parsed, name: res.name }, res.id);
     setSavedText(savedLabel(doc.updatedAt));
+    setLoadNote(notes.length > 0 ? `${notes.join(". ")}.` : null);
     setDialog(null);
   }
 
@@ -232,6 +252,7 @@ export default function Opgavelab({ userKey }: AppProps) {
     if (doc.id === latest.current.savedId) {
       d.markUnsaved();
       setSavedText(null);
+      setLoadNote(null);
     }
     void showLoad();
   }
@@ -274,10 +295,10 @@ export default function Opgavelab({ userKey }: AppProps) {
       document.querySelector<HTMLInputElement>(".ol-name input")?.focus();
       return;
     }
-    const unsolved = unsolvedCalcs(doc, numberDocument(doc, figureBoundsOnSheet));
-    if (unsolved.length > 0) {
+    const { unsolved, drift } = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet));
+    if (unsolved.length > 0 || drift.length > 0) {
       setErr(null);
-      setDialog({ kind: "exportWarn", unsolved });
+      setDialog({ kind: "exportWarn", unsolved, drift });
     } else void runExport(doc, name);
   }
 
@@ -358,7 +379,9 @@ export default function Opgavelab({ userKey }: AppProps) {
         ? { text: err, tone: "error" }
         : d.dirty
           ? { text: "Ikke gemt", tone: "warn" }
-          : savedText
+          : loadNote
+            ? { text: loadNote, tone: "warn" }
+            : savedText
             ? { text: savedText, tone: "ok" }
             : null;
 
@@ -486,10 +509,18 @@ export default function Opgavelab({ userKey }: AppProps) {
       )}
       {dialog?.kind === "exportWarn" && (
         <ConfirmDialog
-          title="Ikke alle regnestykker kan løses"
-          message={`Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
-            dialog.unsolved.length === 1 ? "den" : "de"
-          } ikke kan findes ud fra det, der er synligt på figuren. Eksportér alligevel?`}
+          title={dialog.unsolved.length > 0 ? "Ikke alle regnestykker kan løses" : "Svararket afviger fra figuren"}
+          message={[
+            dialog.unsolved.length > 0
+              ? `Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
+                  dialog.unsolved.length === 1 ? "den" : "de"
+                } ikke kan findes ud fra det, der er synligt på figuren.`
+              : "",
+            ...dialog.drift.map((t) => `${t} — vis fx andre størrelser.`),
+            "Eksportér alligevel?",
+          ]
+            .filter(Boolean)
+            .join(" ")}
           confirmLabel="Eksportér alligevel"
           onCancel={closeDialog}
           onConfirm={() => {
