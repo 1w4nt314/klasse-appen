@@ -239,7 +239,7 @@ function FigureSection({
             {t}
           </p>
         ))}
-      {def.group === "rumfigurer" && (
+      {(def.type === "box" || def.type === "cube") && (
         <p className="ol-hint" data-ol-depth-hint="">
           Dybden tegnes halv størrelse (skråbillede).
         </p>

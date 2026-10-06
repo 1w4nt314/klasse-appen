@@ -35,9 +35,11 @@
 import { box } from "./box";
 import { circle } from "./circle";
 import { cube } from "./cube";
+import { cylinder } from "./cylinder";
 import { parallelogram } from "./parallelogram";
 import { rectangle } from "./rectangle";
 import { rightTriangle } from "./rightTriangle";
+import { sphere } from "./sphere";
 import { square } from "./square";
 import { trapezoid } from "./trapezoid";
 import { triangle } from "./triangle";
@@ -54,6 +56,8 @@ const DEFS = {
   circle,
   box,
   cube,
+  cylinder,
+  sphere,
 };
 
 type Defs = typeof DEFS;

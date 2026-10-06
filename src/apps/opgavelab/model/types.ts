@@ -71,6 +71,12 @@ export type BoxShape = { l: Mm; b: Mm; h: Mm };
 /** Terning med side s i mm (tegnes som kassen med l = b = h = s); ankeret som kassen. */
 export type CubeShape = { s: Mm };
 
+/** Cylinder: radius r og højde h i mm; ankeret er centrum af topellipsen. */
+export type CylinderShape = { r: Mm; h: Mm };
+
+/** Kugle: radius r i mm; ankeret er centrum. */
+export type SphereShape = { r: Mm };
+
 // Figurtyperne (FigureKind, FigureShape, FigureObject) afledes af registry'et i
 // figures/registry.ts, så en ny figur kun kræver én ny fil + én linje dér.
 import type { FigureObject } from "../figures/registry";
