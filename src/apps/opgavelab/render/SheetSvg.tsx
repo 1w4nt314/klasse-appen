@@ -8,13 +8,12 @@
 // Figurerne tegnes generisk: streger og etiketter kommer fra figurens FigureDef (defOf).
 
 import { useMemo, type ReactNode, type Ref, type SVGProps } from "react";
-import { numberDocument } from "../core/numbering";
 import { defOf } from "../figures/registry";
 import type { SheetMode } from "../figures/types";
-import { docSolvedValues, figureBoundsOnSheet } from "../model/figures";
+import { docSolvedValues } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, FormulaObject, TextObject } from "../model/types";
-import { DRILL_BLANK, layoutDrill, layoutFormula } from "./drillLayout";
+import { DRILL_BLANK, layoutDrill, layoutFormula, numberSheet } from "./drillLayout";
 import { numberBox } from "./figureLayout";
 import { FONT_FAMILY, measureText } from "./measure";
 import { BRAND, LABEL_MM, NUMBER_MM, T, labelBaseline, r2 } from "./primitives";
@@ -200,7 +199,7 @@ export function SheetSvg({
   svgRef?: Ref<SVGSVGElement>;
   svgProps?: Omit<SVGProps<SVGSVGElement>, "ref" | "viewBox" | "children">;
 }) {
-  const nums = useMemo(() => numbering ?? numberDocument(doc, figureBoundsOnSheet), [numbering, doc]);
+  const nums = useMemo(() => numbering ?? numberSheet(doc, measure), [numbering, doc, measure]);
   return (
     <svg
       ref={svgRef}

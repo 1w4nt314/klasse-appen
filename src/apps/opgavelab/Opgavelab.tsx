@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { kindNoun } from "./core/format";
-import { numberDocument } from "./core/numbering";
 import type { AppProps } from "../runtime";
 import { deleteDoc, listDocs, loadDoc, saveDoc } from "./actions";
 import type { DocSummary } from "./actions";
@@ -14,16 +13,16 @@ import { ToolPanel } from "./editor/ToolPanel";
 import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
 import { useDocument } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
-import { makeDrill, makeFormula, newDocument, newSeed } from "./model/document";
-import { calcDriftInfo, displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
+import { makeDrill, makeFigure, makeFormula, makeText, newDocument, newSeed } from "./model/document";
+import { calcDriftInfo, displayName, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject } from "./model/types";
 import { cleanName, parseDocument } from "./model/validate";
 import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
 import { placeCalc } from "./render/placeCalc";
-import { layoutFormula } from "./render/drillLayout";
-import { blockProblem, blockProblemText, placeBlock } from "./render/placeBlock";
+import { layoutFormula, numberSheet } from "./render/drillLayout";
+import { blockProblem, blockProblemText, placeBlock, placeFigure, placeText } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
@@ -131,7 +130,7 @@ export default function Opgavelab({ userKey }: AppProps) {
   const [view, setView] = useState<View>("opgave");
   // Figur (eller objekt), der venter på sletbekræftelse.
   const [askDelete, setAskDelete] = useState<string | null>(null);
-  const numbering = useMemo(() => numberDocument(d.doc, figureBoundsOnSheet), [d.doc]);
+  const numbering = useMemo(() => numberSheet(d.doc, measure), [d.doc, measure]);
 
   // ---- Persistens ----
   const [dialog, setDialog] = useState<DialogState>(null);
@@ -327,7 +326,7 @@ export default function Opgavelab({ userKey }: AppProps) {
       document.querySelector<HTMLInputElement>(".ol-name input")?.focus();
       return;
     }
-    const w = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet), measure);
+    const w = calcWarnings(doc, numberSheet(doc, measure), measure);
     if (w.unsolved.length > 0 || w.formula.length > 0 || w.drift.length > 0 || w.layout.length > 0) {
       setErr(null);
       setDialog({ kind: "exportWarn", ...w });
@@ -442,8 +441,17 @@ export default function Opgavelab({ userKey }: AppProps) {
         status={status}
       />
       <ToolPanel
-        onAddText={d.addText}
-        onAddFigure={d.addFigure}
+        onAddText={() => {
+          // Første ledige plads, så teksten ikke lægges oven på en figur (figurer står nu øverst til venstre).
+          const at = placeText(d.doc, makeText("probe", 0), measure);
+          d.addText({ x: at.x, y: at.y });
+        }}
+        onAddFigure={(kind) => {
+          // Placering i event-handleren: første ledige plads (som regneark), så figurer ikke lægges oven i hinanden.
+          const probe = makeFigure("probe", kind, 0);
+          const at = probe ? placeFigure(d.doc, probe, measure) : null;
+          d.addFigure(kind, at ? { x: at.x, y: at.y } : undefined);
+        }}
         onAddDrill={() => {
           // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
           const seed = newSeed();

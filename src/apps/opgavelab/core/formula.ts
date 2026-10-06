@@ -33,6 +33,8 @@ export type FormulaResult =
       result: string;
       /** true: facit er afrundet → vis "≈" i stedet for "=". */
       approx: boolean;
+      /** true: der stod tekst efter "=" (fx et svar), som ikke bruges. */
+      ignored: boolean;
     }
   | {
       ok: false;
@@ -41,10 +43,11 @@ export type FormulaResult =
       error: string;
       /** Plads (1-baseret tegn i linjen), 0 når fejlen ikke har en plads. */
       pos: number;
+      ignored: boolean;
     };
 
 /** Normaliserede tokens. "−" er både minus og fortegn (afgøres af parseren). */
-type Kind = "num" | "pi" | "+" | "−" | "·" | ":" | "/" | "^" | "²" | "³" | "(" | ")" | "√";
+type Kind = "num" | "pi" | "+" | "−" | "·" | ":" | "/" | "^" | "²" | "³" | "sup" | "(" | ")" | "√";
 type Token = { k: Kind; text: string; pos: number; value: number };
 
 /** Intern fejl; fanges altid i evaluate(). */
@@ -61,6 +64,42 @@ class Fail {
 function stripEquals(line: string): string {
   return line.replace(/[\s=]+$/u, "");
 }
+
+/**
+ * Stykket er teksten før det første "="; det efter (fx et svar: "(2 + 3) = 5") bruges ikke.
+ * Pladserne i fejltekster passer stadig, fordi stykket er starten af linjen.
+ */
+function splitEquals(line: string): { text: string; ignored: boolean } {
+  const i = line.indexOf("=");
+  if (i < 0) return { text: line, ignored: false };
+  return { text: line.slice(0, i), ignored: /[^\s=]/u.test(line.slice(i + 1)) };
+}
+
+/** Hævede cifre: ⁰ ¹ ⁴ … ⁹ (² og ³ har deres egne tokens). Fast tabel, intet opslag på brugerens tekst. */
+const SUPERSCRIPT = ["⁰", "¹", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"];
+function superDigit(ch: string): number {
+  switch (ch) {
+    case "⁰":
+      return 0;
+    case "¹":
+      return 1;
+    case "⁴":
+      return 4;
+    case "⁵":
+      return 5;
+    case "⁶":
+      return 6;
+    case "⁷":
+      return 7;
+    case "⁸":
+      return 8;
+    case "⁹":
+      return 9;
+    default:
+      return -1;
+  }
+}
+const isPost = (k: Kind) => k === "²" || k === "³" || k === "sup";
 
 /** Et tegn til en fejltekst: usynlige tegn og kontroltegn vises som U+XXXX. */
 function showChar(ch: string): string {
@@ -133,27 +172,60 @@ function tokenize(text: string): Token[] {
       continue;
     }
     if (ch === ".") throw new Fail(`Brug komma som decimaltegn (plads ${pos})`, pos);
+    const sup = superDigit(ch);
+    if (sup >= 0) {
+      // Flere hævede cifre efter hinanden ("2¹⁰") ville blive læst som (2¹)⁰: bed om ^ i stedet.
+      const prev = out[out.length - 1];
+      if (prev && isPost(prev.k)) throw new Fail(`Skriv potensen med ^ (fx 2^10) (plads ${pos})`, pos);
+      out.push({ k: "sup", text: ch, pos, value: sup });
+      i++;
+      continue;
+    }
     const k = symbol(ch);
     if (k === null) throw new Fail(`Ukendt tegn ${showChar(ch)} (plads ${pos})`, pos);
+    if ((k === "²" || k === "³") && out.length > 0 && out[out.length - 1].k === "sup")
+      throw new Fail(`Skriv potensen med ^ (fx 2^10) (plads ${pos})`, pos);
     out.push({ k, text: ch, pos, value: 0 });
     i++;
   }
   return out;
 }
 
+/**
+ * "^" med et lille heltal (0–9) skrives hævet: "2^4" → "2⁴", "2^2" → "2²". Kun når der ikke står
+ * en ny potens lige efter (2^3^2 = 2^(3^2) må ikke blive (2³)², og 2^3² = 2^9), så værdien er uændret.
+ */
+function raiseExponents(tokens: Token[]): Token[] {
+  const out: Token[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const n = tokens[i + 1];
+    const after = tokens[i + 2];
+    if (t.k === "^" && n && n.k === "num" && /^[0-9]$/.test(n.text) && !(after && (after.k === "^" || isPost(after.k)))) {
+      const d = n.value;
+      out.push({ k: d === 2 ? "²" : d === 3 ? "³" : "sup", text: SUPERSCRIPT[d], pos: t.pos, value: d });
+      i++;
+      continue;
+    }
+    out.push(t);
+  }
+  return out;
+}
+
 /** Tegnet, som tokenet skrives med i dansk notation. */
 function canonical(t: Token): string {
-  return t.k === "num" ? t.text : t.k === "pi" ? "π" : t.k;
+  return t.k === "num" || t.k === "sup" ? t.text : t.k === "pi" ? "π" : t.k;
 }
 
 const BINARY: ReadonlySet<Kind> = new Set<Kind>(["+", "−", "·", ":", "/"]);
 
 /**
  * Tokenerne skrevet i dansk notation: mellemrum om regnetegnene, intet efter fortegn, "√" og
- * "(" og intet før ")", "²", "³"; "^" uden mellemrum. "3*(4+5)" → "3 · (4 + 5)".
- * Gen-tokenisering giver de samme tokens, så prettyfy(prettyfy(x)) = prettyfy(x).
+ * "(" og intet før ")", "²", "³", "⁴" …; "^" uden mellemrum, og "^" + ét ciffer hævet (raiseExponents).
+ * "3*(4+5)" → "3 · (4 + 5)". Gen-tokenisering giver de samme tokens, så prettyfy(prettyfy(x)) = prettyfy(x).
  */
-function prettify(tokens: Token[]): string {
+function prettify(raw: Token[]): string {
+  const tokens = raiseExponents(raw);
   let out = "";
   let prev: Token | null = null;
   let prevUnary = false;
@@ -166,7 +238,7 @@ function prettify(tokens: Token[]): string {
       let space: boolean;
       if (binary || prevBinary) space = true;
       else if (t.k === "^" || prev.k === "^" || prev.k === "(" || t.k === ")" || prev.k === "√" || prevUnary) space = false;
-      else if (t.k === "²" || t.k === "³") space = false;
+      else if (isPost(t.k)) space = false;
       else space = true; // to tal/udtryk efter hinanden (fejl, men læsbart)
       if (space) out += " ";
     }
@@ -237,6 +309,9 @@ function run(tokens: Token[], endPos: number): number {
     if (!t || t.k !== "^") return base;
     i++;
     const e = unary();
+    // Som ² og ³ (så "2^2" og "2²" giver præcis samme tal).
+    if (e === 2) return check(base * base, t);
+    if (e === 3) return check(base * base * base, t);
     if (Math.abs(e) > FORMULA_MAX_EXPONENT) throw new Fail(`Eksponenten er for stor (højst ${FORMULA_MAX_EXPONENT}) (plads ${t.pos})`, t.pos);
     if (base === 0 && e < 0) throw new Fail(`Division med nul (plads ${t.pos})`, t.pos);
     return check(Math.pow(base, e), t);
@@ -244,9 +319,9 @@ function run(tokens: Token[], endPos: number): number {
 
   function postfix(): number {
     let v = primary();
-    for (let t = peek(); t && (t.k === "²" || t.k === "³"); t = peek()) {
+    for (let t = peek(); t && isPost(t.k); t = peek()) {
       i++;
-      v = check(t.k === "²" ? v * v : v * v * v, t);
+      v = check(t.k === "²" ? v * v : t.k === "³" ? v * v * v : Math.pow(v, t.value), t);
     }
     return v;
   }
@@ -327,29 +402,29 @@ export function evaluate(line: string, decimals: number): FormulaResult {
   const d = Number.isInteger(decimals) && decimals >= 0 && decimals <= FORMULA_DECIMALS_MAX ? decimals : 2;
   if (raw.length > FORMULA_MAX_CHARS) {
     const cut = stripEquals(raw.slice(0, FORMULA_MAX_CHARS)).replace(/\s+/gu, " ").trim();
-    return { ok: false, pretty: `${cut}…`, error: `Linjen er for lang (højst ${FORMULA_MAX_CHARS} tegn)`, pos: 0 };
+    return { ok: false, pretty: `${cut}…`, error: `Linjen er for lang (højst ${FORMULA_MAX_CHARS} tegn)`, pos: 0, ignored: false };
   }
-  const text = stripEquals(raw);
+  const { text, ignored } = splitEquals(raw);
   let tokens: Token[];
   try {
     tokens = tokenize(text);
   } catch (e) {
     const pretty = text.replace(/\s+/gu, " ").trim();
-    return e instanceof Fail ? { ok: false, pretty, error: e.msg, pos: e.pos } : { ok: false, pretty, error: "Kan ikke regnes ud", pos: 0 };
+    return e instanceof Fail ? { ok: false, pretty, error: e.msg, pos: e.pos, ignored } : { ok: false, pretty, error: "Kan ikke regnes ud", pos: 0, ignored };
   }
   const pretty = prettify(tokens);
-  if (tokens.length === 0) return { ok: false, pretty, error: "Udtrykket er tomt", pos: 0 };
+  if (tokens.length === 0) return { ok: false, pretty, error: "Udtrykket er tomt", pos: 0, ignored };
   try {
     const exact = run(tokens, Array.from(text).length + 1);
     const value = sig12(exact);
-    if (Math.abs(value) > FORMULA_MAX_RESULT) return { ok: false, pretty, error: "Resultatet er for stort til at blive vist", pos: 0 };
+    if (Math.abs(value) > FORMULA_MAX_RESULT) return { ok: false, pretty, error: "Resultatet er for stort til at blive vist", pos: 0, ignored };
     const rounded = roundDec(value, d);
     // Færrest nødvendige decimaler: 27 → "27", 2,50 → "2,5".
     let k = 0;
     while (k < d && roundDec(rounded, k) !== rounded) k++;
-    return { ok: true, pretty, value, result: fmt(rounded, k), approx: rounded !== value };
+    return { ok: true, pretty, value, result: fmt(rounded, k), approx: rounded !== value, ignored };
   } catch (e) {
-    return e instanceof Fail ? { ok: false, pretty, error: e.msg, pos: e.pos } : { ok: false, pretty, error: "Kan ikke regnes ud", pos: 0 };
+    return e instanceof Fail ? { ok: false, pretty, error: e.msg, pos: e.pos, ignored } : { ok: false, pretty, error: "Kan ikke regnes ud", pos: 0, ignored };
   }
 }
 

@@ -94,8 +94,15 @@ export function validateShape(raw: unknown): SphereShape | null {
 
 /** Fremadregler først, de omvendte (↺) sidst. Alle π-regler er irrationelle → "≈". */
 const RULES: Record<string, Rule[]> = {
-  V: [{ given: ["r"], rhs: "4/3 · π · {r}³", value: (v) => (4 / 3) * Math.PI * v.r * v.r * v.r }],
-  O: [{ given: ["r"], rhs: "4 · π · {r}²", value: (v) => 4 * Math.PI * v.r * v.r }],
+  // Fra d (sidst, så valget er uændret, når r er synlig): r skjult + d synlig kan også løses.
+  V: [
+    { given: ["r"], rhs: "4/3 · π · {r}³", value: (v) => (4 / 3) * Math.PI * v.r * v.r * v.r },
+    { given: ["d"], rhs: "4/3 · π · ({d} / 2)³", value: (v) => (4 / 3) * Math.PI * (v.d / 2) * (v.d / 2) * (v.d / 2) },
+  ],
+  O: [
+    { given: ["r"], rhs: "4 · π · {r}²", value: (v) => 4 * Math.PI * v.r * v.r },
+    { given: ["d"], rhs: "π · {d}²", value: (v) => Math.PI * v.d * v.d },
+  ],
   d: [{ given: ["r"], rhs: "2 · {r}", value: (v) => 2 * v.r }],
   r: [
     { given: ["d"], rhs: "{d} / 2", value: (v) => v.d / 2 },

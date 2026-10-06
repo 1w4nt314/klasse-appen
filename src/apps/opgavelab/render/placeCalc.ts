@@ -2,10 +2,9 @@
 // og uden at dække noget andet på arket — andre regnestykker, tekstbokse og figurer
 // (inkl. deres etiketter og opgavenummer). Ren TS, ingen React/DOM.
 
-import { numberDocument } from "../core/numbering";
-import { figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, CalcObject, Document as SheetDoc, FigureObject, Point } from "../model/types";
+import { numberSheet } from "./drillLayout";
 import { figureExtent } from "./figureLayout";
 import { LINE_HEIGHT, calcContent, objectBox, type Measure } from "./textLayout";
 
@@ -24,7 +23,7 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
  * `ownId`/`ownExt`: en figur, hvis udstrækning allerede er regnet (placeCalc).
  */
 export function takenBoxes(doc: SheetDoc, measure: Measure, ownId?: string, ownExt?: Bounds): Bounds[] {
-  const numbering = numberDocument(doc, figureBoundsOnSheet);
+  const numbering = numberSheet(doc, measure);
   return doc.objects.map((o) =>
     o.type === "figure"
       ? o.id === ownId && ownExt

@@ -12,14 +12,15 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { numberDocument } from "../core/numbering";
 import { formatByKind } from "../core/format";
-import { calcDrift, calcProblem, defOf, displayName, dragOpts, figureBoundsOnSheet } from "../model/figures";
+import { calcDrift, calcProblem, defOf, displayName, dragOpts } from "../model/figures";
 import { PAGE } from "../model/types";
-import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
+import type { Bounds, DragResult, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
+import { keyStep } from "../core/keyStep";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
-import { blockProblem } from "../render/placeBlock";
+import { blockProblem, figureProblem, pushIntoSheet } from "../render/placeBlock";
+import { numberSheet } from "../render/drillLayout";
 import { toSvg } from "./pointer";
 
 const BRAND = "#1a4f8b";
@@ -138,12 +139,68 @@ export function SheetEditor({
     return () => ro.disconnect();
   }, []);
 
-  const numbering = useMemo(() => numberDocument(doc, figureBoundsOnSheet), [doc]);
+  const numbering = useMemo(() => numberSheet(doc, measure), [doc, measure]);
 
   const sheetW = size ? Math.max(0, Math.min(size.w, (size.h * PAGE.w) / PAGE.h)) : 0;
   const sheetH = (sheetW * PAGE.h) / PAGE.w;
 
   const selected = doc.objects.find((o) => o.id === selectedId) ?? null;
+
+  /**
+   * Piletast på et hjørnehåndtag: flyt hjørnet ét trin (snap-trin, ellers 2 mm; Shift: 5 gange så meget),
+   * se core/keyStep. Ændres formen ikke, siges hvorfor (grænse, arkets kant, anden led) — aldrig en død tast.
+   */
+  function keyVertex(fig: FigureObject, vertex: string, dir: Point, big: boolean) {
+    const def = defOf(fig);
+    const opts = dragOpts(doc.settings, false);
+    const step = (doc.settings.snapCm > 0 ? opts.snapMm : 2) * (big ? 5 : 1);
+    // Går figuren ud over margenen, skubbes den ind på arket, så længe håndtaget stadig flytter sig i pilens
+    // retning (fx et kvadrat ved venstre margen, hvis s-etiket bliver bredere end siden, når det gøres mindre).
+    const p0 = def.vertices(fig.shape)[vertex];
+    const place = (r: DragResult<FigureShape>): FigureObject | null => {
+      const next = fitOrPush({ ...fig, shape: r.shape, x: fig.x + r.offset.x, y: fig.y + r.offset.y } as FigureObject);
+      const p1 = next ? def.vertices(next.shape)[vertex] : null;
+      if (!next || !p0 || !p1) return null;
+      const progress = (next.x + p1.x - fig.x - p0.x) * dir.x + (next.y + p1.y - fig.y - p0.y) * dir.y;
+      return progress > 1e-9 || (next.x === fig.x + r.offset.x && next.y === fig.y + r.offset.y) ? next : null;
+    };
+    const res = keyStep<FigureShape>(def, fig.shape, vertex, dir, step, opts, (r) => place(r) !== null);
+    const handle = handleLabel(def, vertex, displayName(fig, vertex));
+    if (!res.ok) {
+      const name = res.reason !== "axis" && res.param ? displayName(fig, res.param) : null;
+      say(
+        res.reason === "axis"
+          ? res.axis === "horizontal"
+            ? `${handle} ændres med pil venstre og højre`
+            : res.axis === "vertical"
+              ? `${handle} ændres med pil op og ned`
+              : `${handle} kan ikke flyttes med piletasterne`
+          : res.reason === "sheet"
+            ? name
+              ? `${name} kan ikke blive ${res.bigger ? "større" : "mindre"} — figuren skal være på arket`
+              : "Figuren skal være på arket"
+            : name
+              ? `${res.bigger ? "Maks." : "Min."} ${name} nået`
+              : "Håndtaget kan ikke flyttes længere i den retning",
+      );
+      return;
+    }
+    const next = place(res.result);
+    if (!next) return;
+    onReshape(fig.id, next.shape, next.x, next.y);
+    onCommit();
+    const vals = def.compute(next.shape);
+    // Skjulte afledte mål (areal, omkreds …) læses ikke op.
+    const parts = def.params
+      .filter((q) => !q.derived || next.params[q.key]?.visible)
+      .map((q) => `${displayName(next, q.key)} ${formatByKind(q.kind, vals[q.key])}`);
+    say(`${handleLabel(def, vertex, displayName(next, vertex))} flyttet. ${parts.join(", ")}`);
+  }
+
+  /** Skærmlæser-besked; samme tekst to gange i træk læses også op (med et usynligt mellemrum). */
+  function say(text: string) {
+    setAnnounce((prev) => (prev === text ? `${text}\u00a0` : text));
+  }
 
   // Piletaster flytter det markerede objekt (1 mm, Shift = 5 mm); hvert tryk er ét fortryd-trin.
   const latest = useRef({ doc, selected, numbering, measure, onMove, onCommit, mode, keyVertex });
@@ -180,40 +237,6 @@ export function SheetEditor({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  /** Piletast på et hjørnehåndtag: flyt hjørnet ét trin (snap-trin, ellers 2 mm; Shift: 5 gange så meget). */
-  function keyVertex(fig: FigureObject, vertex: string, dir: Point, big: boolean) {
-    const def = defOf(fig);
-    const p = def.vertices(fig.shape)[vertex];
-    if (!p) return;
-    const opts = dragOpts(doc.settings, false);
-    const step = (doc.settings.snapCm > 0 ? opts.snapMm : 2) * (big ? 5 : 1);
-    const d: VertexDrag = {
-      kind: "vertex",
-      pointerId: -1,
-      id: fig.id,
-      vertex,
-      start: p,
-      anchor: { x: fig.x, y: fig.y },
-      shape: fig.shape,
-      grab: p,
-      lastLocal: p,
-      active: true,
-    };
-    const next = reshapeAt(d, fig, { x: p.x + dir.x * step, y: p.y + dir.y * step }, false);
-    if (!next) {
-      setAnnounce("Hjørnet kan ikke flyttes længere i den retning");
-      return;
-    }
-    onReshape(fig.id, next.shape, next.x, next.y);
-    onCommit();
-    const vals = def.compute(next.shape);
-    // Skjulte afledte mål (areal, omkreds …) læses ikke op.
-    const parts = def.params
-      .filter((q) => !q.derived || next.params[q.key]?.visible)
-      .map((q) => `${displayName(next, q.key)} ${formatByKind(q.kind, vals[q.key])}`);
-    setAnnounce(`${handleLabel(def, vertex, displayName(next, vertex))} flyttet. ${parts.join(", ")}`);
-  }
 
   function endDrag(e: ReactPointerEvent<SVGSVGElement>) {
     const d = drag.current;
@@ -282,6 +305,21 @@ export function SheetEditor({
     setDragging(true);
   }
 
+  /**
+   * Figuren, hvis den er inden for arkets margen. Ellers skubbes den ind på arket (pushIntoSheet): en figur ved
+   * margenen — hvor nye figurer lægges — kan vokse ud mod kanten og flytter sig ind i stedet for at sidde fast.
+   * null når den er for stor til arket.
+   */
+  function fitOrPush(next: FigureObject): FigureObject | null {
+    const number = numbering.get(next.id) ?? "";
+    const ext = figureExtent(next, number, measure);
+    if (fitsSheet(ext)) return next;
+    const push = pushIntoSheet(ext);
+    if (!push) return null;
+    const moved = { ...next, x: next.x + push.x, y: next.y + push.y };
+    return fitsSheet(figureExtent(moved, number, measure)) ? moved : null;
+  }
+
   /** Figuren efter et hjørnetræk til `local` (ankerets koordinater ved start), eller null hvis den ikke kan være på arket. */
   function reshapeAt(d: VertexDrag, fig: FigureObject, local: Point, coarse: boolean): FigureObject | null {
     const res = defOf(fig).dragVertex(d.shape, d.vertex, local, dragOpts(doc.settings, coarse));
@@ -292,7 +330,7 @@ export function SheetEditor({
       x: d.anchor.x + res.offset.x,
       y: d.anchor.y + res.offset.y,
     } as FigureObject;
-    return fitsSheet(figureExtent(next, numbering.get(fig.id) ?? "", measure)) ? next : null;
+    return fitOrPush(next);
   }
 
   function moveVertex(d: VertexDrag, pt: Point, coarse: boolean) {
@@ -439,8 +477,30 @@ function Overlay({
       {doc.objects.map((o) => {
         const number = numbering.get(o.id);
         const pressed = selected?.id === o.id;
-        if (o.type === "figure")
-          return <FigureHit key={o.id} fig={o} number={number} pressed={pressed} onSelect={onSelect} />;
+        if (o.type === "figure") {
+          // Kun i editoren: figuren dækker en anden figur, en tekst eller et regnestykke (fx lagt på et fuldt ark).
+          const fb = figureProblem(doc, o, numbering, measure) ? figureExtent(o, number ?? "", measure) : null;
+          return (
+            <g key={o.id}>
+              {fb && (
+                <rect
+                  data-ol-layout-warn={o.id}
+                  x={fb.minX - 1.2}
+                  y={fb.minY - 1.2}
+                  width={fb.maxX - fb.minX + 2.4}
+                  height={fb.maxY - fb.minY + 2.4}
+                  rx={1}
+                  fill={WARN_FILL}
+                  stroke={WARN}
+                  strokeWidth={0.6}
+                  strokeDasharray="2 1.2"
+                  pointerEvents="none"
+                />
+              )}
+              <FigureHit fig={o} number={number} pressed={pressed} onSelect={onSelect} />
+            </g>
+          );
+        }
         const label =
           o.type === "text"
             ? `Tekst${number ? ` ${number}` : ""}: ${o.text.replace(/\s+/g, " ").trim().slice(0, 40) || "tom"}`

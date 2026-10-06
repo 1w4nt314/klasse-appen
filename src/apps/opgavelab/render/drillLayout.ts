@@ -4,9 +4,10 @@
 
 import { generate, type DrillItem } from "../core/drill";
 import { evaluate, formulaItems } from "../core/formula";
-import { itemLabel } from "../core/numbering";
+import { itemLabel, numberDocument } from "../core/numbering";
+import { figureBoundsOnSheet } from "../model/figures";
 import { PT_MM } from "../model/types";
-import type { Bounds, DrillObject, FormulaObject } from "../model/types";
+import type { Bounds, Document as SheetDoc, DrillObject, FormulaObject } from "../model/types";
 import type { Measure } from "./textLayout";
 
 /** Skriftstørrelse (pt) for titel og opgaver. */
@@ -117,6 +118,8 @@ export type FormulaRun = {
   answer: string;
   /** Fejlen (dansk), når linjen ikke kan regnes ud. */
   error: string | null;
+  /** Der stod tekst efter "=" (fx et svar), som ikke bruges. */
+  ignored: boolean;
   xLabel: number;
   /** Venstre kant af stykket. */
   xText: number;
@@ -164,6 +167,7 @@ export function layoutFormula(obj: FormulaObject, number: string, measure: Measu
       textSvar,
       answer,
       error: r.ok ? null : r.error,
+      ignored: r.ignored,
       xLabel: obj.x,
       xText,
       xAnswer,
@@ -187,4 +191,13 @@ export type BlockObject = DrillObject | FormulaObject;
 /** Blokkens udstrækning på arket (mm), ens på opgave og svarark. */
 export function blockBox(obj: BlockObject, number: string, measure: Measure): Bounds {
   return obj.type === "drill" ? layoutDrill(obj, number, measure).box : layoutFormula(obj, number, measure).box;
+}
+
+/**
+ * Nummereringen af arket (core/numbering.ts) med blokkenes rigtige udstrækning fra layoutet, så et
+ * regneark/en formelblok ved siden af en figur kommer i figurens række. Højden afhænger ikke af
+ * blokkens eget nummer; "00" er et bredt nok bud (som i placeBlock).
+ */
+export function numberSheet(doc: SheetDoc, measure: Measure): Map<string, string> {
+  return numberDocument(doc, figureBoundsOnSheet, (o) => blockBox(o, "00", measure));
 }

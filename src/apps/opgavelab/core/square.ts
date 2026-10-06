@@ -1,5 +1,5 @@
 // Opgavelab — geometri-kerne for kvadratet. Formen er { s } i mm; ankeret er øverste venstre
-// hjørne. Ét håndtag "s" i nederste højre hjørne: s = max(x, y). Find-reglerne (RULES) køres af
+// hjørne. Ét håndtag "s" i nederste højre hjørne: s = (x + y) / 2 (projektionen på diagonalen). Find-reglerne (RULES) køres af
 // den generiske motor i core/solveKit.ts (makeSolver).
 //
 // Ingen runtime-imports (kun `import type`), ingen enums/parameter properties,
@@ -68,11 +68,16 @@ export function compute(shape: SquareShape): Record<string, number> {
   return { s, d: s * Math.SQRT2, O: 4 * s, A: s * s };
 }
 
-/** Træk i "s": s = max(x, y) (snappet til snapMm, clampet 1–15 cm). Ankeret flyttes ikke. */
+/**
+ * Træk i "s": s = (x + y) / 2 — punktets projektion på diagonalen (snappet til snapMm, clampet 1–15 cm).
+ * Med musen svarer det til at trække hjørnet langs diagonalen; med piletasterne gør venstre/op
+ * kvadratet mindre og højre/ned større (før: s = max(x, y), så venstre/op aldrig gjorde det mindre).
+ * Ankeret flyttes ikke.
+ */
 export function dragVertex(shape: SquareShape, vertex: string, local: Point, opts: DragOpts): DragResult<SquareShape> {
   const none = { x: 0, y: 0 };
   if (vertex !== "s" || !Number.isFinite(local.x) || !Number.isFinite(local.y)) return { shape, offset: none };
-  return { shape: { s: clampSide(snapTo(Math.max(local.x, local.y), opts.snapMm)) }, offset: none };
+  return { shape: { s: clampSide(snapTo((local.x + local.y) / 2, opts.snapMm)) }, offset: none };
 }
 
 export function validateShape(raw: unknown): SquareShape | null {

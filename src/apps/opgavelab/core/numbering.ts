@@ -1,5 +1,5 @@
 // Opgavelab — semi-automatisk nummerering: blokke (figurer, regneark og formelblokke) "1", "2", …
-// efter placering (top→bund, venstre→højre), regnestykker "1a", "1b", … pr. figur efter (y, x),
+// efter placering (rækker top→bund, i rækken venstre→højre; se ROW_MM), regnestykker "1a", "1b", … pr. figur efter (y, x),
 // og opgaverne i et regneark / linjerne i en formelblok "3a"–"3t" (itemLabel). Fritstående tekst nummereres ikke.
 // Samme map bruges til opgave og svarark.
 //
@@ -8,14 +8,53 @@
 import type { Bounds, CalcObject, Document, DrillObject, FigureObject, FormulaObject } from "../model/types";
 
 /**
- * Rækketolerance i mm. Figurerne sorteres efter top; en ny række starter, når en figurs
- * top ligger MERE end ROW_MM under rækkens første (øverste) figur. Inden for rækken
- * nummereres venstre→højre. Kriteriet er en afstand (ikke en fast bucket-grænse), så et
- * nudge på 1 mm ikke bytter numre på figurer, der tydeligt ligger under hinanden, og
- * rækkens anker er dens øverste figur (ikke den sidst tilføjede), så rækker ikke "kæder"
- * nedad over arket.
+ * Rækkeregel. Blokkene sorteres efter top. En blok hører til en række, hvis den står VED SIDEN AF
+ * rækkens anker (dens øverste blok):
+ *  - toppene ligger højst ROW_MM fra hinanden (så tynde blokke og ens figurer stadig virker), eller
+ *  - de overlapper lodret med mindst ROW_OVERLAP af den laveste af de to højder
+ *    (en lav figur ved siden af en høj, en cirkel ved siden af en trekant, et regneark ved en figur),
+ * og den ikke står over/under (vandret overlap > ROW_OVERLAP af den smalleste bredde) en blok, der
+ * allerede er i rækken — så to blokke stablet ved siden af en høj figur får hver sit nummer top→bund.
+ * Inden for rækken nummereres venstre→højre. Rækkens anker er dens øverste blok (ikke den sidst
+ * tilføjede), så rækker ikke "kæder" nedad over arket, og et ryk på 1 mm bytter ikke numre på
+ * rækker, der tydeligt ligger under hinanden.
  */
 export const ROW_MM = 5;
+export const ROW_OVERLAP = 0.5;
+
+/** Opgavernes linjeafstand og skriftstørrelse i regneark/formelblokke (som render/drillLayout.ts). */
+const EST_ROW_MM = 11;
+const EST_LINE_MM = (12 * 25.4) / 72;
+
+/**
+ * Regnearkets/formelblokkens udstrækning uden tekstmåling (bruges, når kalderen ikke giver
+ * layoutets rigtige boks): titel + rækker · linjeafstand, bredden som blokkens bredde.
+ */
+export function estimateBlockBounds(o: DrillObject | FormulaObject): Bounds {
+  const title = (o.type === "drill" ? o.config.title : o.title).trim() !== "";
+  const rows =
+    o.type === "drill"
+      ? Math.max(1, Math.ceil(Math.max(0, o.config.count) / Math.max(1, o.config.columns)))
+      : Math.max(1, o.lines.filter((l) => l.trim() !== "").length);
+  const h = (title ? EST_LINE_MM * 1.25 + 3 : 0) + (rows - 1) * EST_ROW_MM + EST_LINE_MM * 1.25;
+  return { minX: o.x, minY: o.y, maxX: o.x + o.width, maxY: o.y + h };
+}
+
+const overlapY = (a: Bounds, b: Bounds) => Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY);
+const overlapX = (a: Bounds, b: Bounds) => Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX);
+
+/** Står b ved siden af ankeret a (samme række)? */
+function besides(a: Bounds, b: Bounds): boolean {
+  if (b.minY - a.minY <= ROW_MM) return true;
+  const ov = overlapY(a, b);
+  return ov > 0 && ov >= ROW_OVERLAP * Math.min(a.maxY - a.minY, b.maxY - b.minY);
+}
+
+/** Står a og b over/under hinanden (i samme spalte)? */
+function stacked(a: Bounds, b: Bounds): boolean {
+  const ov = overlapX(a, b);
+  return ov > 0 && ov > ROW_OVERLAP * Math.min(a.maxX - a.minX, b.maxX - b.minX);
+}
 
 /** 0 → "a", 25 → "z", 26 → "aa", 27 → "ab", … */
 export function letters(index: number): string {
@@ -38,11 +77,16 @@ export function itemLabel(nr: string, i: number, count: number): string {
 }
 
 /**
- * @param figureBounds bounding box for figuren i ARK-koordinater (mm). Andre blokke (regneark og
- *   formelblokke) placeres efter deres øverste venstre hjørne (x, y).
+ * @param figureBounds bounding box for figuren i ARK-koordinater (mm).
+ * @param blockBounds regnearkets/formelblokkens udstrækning på arket (layoutets boks); udeladt →
+ *   estimateBlockBounds (uden tekstmåling).
  * @returns objekt-id → nummer ("1" for figurer og blokke, "1a" for regnestykker).
  */
-export function numberDocument(doc: Document, figureBounds: (fig: FigureObject) => Bounds): Map<string, string> {
+export function numberDocument(
+  doc: Document,
+  figureBounds: (fig: FigureObject) => Bounds,
+  blockBounds: (o: DrillObject | FormulaObject) => Bounds = estimateBlockBounds,
+): Map<string, string> {
   const result = new Map<string, string>();
   const blocks = doc.objects
     .map((fig, i) => ({ fig, i }))
@@ -50,15 +94,16 @@ export function numberDocument(doc: Document, figureBounds: (fig: FigureObject) 
       (p): p is { fig: FigureObject | DrillObject | FormulaObject; i: number } =>
         p.fig.type === "figure" || p.fig.type === "drill" || p.fig.type === "formula",
     )
-    .map(({ fig, i }) => ({ fig, i, b: fig.type === "figure" ? figureBounds(fig) : { minX: fig.x, minY: fig.y, maxX: fig.x, maxY: fig.y } }));
+    .map(({ fig, i }) => ({ fig, i, b: fig.type === "figure" ? figureBounds(fig) : blockBounds(fig) }));
   blocks.sort((p, q) => p.b.minY - q.b.minY || p.b.minX - q.b.minX || p.i - q.i);
   const rows: (typeof blocks)[] = [];
   for (const f of blocks) {
-    const row = rows[rows.length - 1];
-    if (row && f.b.minY - row[0].b.minY <= ROW_MM) row.push(f);
+    // Første række (øverst), hvis anker f står ved siden af, og hvor f ikke står over/under en anden blok.
+    const row = rows.find((r) => besides(r[0].b, f.b) && !r.some((m) => stacked(m.b, f.b)));
+    if (row) row.push(f);
     else rows.push([f]);
   }
-  const ordered = rows.flatMap((row) => row.sort((p, q) => p.b.minX - q.b.minX || p.b.minY - q.b.minY || p.i - q.i));
+  const ordered = rows.flatMap((row) => [...row].sort((p, q) => p.b.minX - q.b.minX || p.b.minY - q.b.minY || p.i - q.i));
 
   const calcs = new Map<string, { calc: CalcObject; i: number }[]>();
   doc.objects.forEach((o, i) => {

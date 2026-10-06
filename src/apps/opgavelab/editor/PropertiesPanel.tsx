@@ -6,7 +6,7 @@
 import { useId, useState } from "react";
 import { DRILL_OPS, OP_SIGN } from "../core/drill";
 import { newSeed } from "../model/document";
-import { blockProblem, blockProblemText } from "../render/placeBlock";
+import { blockProblem, blockProblemText, figureProblem } from "../render/placeBlock";
 import { layoutDrill, layoutFormula } from "../render/drillLayout";
 import type { Measure } from "../render/textLayout";
 import { formatByKind } from "../core/format";
@@ -115,6 +115,7 @@ export function PropertiesPanel({
           doc={doc}
           calcs={calcs}
           numbering={numbering}
+          measure={measure}
           onSetParam={onSetParam}
           onAddCalc={onAddCalc}
           onSelect={onSelect}
@@ -163,6 +164,7 @@ function FigureSection({
   doc,
   calcs,
   numbering,
+  measure,
   onSetParam,
   onAddCalc,
   onSelect,
@@ -172,6 +174,7 @@ function FigureSection({
   doc: SheetDoc;
   calcs: CalcObject[];
   numbering: ReadonlyMap<string, string>;
+  measure: Measure;
   onSetParam: (id: string, param: string, patch: Partial<ParamState>, key?: string) => void;
   onAddCalc: (figureId: string, param: string) => void;
   onSelect: (id: string | null) => void;
@@ -183,6 +186,7 @@ function FigureSection({
   const problems = calcs
     .map((c) => ({ calc: c, text: calcProblem(fig, c.param, doc.settings) ?? calcDrift(fig, c.param, doc.settings) }))
     .filter((p): p is { calc: CalcObject; text: string } => p.text !== null);
+  const layoutProblem = figureProblem(doc, fig, numbering, measure);
   const sortedCalcs = [...calcs].sort((p, q) => (numbering.get(p.id) ?? "").localeCompare(numbering.get(q.id) ?? ""));
 
   return (
@@ -276,6 +280,11 @@ function FigureSection({
       {def.params.some((p) => p.derived) && (
         <p className="ol-hint" data-ol-derived-hint="">
           Afledte mål (fx areal og omkreds) er skjult som standard. Sæt flueben ved Vis, så står de under figuren.
+        </p>
+      )}
+      {layoutProblem && (
+        <p className="ol-warn" role="status" data-ol-figure-warning={fig.id}>
+          {`${blockProblemText(layoutProblem, "Figuren").join(". ")} — flyt den.`}
         </p>
       )}
       {problems.map(({ calc, text }) => (
@@ -635,7 +644,8 @@ function DrillSection({
         <RangeField name="a" label="Første tal" lo={c.aMin} hi={c.aMax} onCommit={(aMin, aMax) => set({ aMin, aMax }, "a")} />
         <RangeField name="b" label="Andet tal" lo={c.bMin} hi={c.bMax} onCommit={(bMin, bMax) => set({ bMin, bMax }, "b")} />
         <p className="ol-hint">
-          Ved division er første tal kvotienten (uden rest) eller dividenden (med rest), og andet tal er divisoren.
+          Ved division er første tal kvotienten (uden rest) eller dividenden (med rest), og andet tal er divisoren
+          (aldrig 1, når området går til 2 eller mere). Med rest er dividenden mindst lige så stor som divisoren.
         </p>
       </fieldset>
 
@@ -742,6 +752,15 @@ function linesError(lines: string[]): string | null {
   return long >= 0 ? `Linje ${long + 1} er for lang (højst ${LIMITS.formulaLineChars} tegn)` : null;
 }
 
+/** Lille note under en formel-linje, hvor der stod noget efter "=" (fx læreren skrev svaret selv). */
+function IgnoredNote({ label }: { label: string }) {
+  return (
+    <span className="ol-formula-note" data-ol-formula-ignored={label}>
+      Teksten efter = bruges ikke — facit regnes ud af appen.
+    </span>
+  );
+}
+
 function FormulaSection({
   formula,
   doc,
@@ -797,7 +816,7 @@ function FormulaSection({
         </p>
       )}
       <p className="ol-hint" id={helpId}>
-        {"Brug + − · : ^ ² ³ √ π og parenteser, og komma som decimaltegn. * og / virker også. \"=\" til sidst kan udelades."}
+        {"Brug + − · : ^ ² ³ √ π og parenteser, og komma som decimaltegn. * og / virker også. \"=\" til sidst kan udelades; tekst efter \"=\" bruges ikke."}
       </p>
 
       {warnings.length > 0 && (
@@ -818,12 +837,16 @@ function FormulaSection({
                   <span className="ol-formula-label">{it.label}</span>
                   <span>
                     <span className="ol-formula-expr">{it.text}</span> <span className="ol-field-error">{it.error}</span>
+                    {it.ignored && <IgnoredNote label={it.label} />}
                   </span>
                 </li>
               ) : (
                 <li key={it.label} data-ol-formula-line={it.label} data-ol-formula-status="ok">
                   <span className="ol-formula-label">{it.label}</span>
-                  <span className="ol-formula-expr">{`${it.textSvar} ${it.answer}`}</span>
+                  <span>
+                    <span className="ol-formula-expr">{`${it.textSvar} ${it.answer}`}</span>
+                    {it.ignored && <IgnoredNote label={it.label} />}
+                  </span>
                 </li>
               ),
             )}

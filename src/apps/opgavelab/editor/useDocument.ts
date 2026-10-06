@@ -44,7 +44,7 @@ export type ObjectPatch = Partial<Omit<TextObject, "id" | "type">> &
 type Patch = ObjectPatch;
 
 export type DocAction =
-  /** seed: kun regneark (laves i event-handleren med newSeed, så reduceren er deterministisk); at: regneark og formelblokke (ledig plads fra placeBlock). */
+  /** seed: kun regneark (laves i event-handleren med newSeed, så reduceren er deterministisk); at: alle nye objekter (ledig plads fra placeFigure/placeBlock/placeText). */
   | { type: "addNew"; id: string; kind: "text" | "drill" | "formula" | FigureKind; seed?: number; at?: { x: number; y: number } }
   | { type: "addCalc"; id: string; figureId: string; param: string; x?: number; y?: number }
   | { type: "update"; id: string; patch: Patch; key?: string }
@@ -90,6 +90,11 @@ function mapObject(doc: SheetDoc, id: string, fn: (o: SheetObject) => SheetObjec
   return { ...doc, objects: doc.objects.map((o) => (o.id === id ? fn(o) : o)) };
 }
 
+/** Ny figur flyttet til `at` (ankerets placering), når den er givet. */
+function withAt(fig: FigureObject | null, at: { x: number; y: number } | undefined): FigureObject | null {
+  return fig && at ? { ...fig, x: at.x, y: at.y } : fig;
+}
+
 export function reducer(s: DocState, a: DocAction): DocState {
   switch (a.type) {
     case "addNew": {
@@ -98,12 +103,12 @@ export function reducer(s: DocState, a: DocAction): DocState {
       const existing = s.doc.objects.filter((o) => o.type === sameType).length;
       const obj =
         a.kind === "text"
-          ? makeText(a.id, existing)
+          ? { ...makeText(a.id, existing), ...(a.at ?? {}) }
           : a.kind === "drill"
             ? { ...makeDrill(a.id, existing, a.seed ?? 0), ...(a.at ?? {}) }
             : a.kind === "formula"
               ? { ...makeFormula(a.id, existing), ...(a.at ?? {}) }
-              : makeFigure(a.id, a.kind, existing);
+              : withAt(makeFigure(a.id, a.kind, existing), a.at);
       if (!obj) return s;
       return commitChange(s, { ...s.doc, objects: [...s.doc.objects, obj] }, null, { selectedId: obj.id });
     }
@@ -222,8 +227,10 @@ export function useDocument() {
 
   const actions = useMemo(
     () => ({
-      addText: () => dispatch({ type: "addNew", id: newId(), kind: "text" }),
-      addFigure: (kind: FigureKind) => dispatch({ type: "addNew", id: newId(), kind }),
+      /** at: placering (fra placeText), ellers standardplaceringen. */
+      addText: (at?: { x: number; y: number }) => dispatch({ type: "addNew", id: newId(), kind: "text", at }),
+      /** at: figurens anker (fra placeFigure), ellers standardplaceringen midt på arket. */
+      addFigure: (kind: FigureKind, at?: { x: number; y: number }) => dispatch({ type: "addNew", id: newId(), kind, at }),
       /** seed: fra newSeed() i event-handleren; at: placering (fra placeBlock), ellers standardplaceringen. */
       addDrill: (seed: number, at?: { x: number; y: number }) =>
         dispatch({ type: "addNew", id: newId("d"), kind: "drill", seed, at }),

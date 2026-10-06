@@ -3,6 +3,11 @@
 // egen PRNG-strøm (mulberry32 seedet med seed og opgavens nummer), så et ændret antal ikke
 // omrokerer de tidligere opgaver. Aldrig Math.random.
 //
+// Ingen gentagelser i samme blok: opgave i trækkes igen fra sin egen strøm (se DRILL_TRIES_MAX),
+// så længe stykket allerede findes blandt opgave 0..i−1 ("3 + 5" og "5 + 3" regnes som det samme). Opgave i afhænger kun af opgaverne før den, så de første k opgaver er de samme,
+// når antallet øges. Er talområdet for lille til lutter forskellige stykker, vælges det af
+// forsøgene, der er brugt færrest gange indtil nu (gentagelser fordeles jævnt).
+//
 // Al regning sker i heltal (decimaltal trækkes som heltal × 10^d), og tallene formateres
 // her uden flydende tal — derfor ingen 0,1 + 0,2-fejl. Ingen runtime-imports (kun
 // `import type`), så filen kan køres i Node med --experimental-strip-types.
@@ -79,55 +84,133 @@ export function fixedText(n: number, d: number): string {
   return neg && Math.trunc(n) !== 0 ? `−${text}` : text;
 }
 
-/** Den ene opgave nr. index (0-baseret) for (config, seed). */
+/**
+ * Højst så mange udtræk pr. opgave, mens der ledes efter et stykke, der ikke er brugt endnu (et lille
+ * talområde, hvor kun få stykker er tilbage, kan kræve mange). Giver også det en gentagelse, er
+ * talområdet (næsten sikkert) brugt op på det niveau, og de følgende opgaver nøjes med et stykke, der
+ * højst er brugt lige så mange gange — så gentagelserne fordeles jævnt og hurtigt.
+ */
+export const DRILL_TRIES_MAX = 1000;
+
+/** Ét udtræk som heltal (+/− med decimaler: tallet × 10^decimals). */
+type Raw = { op: DrillOp; a: number; b: number };
+
+/**
+ * Ens stykker har samme nøgle. Ved + og · (uden tabeller) er rækkefølgen ligegyldig ("3 + 5" = "5 + 3");
+ * med tabeller hører "3 · 2" til 2-tabellen og "2 · 3" til 3-tabellen, så de er forskellige.
+ */
+function rawKey(config: DrillConfig, r: Raw): string {
+  const sym = r.op === "add" || (r.op === "mul" && config.tables.length === 0);
+  const [p, q] = sym && r.b < r.a ? [r.b, r.a] : [r.a, r.b];
+  return `${r.op}:${p}:${q}`;
+}
+
+/** Nøglen for en færdig opgave (ens stykker ↔ ens nøgle, som under genereringen). */
+export function itemKey(config: DrillConfig, it: DrillItem): string {
+  return rawKey(config, { op: it.op, a: it.a, b: it.b });
+}
+
+/** Den ene opgave nr. index (0-baseret) for (config, seed), uden hensyn til de andre opgaver. */
 export function generateItem(config: DrillConfig, seed: number, index: number): DrillItem {
-  const rng = mulberry32(mixSeed(seed, index));
+  return toItem(config, drawRaw(config, mulberry32(mixSeed(seed, index))));
+}
+
+/** Ét udtræk fra strømmen `rng` (kun tal; teksten laves af toItem). */
+function drawRaw(config: DrillConfig, rng: () => number): Raw {
   const ops = DRILL_OPS.filter((o) => config.ops.includes(o));
   const list = ops.length > 0 ? ops : (["add"] as DrillOp[]);
   const op = list.length === 1 ? list[0] : list[int(rng, 0, list.length - 1)];
   const { aMin, aMax, bMin, bMax } = config;
   const factor = () => (config.tables.length > 0 ? config.tables[int(rng, 0, config.tables.length - 1)] : int(rng, bMin, bMax));
-  const divisor = () => (config.tables.length > 0 ? config.tables[int(rng, 0, config.tables.length - 1)] : int(rng, Math.max(1, bMin), Math.max(1, bMax)));
-  const sign = OP_SIGN[op];
+  // Divisor ≥ 1 altid. ": 1" springes over, når intervallet tillader en divisor ≥ 2 (trækkes om fra 2–bMax,
+  // så de øvrige udtræk er uændrede). Tabeller bruges som valgt (også 1).
+  const divisor = () => {
+    if (config.tables.length > 0) return config.tables[int(rng, 0, config.tables.length - 1)];
+    const hi = Math.max(1, bMax);
+    const b = int(rng, Math.max(1, bMin), hi);
+    return b === 1 && hi >= 2 ? int(rng, 2, hi) : b;
+  };
 
   if (op === "add" || op === "sub") {
-    const d = config.decimals;
-    const k = 10 ** d;
+    const k = 10 ** config.decimals;
     let a = int(rng, aMin * k, aMax * k);
     let b = int(rng, bMin * k, bMax * k);
     if (op === "sub" && config.noNegative && a < b) [a, b] = [b, a];
-    const r = op === "add" ? a + b : a - b;
-    return { op, a: a / k, b: b / k, text: `${fixedText(a, d)} ${sign} ${fixedText(b, d)} =`, answer: fixedText(r, d) };
+    return { op, a, b };
   }
   if (op === "mul") {
     const a = int(rng, aMin, aMax);
-    const b = factor();
-    return { op, a, b, text: `${fixedText(a, 0)} ${sign} ${fixedText(b, 0)} =`, answer: fixedText(a * b, 0) };
+    return { op, a, b: factor() };
   }
-  // Division: b ≥ 1 altid.
   if (config.division === "exact") {
     const b = divisor();
-    const q = int(rng, aMin, aMax);
-    const a = b * q;
-    return { op, a, b, text: `${fixedText(a, 0)} ${sign} ${fixedText(b, 0)} =`, answer: fixedText(q, 0) };
+    return { op, a: b * int(rng, aMin, aMax), b };
   }
-  const a = int(rng, aMin, aMax);
+  let a = int(rng, aMin, aMax);
   const b = divisor();
-  const q = Math.floor(a / b);
-  const r = a - q * b;
-  return {
-    op,
-    a,
-    b,
-    text: `${fixedText(a, 0)} ${sign} ${fixedText(b, 0)} =`,
-    answer: r === 0 ? fixedText(q, 0) : `${fixedText(q, 0)} rest ${fixedText(r, 0)}`,
-  };
+  // Med rest: dividenden er mindst divisoren ("1 : 7 = 0 rest 1" giver ingen mening), når intervallet tillader det.
+  if (a < b && aMax >= b) a = int(rng, Math.max(aMin, b), aMax);
+  return { op, a, b };
 }
 
-/** Alle opgaverne for (config, seed). Samme input giver altid samme output. */
+/** Teksten og svaret til et udtræk. */
+function toItem(config: DrillConfig, { op, a, b }: Raw): DrillItem {
+  const sign = OP_SIGN[op];
+  if (op === "add" || op === "sub") {
+    const d = config.decimals;
+    const k = 10 ** d;
+    const r = op === "add" ? a + b : a - b;
+    return { op, a: a / k, b: b / k, text: `${fixedText(a, d)} ${sign} ${fixedText(b, d)} =`, answer: fixedText(r, d) };
+  }
+  const text = `${fixedText(a, 0)} ${sign} ${fixedText(b, 0)} =`;
+  if (op === "mul") return { op, a, b, text, answer: fixedText(a * b, 0) };
+  // Division: b ≥ 1 altid.
+  const q = Math.floor(a / b);
+  const r = a - q * b;
+  return { op, a, b, text, answer: r === 0 ? fixedText(q, 0) : `${fixedText(q, 0)} rest ${fixedText(r, 0)}` };
+}
+
+/**
+ * Alle opgaverne for (config, seed). Samme input giver altid samme output, og opgave i afhænger
+ * kun af opgave 0..i−1 (præfiks-stabil). Første udtræk er generateItem(config, seed, i).
+ */
 export function generate(config: DrillConfig, seed: number): DrillItem[] {
+  // Layout, nummerering og advarsler genererer samme blok flere gange pr. tegning: genbrug resultatet.
+  const memoKey = `${seed >>> 0}|${JSON.stringify(config)}`;
+  const hit = memo.get(memoKey);
+  if (hit) return hit.slice();
+  const items = generateUncached(config, seed);
+  if (memo.size >= MEMO_MAX) memo.delete(memo.keys().next().value as string);
+  memo.set(memoKey, items);
+  return items.slice();
+}
+
+const MEMO_MAX = 64;
+const memo = new Map<string, DrillItem[]>();
+
+function generateUncached(config: DrillConfig, seed: number): DrillItem[] {
   const n = Math.max(0, Math.floor(config.count));
   const out: DrillItem[] = [];
-  for (let i = 0; i < n; i++) out.push(generateItem(config, seed, i));
+  const used = new Map<string, number>();
+  // Hvor mange gange hvert stykke mindst er brugt, når talområdet er brugt op (0 = der er stadig ubrugte).
+  let level = 0;
+  for (let i = 0; i < n; i++) {
+    const rng = mulberry32(mixSeed(seed, i));
+    let best: Raw | null = null;
+    let bestUses = Infinity;
+    for (let t = 0; t < DRILL_TRIES_MAX; t++) {
+      const raw = drawRaw(config, rng);
+      const uses = used.get(rawKey(config, raw)) ?? 0;
+      if (uses < bestUses) {
+        best = raw;
+        bestUses = uses;
+      }
+      if (bestUses <= level) break;
+    }
+    if (bestUses > level) level = bestUses;
+    const raw = best as Raw;
+    used.set(rawKey(config, raw), bestUses + 1);
+    out.push(toItem(config, raw));
+  }
   return out;
 }

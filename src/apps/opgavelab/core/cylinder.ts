@@ -165,8 +165,15 @@ const RULES: Record<string, Rule[]> = {
     { given: ["r", "h"], rhs: "π · {r}² · {h}", value: (v) => Math.PI * v.r * v.r * v.h },
     { given: ["d", "h"], rhs: "π · ({d} / 2)² · {h}", value: (v) => Math.PI * (v.d / 2) * (v.d / 2) * v.h },
   ],
-  M: [{ given: ["r", "h"], rhs: "2 · π · {r} · {h}", value: (v) => 2 * Math.PI * v.r * v.h }],
-  O: [{ given: ["r", "h"], rhs: "2 · π · {r} · ({r} + {h})", value: (v) => 2 * Math.PI * v.r * (v.r + v.h) }],
+  // Fra d (sidst, så valget er uændret, når r er synlig): r skjult + d synlig kan også løses.
+  M: [
+    { given: ["r", "h"], rhs: "2 · π · {r} · {h}", value: (v) => 2 * Math.PI * v.r * v.h },
+    { given: ["d", "h"], rhs: "π · {d} · {h}", value: (v) => Math.PI * v.d * v.h },
+  ],
+  O: [
+    { given: ["r", "h"], rhs: "2 · π · {r} · ({r} + {h})", value: (v) => 2 * Math.PI * v.r * (v.r + v.h) },
+    { given: ["d", "h"], rhs: "π · {d} · ({d} / 2 + {h})", value: (v) => Math.PI * v.d * (v.d / 2 + v.h) },
+  ],
   d: [{ given: ["r"], rhs: "2 · {r}", value: (v) => 2 * v.r }],
   r: [
     { given: ["d"], rhs: "{d} / 2", value: (v) => v.d / 2 },
