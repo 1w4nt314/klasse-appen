@@ -80,7 +80,7 @@ export function pushIntoSheet(ext: Bounds, dir: Point = { x: 0, y: 0 }): Point |
   const dy = ext.minY < m ? m - ext.minY : ext.maxY > PAGE.h - m ? PAGE.h - m - ext.maxY : 0;
   // Aldrig MOD retningen (et hjørne, der trækkes ud over margenen, stopper som før); på tværs er i orden.
   // dir = {0, 0} (standard): alle retninger. Editoren (SheetEditor.fitOrPush) vurderer selv retningen ud fra
-  // håndtagets flytning, og om figuren bliver mindre.
+  // pointerens og håndtagets flytning, og om figuren bliver mindre (core/pushRule).
   if (dx * dir.x < 0 || dy * dir.y < 0) return null;
   return { x: dx, y: dy };
 }
@@ -126,6 +126,17 @@ export type BlockProblem = {
  */
 export type KnownBoxes = ReadonlyMap<string, Bounds>;
 
+/** Kanter (margenen), boksen går ud over (mere end EPS). */
+function outsideOf(box: Bounds): BlockProblem["outside"] {
+  const m = PAGE.margin;
+  const outside: BlockProblem["outside"] = [];
+  if (box.maxY > PAGE.h - m + EPS) outside.push("bottom");
+  if (box.maxX > PAGE.w - m + EPS) outside.push("right");
+  if (box.minX < m - EPS) outside.push("left");
+  if (box.minY < m - EPS) outside.push("top");
+  return outside;
+}
+
 /** null når blokken ligger inden for margenen og ikke dækker noget andet. */
 export function blockProblem(
   doc: SheetDoc,
@@ -135,12 +146,7 @@ export function blockProblem(
   boxes?: KnownBoxes,
 ): BlockProblem | null {
   const box = boxes?.get(block.id) ?? blockBox(block, numbering.get(block.id) ?? "", measure);
-  const m = PAGE.margin;
-  const outside: BlockProblem["outside"] = [];
-  if (box.maxY > PAGE.h - m + EPS) outside.push("bottom");
-  if (box.maxX > PAGE.w - m + EPS) outside.push("right");
-  if (box.minX < m - EPS) outside.push("left");
-  if (box.minY < m - EPS) outside.push("top");
+  const outside = outsideOf(box);
 
   const covers: string[] = [];
   for (const o of doc.objects) {
@@ -165,8 +171,10 @@ export function blockProblem(
 }
 
 /**
- * En figur, der dækker en anden figur, en tekst eller et regnestykke (fx lagt nederst på et fuldt ark).
- * Regneark og formelblokke tælles ikke med her: de markeres selv (blockProblem). null når intet dækkes.
+ * En figur, der går ud over arkets margen (fx et langt navn på en størrelse, når figuren ikke kan skubbes ind —
+ * se fitFigure), eller dækker en anden figur, en tekst eller et regnestykke (fx lagt nederst på et fuldt ark).
+ * Regneark og formelblokke tælles ikke med her: de markeres selv (blockProblem). null når figuren er på arket
+ * og intet dækker.
  */
 export function figureProblem(
   doc: SheetDoc,
@@ -184,7 +192,23 @@ export function figureProblem(
     if (!hits(box, other, -EPS)) continue;
     covers.push(o.type === "figure" ? `${defOf(o).name}${num ? ` ${num}` : ""}` : o.type === "calc" ? `regnestykke ${num ?? ""}`.trim() : "en tekst");
   }
-  return covers.length === 0 ? null : { outside: [], covers };
+  const outside = outsideOf(box);
+  return outside.length === 0 && covers.length === 0 ? null : { outside, covers };
+}
+
+/**
+ * Figuren skubbet ind inden for arkets margen (pushIntoSheet), når en ændring i panelet (et navn, Vis) har gjort
+ * dens udstrækning større end pladsen ved en margen. Uændret (samme objekt), når den allerede er på arket, eller
+ * når den er for stor til arket — så markerer figureProblem den.
+ */
+export function fitFigure(fig: FigureObject, number: string, measure: Measure): FigureObject {
+  const ext = figureExtent(fig, number, measure);
+  const m = PAGE.margin;
+  const e = 1e-6;
+  if (ext.minX >= m - e && ext.minY >= m - e && ext.maxX <= PAGE.w - m + e && ext.maxY <= PAGE.h - m + e) return fig;
+  const push = pushIntoSheet(ext);
+  if (!push || (push.x === 0 && push.y === 0)) return fig;
+  return { ...fig, x: fig.x + push.x, y: fig.y + push.y };
 }
 
 function joinNames(items: string[]): string {

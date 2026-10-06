@@ -11,18 +11,18 @@ import { PropertiesPanel } from "./editor/PropertiesPanel";
 import { SheetEditor } from "./editor/SheetEditor";
 import { ToolPanel } from "./editor/ToolPanel";
 import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
-import { useDocument } from "./editor/useDocument";
+import { useDocument, type FitFigure } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
 import { makeDrill, makeFigure, makeFormula, makeText, newDocument, newSeed } from "./model/document";
-import { calcDriftInfo, displayName, solveParam } from "./model/figures";
+import { calcDriftInfo, defOf, displayName, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
-import type { Document as SheetDoc, FigureObject } from "./model/types";
+import type { Document as SheetDoc, FigureObject, ParamState } from "./model/types";
 import { cleanName, parseDocument } from "./model/validate";
 import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
 import { placeCalc } from "./render/placeCalc";
 import { layoutFormula, numberSheet } from "./render/drillLayout";
-import { blockProblem, blockProblemText, placeBlock, placeFigure, placeText } from "./render/placeBlock";
+import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeText } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
@@ -75,7 +75,21 @@ function calcWarnings(
   // Blokke, der går ud over arket eller dækker andre objekter, fx "Regneark 1 går ud over arkets bund — …".
   const layout: string[] = [];
   let drillLayout = false;
+  let figureLayout = false;
   for (const o of doc.objects) {
+    if (o.type === "figure") {
+      // Figurer, der går ud over margenen (fx et langt navn på en størrelse); overlap markeres kun i editoren.
+      const p = figureProblem(doc, o, numbering, measure);
+      if (!p || p.outside.length === 0) continue;
+      figureLayout = true;
+      const nr = numbering.get(o.id) ?? "";
+      layout.push(
+        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim()).map(
+          (t) => `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
+        ),
+      );
+      continue;
+    }
     if (o.type !== "drill" && o.type !== "formula") continue;
     const nr = numbering.get(o.id) ?? "";
     if (o.type === "formula") {
@@ -109,7 +123,11 @@ function calcWarnings(
     formula,
     drift,
     layout,
-    layoutTitle: drillLayout ? "Regnearket passer ikke på arket" : "Formlerne passer ikke på arket",
+    layoutTitle: drillLayout
+      ? "Regnearket passer ikke på arket"
+      : figureLayout
+        ? "En figur går ud over arket"
+        : "Formlerne passer ikke på arket",
   };
 }
 
@@ -191,7 +209,17 @@ export default function Opgavelab({ userKey }: AppProps) {
   // Seneste eksport (Blobs), så hver fil kan hentes igen. Gælder kun det uændrede dokument.
   const [exported, setExported] = useState<{ doc: SheetDoc; files: PdfFiles } | null>(null);
 
-  const { select: selectObject, remove: removeObject } = d;
+  const { select: selectObject, remove: removeObject, setParam: setParamRaw } = d;
+  // Panelændringer på en figur (navn, Vis): gør et nyt navn figuren bredere end pladsen ved margenen, skubbes
+  // den ind på arket (fitFigure); kan den ikke være der, markeres den (figureProblem: panel, overlay, eksport).
+  const setParam = useCallback(
+    (id: string, param: string, patch: Partial<ParamState>, key?: string) => {
+      const fit: FitFigure = (fig, doc) => fitFigure(fig, numberSheet(doc, measure).get(fig.id) ?? "", measure);
+      setParamRaw(id, param, patch, key, fit);
+    },
+    [setParamRaw, measure],
+  );
+
   const select = useCallback(
     (id: string | null) => {
       setAskDelete(null);
@@ -501,7 +529,7 @@ export default function Opgavelab({ userKey }: AppProps) {
         measure={measure}
         askDelete={askDelete}
         onUpdate={d.update}
-        onSetParam={d.setParam}
+        onSetParam={setParam}
         onAddCalc={(figureId, param) => {
           const fig = d.doc.objects.find((o) => o.type === "figure" && o.id === figureId);
           if (!fig || fig.type !== "figure") return;

@@ -54,7 +54,11 @@ export type DocAction =
   | { type: "cancel" }
   | { type: "remove"; id: string }
   | { type: "select"; id: string | null }
-  | { type: "setParam"; id: string; param: string; patch: Partial<ParamState>; key?: string }
+  /**
+   * fit: figuren efter ændringen → figuren, der skal gemmes (Opgavelab: skubbet ind på arket, når et nyt navn
+   * har gjort den bredere end pladsen ved margenen — render/placeBlock.fitFigure). Ren funktion.
+   */
+  | { type: "setParam"; id: string; param: string; patch: Partial<ParamState>; key?: string; fit?: FitFigure }
   | { type: "setName"; name: string }
   | { type: "setSettings"; patch: Partial<DocSettings> }
   | { type: "undo" }
@@ -66,6 +70,9 @@ export type DocAction =
   | { type: "markSaved"; id: string; name?: string; snapshot?: SheetDoc; prevName?: string }
   /** Dokumentets række på serveren er væk (slettet): det regnes for ugemt. */
   | { type: "markUnsaved" };
+
+/** Se DocAction "setParam". */
+export type FitFigure = (fig: FigureObject, doc: SheetDoc) => FigureObject;
 
 export function initState(doc: SheetDoc = newDocument()): DocState {
   return {
@@ -184,7 +191,10 @@ export function reducer(s: DocState, a: DocAction): DocState {
         patch.alias = alias === "" ? undefined : alias;
       }
       const next: ParamState = { ...fig.params[a.param], ...patch };
-      const doc = mapObject(s.doc, a.id, (o) => ({ ...(o as FigureObject), params: { ...(o as FigureObject).params, [a.param]: next } }));
+      const changed: FigureObject = { ...fig, params: { ...fig.params, [a.param]: next } };
+      let doc = mapObject(s.doc, a.id, () => changed);
+      const fitted = a.fit ? a.fit(changed, doc) : changed;
+      if (fitted !== changed) doc = mapObject(doc, a.id, () => fitted);
       return commitChange(s, doc, a.key ?? null);
     }
     case "setName":
@@ -245,8 +255,8 @@ export function useDocument() {
       cancel: () => dispatch({ type: "cancel" }),
       remove: (id: string) => dispatch({ type: "remove", id }),
       select: (id: string | null) => dispatch({ type: "select", id }),
-      setParam: (id: string, param: string, patch: Partial<ParamState>, key?: string) =>
-        dispatch({ type: "setParam", id, param, patch, key }),
+      setParam: (id: string, param: string, patch: Partial<ParamState>, key?: string, fit?: FitFigure) =>
+        dispatch({ type: "setParam", id, param, patch, key, fit }),
       setName: (name: string) => dispatch({ type: "setName", name }),
       setSettings: (patch: Partial<DocSettings>) => dispatch({ type: "setSettings", patch }),
       undo: () => dispatch({ type: "undo" }),

@@ -284,7 +284,9 @@ function FigureSection({
       )}
       {layoutProblem && (
         <p className="ol-warn" role="status" data-ol-figure-warning={fig.id}>
-          {`${blockProblemText(layoutProblem, "Figuren").join(". ")} — flyt den.`}
+          {`${blockProblemText(layoutProblem, "Figuren").join(". ")} — ${
+            layoutProblem.outside.length > 0 ? "flyt den, gør den mindre, eller giv størrelserne kortere navne" : "flyt den"
+          }.`}
         </p>
       )}
       {problems.map(({ calc, text }) => (

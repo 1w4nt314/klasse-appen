@@ -18,6 +18,7 @@ import { calcDrift, calcProblem, defOf, displayName, dragOpts } from "../model/f
 import { LIMITS, PAGE } from "../model/types";
 import type { Bounds, DragResult, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { keyStep } from "../core/keyStep";
+import { pushAllowed } from "../core/pushRule";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
 import { blockProblem, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
@@ -96,9 +97,6 @@ function fitsSheet(b: Bounds): boolean {
   const e = 1e-6;
   return b.minX >= m - e && b.minY >= m - e && b.maxX <= PAGE.w - m + e && b.maxY <= PAGE.h - m + e;
 }
-
-/** Et skub mod trækket skal efterlade mindst så stor en del af håndtagets flytning langs trækket (fitOrPush). */
-const KEEP_ALONG_DRAG = 0.75;
 
 /** Arealet af figurens tegnede omrids (mm²): bliver figuren mindre ved et træk? */
 function drawnArea(def: { bounds(shape: FigureShape): Bounds }, shape: FigureShape): number {
@@ -214,7 +212,7 @@ export function SheetEditor({
       if (!p0 || !q) return null;
       const moved = { x: r.offset.x + q.x - p0.x, y: r.offset.y + q.y - p0.y };
       const shrinks = drawnArea(def, r.shape) < drawnArea(def, fig.shape);
-      const next = fitOrPush({ ...fig, shape: r.shape, x: fig.x + r.offset.x, y: fig.y + r.offset.y } as FigureObject, moved, shrinks);
+      const next = fitOrPush({ ...fig, shape: r.shape, x: fig.x + r.offset.x, y: fig.y + r.offset.y } as FigureObject, dir, moved, shrinks);
       const p1 = next ? def.vertices(next.shape)[vertex] : null;
       if (!next || !p1) return null;
       const progress = (next.x + p1.x - fig.x - p0.x) * dir.x + (next.y + p1.y - fig.y - p0.y) * dir.y;
@@ -369,28 +367,17 @@ export function SheetEditor({
   /**
    * Figuren, hvis den er inden for arkets margen. Ellers skubbes den ind på arket (pushIntoSheet): en figur ved
    * margenen — hvor nye figurer lægges — kan vokse ud mod kanten og flytter sig ind i stedet for at sidde fast.
-   * Ens for mus og tastatur. `moved` er håndtagets flytning (før skub) — trækkets retning:
-   *  - skub i trækkets retning og på tværs af det (fx nedad, når cylinderens r trækkes mod højre) er i orden;
-   *  - et skub MOD trækket må højst tage 1 − KEEP_ALONG_DRAG af håndtagets flytning: håndtaget følger altid
-   *    pointeren. Et hjørne, der trækkes op over topmargenen (eller et håndtag mod højre margen), ville stå
-   *    stille, mens figuren gled væk — dér stopper formændringen ved margenen, og figuren bliver, hvor den er;
-   *  - når figuren bliver MINDRE (`shrinks`), må den rykke mod trækket, så længe skubbet er mindre end
-   *    håndtagets flytning pr. akse — så en etiket, der er bredere end figuren (kvadratets "s = 1,5 cm" eller
-   *    parallelogrammets g), bliver på arket, og en figur ved margenen stadig kan gøres mindre.
-   * null når den ikke kan være på arket.
+   * Ens for mus og tastatur. Om skubbet er i orden, afgøres af core/pushRule ud fra POINTERENS flytning `ptr`
+   * (tastatur: pilens retning) og håndtagets egen flytning `moved` (før skub): figuren glider aldrig væk fra
+   * musen, og håndtaget går aldrig bagud — dér stopper formændringen ved margenen. null når den ikke kan være
+   * på arket.
    */
-  function fitOrPush(next: FigureObject, moved: Point, shrinks: boolean): FigureObject | null {
+  function fitOrPush(next: FigureObject, ptr: Point, moved: Point, shrinks: boolean): FigureObject | null {
     const number = numbering.get(next.id) ?? "";
     const ext = figureExtent(next, number, measure);
     if (fitsSheet(ext)) return next;
     const push = pushIntoSheet(ext);
-    if (!push) return null;
-    const len2 = moved.x * moved.x + moved.y * moved.y;
-    if (len2 < 1e-12) return null;
-    // Hvor meget af håndtagets flytning, der er tilbage langs trækket efter skubbet (1 = hele; på tværs: 1).
-    const kept = ((moved.x + push.x) * moved.x + (moved.y + push.y) * moved.y) / len2;
-    const smaller = (p: number, h: number) => p === 0 || Math.sign(p) === Math.sign(h) || Math.abs(p) < Math.abs(h) - 1e-6;
-    if (kept < KEEP_ALONG_DRAG && !(shrinks && smaller(push.x, moved.x) && smaller(push.y, moved.y))) return null;
+    if (!push || !pushAllowed(push, ptr, moved, shrinks)) return null;
     const pushed = { ...next, x: next.x + push.x, y: next.y + push.y };
     return fitsSheet(figureExtent(pushed, number, measure)) ? pushed : null;
   }
@@ -400,7 +387,9 @@ export function SheetEditor({
     const def = defOf(fig);
     const res = def.dragVertex(d.shape, d.vertex, local, dragOpts(doc.settings, coarse));
     const q = def.vertices(res.shape)[d.vertex] ?? d.handle0;
-    // Håndtagets flytning siden trækkets start (før skub), og om figuren er blevet mindre end ved start.
+    // Pointerens flytning (local = handle0 ved start, se grab), håndtagets flytning siden trækkets start (før
+    // skub), og om figuren er blevet mindre end ved start.
+    const ptr = { x: local.x - d.handle0.x, y: local.y - d.handle0.y };
     const moved = { x: res.offset.x + q.x - d.handle0.x, y: res.offset.y + q.y - d.handle0.y };
     const shrinks = drawnArea(def, res.shape) < drawnArea(def, d.shape);
     const next = {
@@ -410,7 +399,7 @@ export function SheetEditor({
       x: d.anchor.x + res.offset.x,
       y: d.anchor.y + res.offset.y,
     } as FigureObject;
-    return fitOrPush(next, moved, shrinks);
+    return fitOrPush(next, ptr, moved, shrinks);
   }
 
   function moveVertex(d: VertexDrag, pt: Point, coarse: boolean) {
