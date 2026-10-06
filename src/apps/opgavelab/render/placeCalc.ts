@@ -13,6 +13,7 @@ import { LINE_HEIGHT, calcContent, objectBox, type Measure } from "./textLayout"
 const GAP_BELOW = 3; // mm mellem figurens nederste etiket og regnestykket
 const PAD = 1.5; // mm luft mellem regnestykket og andre objekter
 const X_STEP = 5; // mm mellem alternative vandrette placeringer
+const TEXT_WEIGHT = 20; // fuldt ark: så meget værre er det at dække tekst end en figurs udstrækning (pr. mm²)
 
 const hits = (a: Bounds, b: Bounds) =>
   a.minX < b.maxX + PAD && a.maxX > b.minX - PAD && a.minY < b.maxY + PAD && a.maxY > b.minY - PAD;
@@ -129,10 +130,12 @@ export function takenBoxes(doc: SheetDoc, measure: Measure, page: number, ownId?
 }
 
 export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measure: Measure): Point {
-  // Svararket er bredest; bruges, så stykket også passer inden for margenen dér.
+  // Den bredeste af svararket (facit) og opgavearket ("X = ________" er bredere end et kort svar eller "X = ?"),
+  // så stykket passer inden for margenen og ikke dækker noget på nogen af dem (som objectBox).
   const probe: CalcObject = { id: "probe", type: "calc", x: 0, y: 0, figureId: fig.id, param, page: fig.page };
   const c = calcContent(doc, probe, "svarark", "00a", measure);
-  const w = c.widthMm;
+  const label = calcContent(doc, probe, "opgave", "00a", measure).widthMm;
+  const w = Math.max(c.widthMm, label);
   const h = c.sizeMm * LINE_HEIGHT;
   const ext = figureExtent(fig, "00", measure);
   const taken = takenBoxes(doc, measure, fig.page, fig.id, ext);
@@ -141,7 +144,6 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
   const others = numberedBoxes(doc, numbering, measure, fig.page)
     .filter((n) => n.id !== fig.id)
     .map((n) => n.box);
-  const label = calcContent(doc, probe, "opgave", "00a", measure).widthMm;
   // Figurens udstrækning med sit rigtige nummer (som calcStray måler); `ext` med "00" holder fri plads til et længere nummer.
   const own = figureExtent(fig, numbering.get(fig.id) ?? "", measure);
 
@@ -150,11 +152,18 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
   const xMax = Math.max(PAGE.margin, PAGE.w - PAGE.margin - w);
   const x0 = r2(Math.min(Math.max(ext.minX, PAGE.margin), xMax));
   const free = (x: number, y: number) => !taken.some((b) => hits({ minX: x, minY: y, maxX: x + w, maxY: y + h }, b));
+  // Det rigtige nummer kendes først bagefter; "00a" er det bredeste bud, figurens nummer + "a" det smalleste.
+  // Ejerskabet skal holde for begge (et smallere nummer flytter boksens højre kant væk fra en figur til højre).
+  const labelMin = Math.min(label, calcContent(doc, probe, "opgave", `${numbering.get(fig.id) ?? ""}a`, measure).widthMm);
   /** Afstanden til egen figur, når regnestykket her står tydeligt nærmest sin egen figur; ellers null. */
   const ownGap = (x: number, y: number): number | null => {
     const b = { minX: x, minY: y, maxX: x + label, maxY: y + h };
     const d = boxGap(b, own);
-    return others.every((o) => d + OWN_MARGIN_MM <= boxGap(b, o)) ? d : null;
+    if (!others.every((o) => d + OWN_MARGIN_MM <= boxGap(b, o))) return null;
+    if (labelMin >= label - 1e-9) return d;
+    const n = { minX: x, minY: y, maxX: x + labelMin, maxY: y + h };
+    const dn = boxGap(n, own);
+    return others.every((o) => dn + OWN_MARGIN_MM <= boxGap(n, o)) ? d : null;
   };
   const ok = (x: number, y: number) => free(x, y) && ownGap(x, y) !== null;
 
@@ -203,14 +212,21 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
   }
   // Arket er fuldt: dér, hvor regnestykket dækker mindst (også figurens andre regnestykker, så to aldrig lægges
   // oven i hinanden); ved lighed nærmest figurens spalte og nederst. Læreren kan flytte det; markeringen viser det.
+  // Tekst (regnestykker, tekstbokse, regneark, formler) vejer tungere end en figurs udstrækning, der mest er luft
+  // omkring stregerne: to tekster oven i hinanden kan ingen læse.
+  const weight = doc.objects.filter((o) => o.page === fig.page).map((o) => (o.type === "figure" ? 1 : TEXT_WEIGHT));
   let full = { x: x0, y: Math.max(lo, hi), cost: Infinity, dx: Infinity };
   for (const x of xs) {
     const dx = Math.abs(x - x0);
     for (let y = Math.max(lo, hi); y >= lo - 1e-9; y -= 1) {
       const box = { minX: x, minY: y, maxX: x + w, maxY: y + h };
       let cost = 0;
-      for (const b of taken) {
-        cost += Math.max(0, Math.min(box.maxX, b.maxX) - Math.max(box.minX, b.minX)) * Math.max(0, Math.min(box.maxY, b.maxY) - Math.max(box.minY, b.minY));
+      for (let i = 0; i < taken.length; i++) {
+        const b = taken[i];
+        cost +=
+          weight[i] *
+          Math.max(0, Math.min(box.maxX, b.maxX) - Math.max(box.minX, b.minX)) *
+          Math.max(0, Math.min(box.maxY, b.maxY) - Math.max(box.minY, b.minY));
         if (cost > full.cost + 1e-6) break;
       }
       if (cost < full.cost - 1e-6 || (cost < full.cost + 1e-6 && dx < full.dx)) full = { x, y: r2(y), cost, dx };

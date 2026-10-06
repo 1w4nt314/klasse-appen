@@ -22,7 +22,7 @@ import { keyStep } from "../core/keyStep";
 import { pushAllowed } from "../core/pushRule";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
-import { blockProblem, calcOutside, clampDelta, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
+import { blockProblem, calcCovers, calcOutside, clampDelta, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
 import { numberSheet } from "../render/drillLayout";
 import { calcStray } from "../render/placeCalc";
 import { toSvg } from "./pointer";
@@ -74,6 +74,9 @@ type VertexDrag = {
 type Drag = MoveDrag | VertexDrag;
 
 /** Objektets udstrækning på arket; for figurer inkl. etiketter og opgavenummer. */
+/** Et regnestykkes layoutproblemer i editoren: uden for margenen, dækker noget, står ved en anden figur. */
+type CalcWarn = { off: boolean; cover: boolean; stray: boolean };
+
 function boxFor(o: SheetObject, doc: SheetDoc, numbering: ReadonlyMap<string, string>, measure: Measure): Bounds {
   return o.type === "figure" ? figureExtent(o, numbering.get(o.id) ?? "", measure) : objectBox(o, doc, numbering, measure);
 }
@@ -86,7 +89,7 @@ function handleLabel(def: { handleName?: (key: string, displayName: string) => s
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 /**
- * Figurens regnestykker (id, placering, svararks-boks), som flytter med figuren — så et regnestykke aldrig bliver
+ * Figurens regnestykker (id, placering, bredeste boks af de to ark), som flytter med figuren — så et regnestykke aldrig bliver
  * stående ved en anden figur, når figurerne bytter plads (og numre).
  */
 function followersOf(obj: SheetObject, doc: SheetDoc, boxes: KnownBoxes): Follower[] {
@@ -202,8 +205,9 @@ export function SheetEditor({
     () => new Map(pageObjs.map((o) => [o.id, boxFor(o, doc, numbering, measure)])),
     [doc, pageObjs, numbering, measure],
   );
-  const layoutWarn = useMemo(() => {
+  const { layoutWarn, calcWarn } = useMemo(() => {
     const out = new Set<string>();
+    const calcs = new Map<string, CalcWarn>();
     for (const o of pageObjs) {
       const p =
         o.type === "figure"
@@ -212,12 +216,21 @@ export function SheetEditor({
             ? blockProblem(doc, o, numbering, measure, boxes)
             : null;
       if (p) out.add(o.id);
-      // Et regnestykke, der går ud over arket (fx et langt navn) eller står ved en anden figur end sin egen
-      // (fx flyttet med musen hen til den).
-      else if (o.type === "calc" && (calcOutside(doc, o, numbering, measure, boxes).length > 0 || calcStray(doc, o, numbering, measure, boxes)))
-        out.add(o.id);
+      else if (o.type === "calc") {
+        // Et regnestykke, der går ud over arket (fx et langt navn), dækker noget andet (fx trukket oven på et
+        // andet regnestykke) eller står ved en anden figur end sin egen (fx flyttet med musen hen til den).
+        const w: CalcWarn = {
+          off: calcOutside(doc, o, numbering, measure, boxes).length > 0,
+          cover: calcCovers(doc, o, numbering, measure, boxes) !== null,
+          stray: calcStray(doc, o, numbering, measure, boxes) !== null,
+        };
+        if (w.off || w.cover || w.stray) {
+          out.add(o.id);
+          calcs.set(o.id, w);
+        }
+      }
     }
-    return out;
+    return { layoutWarn: out, calcWarn: calcs };
   }, [doc, pageObjs, numbering, measure, boxes]);
 
   const sheetW = size ? Math.max(0, Math.min(size.w, (size.h * PAGE.w) / PAGE.h)) : 0;
@@ -541,6 +554,7 @@ export function SheetEditor({
               measure={measure}
               boxes={boxes}
               layoutWarn={layoutWarn}
+              calcWarn={calcWarn}
               activeHandle={activeHandle}
               onSelect={onSelect}
             />
@@ -583,6 +597,7 @@ function Overlay({
   measure,
   boxes,
   layoutWarn,
+  calcWarn,
   activeHandle,
   onSelect,
 }: {
@@ -597,6 +612,8 @@ function Overlay({
   boxes: KnownBoxes;
   /** Figurer og blokke, der dækker andre objekter eller går ud over arket (figureProblem/blockProblem). */
   layoutWarn: ReadonlySet<string>;
+  /** Regnestykker med layoutproblemer, og hvilke (kun dem med mindst ét). */
+  calcWarn: ReadonlyMap<string, CalcWarn>;
   activeHandle: string | null;
   onSelect: (id: string | null) => void;
 }) {
@@ -643,11 +660,12 @@ function Overlay({
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
         // Regneark og formelblokke, der går ud over arket eller dækker andre objekter (kun markering i editoren).
         const layoutProblem = (o.type === "drill" || o.type === "formula") && layoutWarn.has(o.id);
-        // Regnestykket går ud over arket (calcOutside) eller står ved en anden figur end sin egen (calcStray).
-        const calcWarn = o.type === "calc" && layoutWarn.has(o.id);
-        const calcOff = calcWarn && calcOutside(doc, o, numbering, measure, boxes).length > 0;
-        const stray = calcWarn && !calcOff;
-        // Svararks-boksen (med facit), som er den, der går ud over margenen.
+        // Regnestykket går ud over arket (calcOutside), dækker noget andet (calcCovers) eller står ved en anden
+        // figur end sin egen (calcStray).
+        const cw = o.type === "calc" ? calcWarn.get(o.id) : undefined;
+        const calcOff = !!cw && (cw.off || cw.cover);
+        const stray = !!cw && cw.stray && !cw.off;
+        // Den bredeste boks (svararket med facit eller opgavearkets "X = ____"): den går ud over margenen eller dækker noget.
         const ob = calcOff ? (boxes.get(o.id) ?? b) : b;
         const drift = o.type === "calc" && fig && !problem ? calcDrift(fig, o.param, doc.settings) : null;
         return (
@@ -685,7 +703,8 @@ function Overlay({
               />
             )}
             {calcOff && (
-              // Kun i editoren: regnestykkets svararks-boks (det bredeste, med facit) går ud over arkets margen.
+              // Kun i editoren: regnestykkets bredeste boks (af opgave- og svararket) går ud over arkets margen
+              // eller dækker et andet objekt (fx et andet regnestykke).
               <rect
                 data-ol-layout-warn={o.id}
                 x={ob.minX - 1.2}

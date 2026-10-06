@@ -27,6 +27,7 @@ import { layoutFormula, numberSheet } from "./render/drillLayout";
 import {
   blockProblem,
   blockProblemText,
+  calcCovers,
   calcOutside,
   figureProblem,
   fitFigure,
@@ -35,6 +36,7 @@ import {
   placeFigure,
   placeOnPage,
   placeText,
+  type BlockProblem,
 } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
@@ -89,8 +91,10 @@ const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på 
  * over arket eller dækker andet, som færdige sætninger. Har dokumentet flere sider, nævnes siden
  * ("Regneark 5 (side 2) går ud over …", "1a (X, side 2)"), advarslerne kommer side for side, og tomme
  * sider nævnes til sidst ("Side 3 er tom — …"); et ensidet dokument giver præcis de samme tekster som før.
- * Et regnestykke, hvis svararks-boks går ud over margenen, nævnes som en blok ("Regnestykke 2a går ud over arkets
- * højre margen — flyt det."). Layout-advarslerne har deres side med (dialogen grupperer dem pr. side).
+ * Et regnestykke, hvis boks (den bredeste af de to ark) går ud over margenen, nævnes som en blok ("Regnestykke 2a
+ * går ud over arkets højre margen — flyt det."). Ligger noget oven i hinanden (en figur, et regnestykke eller en blok
+ * dækker noget), nævnes hvert par én gang ("Regnestykke 1a dækker regnestykke 1b — flyt det.").
+ * Layout-advarslerne har deres side med (dialogen grupperer dem pr. side).
  */
 function calcWarnings(
   doc: SheetDoc,
@@ -106,6 +110,21 @@ function calcWarnings(
   let figureLayout = false;
   let calcLayout = false;
   let strayLayout = false;
+  let coverLayout = false;
+  // Par af objekter, der ligger oven i hinanden og allerede er nævnt ("a|b"): hvert par nævnes kun én gang
+  // (figuren nævner regnestykket, den dækker; regnestykket så ikke figuren igen).
+  const pairs = new Set<string>();
+  const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  /** De dækkede objekter, hvis par med `id` ikke er nævnt endnu (og som nu er nævnt). */
+  const newCovers = (id: string, p: BlockProblem): string[] =>
+    p.covers.filter((_, i) => {
+      const other = p.coverIds?.[i];
+      if (other === undefined) return true;
+      const k = pairKey(id, other);
+      if (pairs.has(k)) return false;
+      pairs.add(k);
+      return true;
+    });
   const multi = doc.pageCount > 1;
   /** " (side 2)" ved flere sider, ellers "". */
   const onPage = (page: number) => (multi ? ` (side ${page + 1})` : "");
@@ -113,17 +132,26 @@ function calcWarnings(
   const objects = multi ? [...doc.objects].sort((a, b) => a.page - b.page) : doc.objects;
   for (const o of objects) {
     if (o.type === "figure") {
-      // Figurer, der går ud over margenen (fx et langt navn på en størrelse); overlap markeres kun i editoren.
+      // Figurer, der går ud over margenen (fx et langt navn på en størrelse) eller dækker andre objekter (fx lagt
+      // på et fuldt ark): begge dele ville stå sådan i PDF'en.
       const p = figureProblem(doc, o, numbering, measure);
-      if (!p || p.outside.length === 0) continue;
-      figureLayout = true;
+      if (!p) continue;
       const nr = numbering.get(o.id) ?? "";
-      layout.push(
-        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim() + onPage(o.page)).map((t) => ({
-          page: o.page,
-          text: `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
-        })),
-      );
+      const subject = `${defOf(o).name} ${nr}`.trim() + onPage(o.page);
+      if (p.outside.length > 0) {
+        figureLayout = true;
+        layout.push(
+          ...blockProblemText({ outside: p.outside, covers: [] }, subject).map((t) => ({
+            page: o.page,
+            text: `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
+          })),
+        );
+      }
+      const covers = newCovers(o.id, p);
+      if (covers.length > 0) {
+        coverLayout = true;
+        layout.push(...blockProblemText({ outside: [], covers }, subject).map((t) => ({ page: o.page, text: `${t} — flyt den.` })));
+      }
       continue;
     }
     if (o.type !== "drill" && o.type !== "formula") continue;
@@ -134,6 +162,8 @@ function calcWarnings(
     }
     const p = blockProblem(doc, o, numbering, measure);
     if (!p) continue;
+    // Blokkene nævner alt, de dækker (som før); parrene huskes, så regnestykket ikke nævner blokken igen.
+    for (const other of p.coverIds ?? []) pairs.add(pairKey(o.id, other));
     if (o.type === "drill") drillLayout = true;
     const suffix = o.type === "drill" ? "flyt det, eller vælg færre opgaver." : "flyt den, eller fjern nogle linjer.";
     layout.push(
@@ -148,12 +178,24 @@ function calcWarnings(
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
     const num = numbering.get(o.id);
     // Regnestykket står ved en anden figur (eller et regneark) end sin egen: eleven kan ikke se, hvad "2a" hører til.
-    // Regnestykket (svararket, med facit) går ud over arkets margen: det klippes i PDF'en.
+    // Regnestykket (den bredeste af de to ark) går ud over arkets margen: det klippes i PDF'en.
     const off = calcOutside(doc, o, numbering, measure);
     if (off.length > 0) {
       calcLayout = true;
       layout.push(
         ...blockProblemText({ outside: off, covers: [] }, `Regnestykke ${num ?? ""}`.trim() + onPage(o.page)).map((t) => ({
+          page: o.page,
+          text: `${t} — flyt det.`,
+        })),
+      );
+    }
+    // Regnestykket dækker et andet objekt (fx to regnestykker oven i hinanden): det ville stå sådan i PDF'en.
+    const cov = calcCovers(doc, o, numbering, measure);
+    const covers = cov ? newCovers(o.id, cov) : [];
+    if (covers.length > 0) {
+      coverLayout = true;
+      layout.push(
+        ...blockProblemText({ outside: [], covers }, `Regnestykke ${num ?? ""}`.trim() + onPage(o.page)).map((t) => ({
           page: o.page,
           text: `${t} — flyt det.`,
         })),
@@ -204,13 +246,15 @@ function calcWarnings(
         ? "En figur går ud over arket"
         : calcLayout
           ? "Et regnestykke går ud over arket"
-          : strayLayout && !layout.some(({ text }) => !text.startsWith("Regnestykke ") && !/^Side \d+ er tom/.test(text))
-            ? "Et regnestykke står ved en anden figur"
-            : !otherLayout && empty.length > 0
-              ? empty.length === 1
-                ? "En side er tom"
-                : "Nogle sider er tomme"
-              : "Formlerne passer ikke på arket",
+          : coverLayout
+            ? "Noget på arket ligger oven i hinanden"
+            : strayLayout && !layout.some(({ text }) => !text.startsWith("Regnestykke ") && !/^Side \d+ er tom/.test(text))
+              ? "Et regnestykke står ved en anden figur"
+              : !otherLayout && empty.length > 0
+                ? empty.length === 1
+                  ? "En side er tom"
+                  : "Nogle sider er tomme"
+                : "Formlerne passer ikke på arket",
   };
 }
 
@@ -297,6 +341,8 @@ export default function Opgavelab({ userKey }: AppProps) {
     const t = window.setTimeout(() => setFontWaitOver(true), FONT_WAIT_MS);
     return () => window.clearTimeout(t);
   }, [fontsReady]);
+  // Værktøjerne, panelets "Find" og "Side" venter (samme regel).
+  const fontWait = !fontsReady && !fontWaitOver;
   const [view, setView] = useState<View>("opgave");
   // Figur (eller objekt), der venter på sletbekræftelse.
   const [askDelete, setAskDelete] = useState<string | null>(null);
@@ -709,7 +755,7 @@ export default function Opgavelab({ userKey }: AppProps) {
       <ToolPanel
         {...toolHandlers}
         full={d.doc.objects.length >= LIMITS.objects}
-        waiting={!fontsReady && !fontWaitOver}
+        waiting={fontWait}
       />
       <main className="ol-main">
         <PageBar
@@ -742,6 +788,7 @@ export default function Opgavelab({ userKey }: AppProps) {
         onUpdate={d.update}
         onSetParam={setParam}
         onAddCalc={(figureId, param) => {
+          if (fontWait) return;
           const fig = d.doc.objects.find((o) => o.type === "figure" && o.id === figureId);
           if (!fig || fig.type !== "figure") return;
           const at = placeCalc(d.doc, fig, param, measure);
@@ -753,6 +800,7 @@ export default function Opgavelab({ userKey }: AppProps) {
         onCancelDelete={() => setAskDelete(null)}
         onRemove={remove}
         onSettings={d.setSettings}
+        waiting={fontWait}
       />
       {dialog?.kind === "saveAs" && (
         <SaveAsDialog

@@ -5,7 +5,7 @@
 // dække figurer, tekst, regnestykker eller blokke. Er der intet ledigt, lægges objektet dér, hvor
 // det dækker MINDST (nederst ved lighed) — ikke oven på alt — og blockProblem/figureProblem markerer det.
 // placeBlock (regneark, formler), placeFigure (alle figurtyper) og placeText bruger den.
-// blockProblem: bruges af panelet (advarsel), editor-overlayet (markering) og eksport-dialogen.
+// blockProblem/figureProblem/calcCovers: bruges af panelet (advarsel), editor-overlayet (markering) og eksport-dialogen.
 
 import { defOf } from "../figures/registry";
 import { PAGE } from "../model/types";
@@ -211,7 +211,8 @@ export function placeOnPage(
  * Hvor figurens regnestykker skal stå, når figuren flyttes til siden `page` med ankeret `at` (fra placeOnPage):
  * samme forskydning som figuren, med hvert regnestykkes (svararks-)boks holdt inden for margenen (som ved træk).
  * Går et regnestykke så ud over arket, står det ved en anden figur/blok end sin egen (calcStray), eller dækker
- * det noget på målsiden, lægges det i stedet som et nyt regnestykke ved figuren (placeCalc). `fig` skal stå i `doc`.
+ * det noget på målsiden — også sin egen figur eller et af figurens andre regnestykker (når margenen klemmer dem
+ * sammen nederst) — lægges det i stedet som et nyt regnestykke ved figuren (placeCalc). `fig` skal stå i `doc`.
  */
 export function followToPage(
   doc: SheetDoc,
@@ -230,22 +231,27 @@ export function followToPage(
     const d = clampDelta(objectBox(c, doc, numbering, measure), dx, dy);
     pos.set(c.id, { x: r2(c.x + d.x), y: r2(c.y + d.y) });
   }
-  const own = new Set<string>([fig.id, ...calcs.map((c) => c.id)]);
   const place = (o: SheetObject): SheetObject => {
     if (o.id === fig.id) return { ...o, page, x: at.x, y: at.y };
     const p = pos.get(o.id);
     return p ? { ...o, page, x: p.x, y: p.y } : o;
   };
   let moved: SheetDoc = { ...doc, objects: doc.objects.map(place) };
+  const later = new Set(calcs.map((c) => c.id));
   for (const c of calcs) {
+    later.delete(c.id);
     const nums = numberSheet(moved, measure);
     const cur = moved.objects.find((o): o is CalcObject => o.id === c.id && o.type === "calc");
     if (!cur) continue;
     const box = objectBox(cur, moved, nums, measure);
+    // Alt andet på siden tæller — også figuren selv og figurens tidligere regnestykker (på deres endelige plads):
+    // et regnestykke, der er klemt ind oven på figuren eller en søskende, lægges om. De senere søskende tjekker selv
+    // mod dette, så hvert par tjekkes én gang, og det første af to sammenklemte bliver stående.
     const covers = moved.objects.some(
       (o) =>
         o.page === page &&
-        !own.has(o.id) &&
+        o.id !== c.id &&
+        !later.has(o.id) &&
         hits(box, o.type === "figure" ? figureExtent(o, nums.get(o.id) ?? "", measure) : objectBox(o, moved, nums, measure), -EPS),
     );
     if (!covers && outsideOf(box).length === 0 && calcStray(moved, cur, nums, measure) === null) continue;
@@ -260,8 +266,8 @@ export function followToPage(
 }
 
 /**
- * Kanter (margenen), regnestykkets svararks-boks går ud over — fx efter et nyt, langt navn på en størrelse. Tom,
- * når det er på arket. `boxes`: allerede regnede bokse (editoren: svararks-boksen).
+ * Kanter (margenen), regnestykkets bredeste boks (af opgave- og svararket) går ud over — fx efter et nyt, langt
+ * navn på en størrelse. Tom, når det er på arket. `boxes`: allerede regnede bokse (editoren: den bredeste boks).
  */
 export function calcOutside(
   doc: SheetDoc,
@@ -278,6 +284,8 @@ export type BlockProblem = {
   outside: ("bottom" | "right" | "left" | "top")[];
   /** Navne på andre objekter, blokken dækker, fx "Retvinklet trekant 1". */
   covers: string[];
+  /** Id'erne på de samme objekter (samme rækkefølge som `covers`); eksport-dialogen nævner hvert par én gang. */
+  coverIds?: string[];
 };
 
 /**
@@ -309,25 +317,56 @@ export function blockProblem(
   const outside = outsideOf(box);
 
   const covers: string[] = [];
+  const coverIds: string[] = [];
   for (const o of doc.objects) {
     if (o.id === block.id || o.page !== block.page) continue;
     const num = numbering.get(o.id);
     const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "00", measure) : objectBox(o, doc, numbering, measure));
     // Strengt overlap (ingen luft): en ellers korrekt placeret blok flagges aldrig.
     if (!hits(box, other, -EPS)) continue;
-    covers.push(
-      o.type === "figure"
-        ? `${defOf(o).name}${num ? ` ${num}` : ""}`
-        : o.type === "drill"
-          ? `regneark ${num ?? ""}`.trim()
-          : o.type === "formula"
-            ? `formler ${num ?? ""}`.trim()
-            : o.type === "calc"
-            ? `regnestykke ${num ?? ""}`.trim()
-            : "en tekst",
-    );
+    covers.push(coverName(o, num));
+    coverIds.push(o.id);
   }
-  return outside.length === 0 && covers.length === 0 ? null : { outside, covers };
+  return outside.length === 0 && covers.length === 0 ? null : { outside, covers, coverIds };
+}
+
+/** Et dækket objekts navn i en advarsel, fx "Retvinklet trekant 1", "regnestykke 2a", "en tekst". */
+function coverName(o: SheetObject, num: string | undefined): string {
+  return o.type === "figure"
+    ? `${defOf(o).name}${num ? ` ${num}` : ""}`
+    : o.type === "drill"
+      ? `regneark ${num ?? ""}`.trim()
+      : o.type === "formula"
+        ? `formler ${num ?? ""}`.trim()
+        : o.type === "calc"
+          ? `regnestykke ${num ?? ""}`.trim()
+          : "en tekst";
+}
+
+/**
+ * Hvad regnestykket (den bredeste af opgave- og svararkets boks) dækker på sin side: andre regnestykker, figurer (hele
+ * udstrækningen, også sin egen), regneark, formelblokke og tekst — fx to regnestykker, der er trukket oven i
+ * hinanden. Strengt overlap (ingen luft), som blockProblem. null når det intet dækker. Kanterne: calcOutside.
+ */
+export function calcCovers(
+  doc: SheetDoc,
+  calc: CalcObject,
+  numbering: ReadonlyMap<string, string>,
+  measure: Measure,
+  boxes?: KnownBoxes,
+): BlockProblem | null {
+  const box = boxes?.get(calc.id) ?? objectBox(calc, doc, numbering, measure);
+  const covers: string[] = [];
+  const coverIds: string[] = [];
+  for (const o of doc.objects) {
+    if (o.id === calc.id || o.page !== calc.page) continue;
+    const num = numbering.get(o.id);
+    const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "", measure) : objectBox(o, doc, numbering, measure));
+    if (!hits(box, other, -EPS)) continue;
+    covers.push(coverName(o, num));
+    coverIds.push(o.id);
+  }
+  return covers.length === 0 ? null : { outside: [], covers, coverIds };
 }
 
 /**
@@ -345,15 +384,17 @@ export function figureProblem(
 ): BlockProblem | null {
   const box = boxes?.get(fig.id) ?? figureExtent(fig, numbering.get(fig.id) ?? "", measure);
   const covers: string[] = [];
+  const coverIds: string[] = [];
   for (const o of doc.objects) {
     if (o.id === fig.id || o.page !== fig.page || o.type === "drill" || o.type === "formula") continue;
     const num = numbering.get(o.id);
     const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "", measure) : objectBox(o, doc, numbering, measure));
     if (!hits(box, other, -EPS)) continue;
-    covers.push(o.type === "figure" ? `${defOf(o).name}${num ? ` ${num}` : ""}` : o.type === "calc" ? `regnestykke ${num ?? ""}`.trim() : "en tekst");
+    covers.push(coverName(o, num));
+    coverIds.push(o.id);
   }
   const outside = outsideOf(box);
-  return outside.length === 0 && covers.length === 0 ? null : { outside, covers };
+  return outside.length === 0 && covers.length === 0 ? null : { outside, covers, coverIds };
 }
 
 /**

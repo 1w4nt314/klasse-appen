@@ -6,7 +6,7 @@
 import { useId, useRef, useState } from "react";
 import { DRILL_OPS, OP_SIGN } from "../core/drill";
 import { newSeed } from "../model/document";
-import { blockProblem, blockProblemText, calcOutside, figureProblem } from "../render/placeBlock";
+import { blockProblem, blockProblemText, calcCovers, calcOutside, figureProblem } from "../render/placeBlock";
 import { layoutDrill, layoutFormula } from "../render/drillLayout";
 import type { Measure } from "../render/textLayout";
 import { formatByKind } from "../core/format";
@@ -51,6 +51,7 @@ export function PropertiesPanel({
   onCancelDelete,
   onRemove,
   onSettings,
+  waiting = false,
 }: {
   doc: SheetDoc;
   selected: SheetObject | null;
@@ -68,6 +69,8 @@ export function PropertiesPanel({
   onCancelDelete: () => void;
   onRemove: (id: string) => void;
   onSettings: (patch: Partial<DocSettings>) => void;
+  /** Arkets font hentes endnu: "Find" og "Side" venter (placeringen måles med den rigtige font), som værktøjerne. */
+  waiting?: boolean;
 }) {
   if (!selected) {
     return (
@@ -103,7 +106,14 @@ export function PropertiesPanel({
       <h2 className="ol-panel-title">{title}</h2>
       {doc.pageCount > 1 && selected.type !== "calc" && (
         // key: et ikke-udført valg i "Side" hører til dette objekt og overlever ikke, at et andet markeres.
-        <PageMoveField key={`side:${selected.id}`} obj={selected} pageCount={doc.pageCount} calcCount={calcs.length} onMoveToPage={onMoveToPage} />
+        <PageMoveField
+          key={`side:${selected.id}`}
+          obj={selected}
+          pageCount={doc.pageCount}
+          calcCount={calcs.length}
+          waiting={waiting}
+          onMoveToPage={onMoveToPage}
+        />
       )}
       {selected.type === "text" && (
         <label className="ol-field">
@@ -127,6 +137,7 @@ export function PropertiesPanel({
           onAddCalc={onAddCalc}
           onSelect={onSelect}
           onSettings={onSettings}
+          waiting={waiting}
         />
       )}
       {selected.type === "calc" && <CalcSection calc={selected} doc={doc} numbering={numbering} measure={measure} onSelect={onSelect} />}
@@ -180,6 +191,7 @@ function FigureSection({
   onAddCalc,
   onSelect,
   onSettings,
+  waiting,
 }: {
   fig: FigureObject;
   doc: SheetDoc;
@@ -190,6 +202,7 @@ function FigureSection({
   onAddCalc: (figureId: string, param: string) => void;
   onSelect: (id: string | null) => void;
   onSettings: (patch: Partial<DocSettings>) => void;
+  waiting: boolean;
 }) {
   const def = defOf(fig);
   const values = def.compute(fig.shape);
@@ -243,8 +256,8 @@ function FigureSection({
                     type="button"
                     className="ol-btn ol-find"
                     data-ol-find={key}
-                    disabled={reason !== null}
-                    title={reason ?? `Opret et regnestykke, der finder ${name}`}
+                    disabled={reason !== null || waiting}
+                    title={reason ?? (waiting ? "Henter arkets skrifttype …" : `Opret et regnestykke, der finder ${name}`)}
                     aria-describedby={reason ? `ol-find-why-${key}` : undefined}
                     onClick={() => onAddCalc(fig.id, key)}
                   >
@@ -419,11 +432,14 @@ function PageMoveField({
   obj,
   pageCount,
   calcCount,
+  waiting,
   onMoveToPage,
 }: {
   obj: Exclude<SheetObject, CalcObject>;
   pageCount: number;
   calcCount: number;
+  /** Arkets font hentes endnu: feltet venter (som værktøjsknapperne). */
+  waiting: boolean;
   onMoveToPage: (id: string, page: number) => void;
 }) {
   const id = useId();
@@ -451,6 +467,8 @@ function PageMoveField({
         <select
           id={id}
           data-ol-move-page=""
+          disabled={waiting}
+          title={waiting ? "Henter arkets skrifttype …" : undefined}
           value={(pending ?? obj.page) + 1}
           onPointerDown={() => {
             keyed.current = false;
@@ -461,7 +479,7 @@ function PageMoveField({
           onKeyDown={(e) => {
             if (e.key === "PageUp" || e.key === "PageDown") {
               e.preventDefault();
-            } else if (e.key === "Enter" && pending !== null) {
+            } else if (e.key === "Enter" && pending !== null && !waiting) {
               e.preventDefault();
               move(pending);
             } else if (e.key === "Escape" && pending !== null) {
@@ -489,7 +507,7 @@ function PageMoveField({
           ))}
         </select>
         {pending !== null && (
-          <button type="button" className="ol-btn ol-btn-strong" data-ol-move-page-go="" onClick={() => move(pending)}>
+          <button type="button" className="ol-btn ol-btn-strong" data-ol-move-page-go="" disabled={waiting} onClick={() => move(pending)}>
             {`Flyt til side ${pending + 1}`}
           </button>
         )}
@@ -529,6 +547,8 @@ function CalcSection({
   const rhs = sol && sol.formula.includes(" = ") ? sol.formula.slice(sol.formula.indexOf(" = ") + 3) : "";
   // Svararkets boks (med facit) går ud over margenen: den ville blive klippet i PDF'en.
   const off = calcOutside(doc, calc, numbering, measure);
+  // Svararkets boks dækker et andet objekt (fx et andet regnestykke, der er trukket oven i det).
+  const covers = calcCovers(doc, calc, numbering, measure);
   return (
     <>
       <dl className="ol-calc-info" data-ol-calc-info="">
@@ -562,6 +582,11 @@ function CalcSection({
           {`Regnestykket går ud over arkets ${[
             ...new Set(off.map((e) => (e === "bottom" ? "bund" : e === "right" ? "højre margen" : "margen"))),
           ].join(" og ")} på svararket — flyt det længere ind på arket.`}
+        </p>
+      )}
+      {covers && (
+        <p className="ol-warn" role="status" data-ol-calc-covers={calc.id}>
+          {`${blockProblemText(covers, "Regnestykket").join(". ")} — flyt det, så intet ligger oven i hinanden på arket.`}
         </p>
       )}
       <button type="button" className="ol-btn" data-ol-goto-figure="" onClick={() => onSelect(fig.id)}>
