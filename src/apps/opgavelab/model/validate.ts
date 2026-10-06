@@ -3,6 +3,10 @@
 // bygges op på ny af kendte felter. Ukendt type, ikke-endelige tal, forkert
 // skemaversion eller for mange objekter giver null (afvist). Forældreløse
 // regnestykker smides væk.
+//
+// Sider: `pageCount` (1–LIMITS.pages) og `page` pr. objekt (0–pageCount−1). Mangler de (dokumenter
+// fra før sider), bliver det én side med alt på side 0; ugyldige værdier afviser dokumentet. Et
+// regnestykkes `page` læses ikke — det sættes altid til figurens side.
 
 import { aliasConflict, clipAlias, getFigureDef } from "./figures";
 import { asFigure, type FigureDefFor, type FigureKind, type FigureObjectFor } from "../figures/registry";
@@ -66,7 +70,10 @@ function parseSettings(raw: unknown): DocSettings {
   };
 }
 
-function parseText(r: Record<string, unknown>, id: string): TextObject | null {
+/** Objektet uden side (sættes af parseDocument). */
+type NoPage<T> = Omit<T, "page">;
+
+function parseText(r: Record<string, unknown>, id: string): NoPage<TextObject> | null {
   const x = num(r.x, COORD_MIN, COORD_MAX);
   const y = num(r.y, COORD_MIN, COORD_MAX);
   const width = num(r.width, 10, 210);
@@ -119,7 +126,7 @@ function parseDrillConfig(raw: unknown): DrillConfig | null {
   return { ops, count, columns, aMin, aMax, bMin, bMax, tables, division: raw.division, noNegative: raw.noNegative, decimals, title: cleanTitle };
 }
 
-function parseDrill(r: Record<string, unknown>, id: string): DrillObject | null {
+function parseDrill(r: Record<string, unknown>, id: string): NoPage<DrillObject> | null {
   const x = num(r.x, COORD_MIN, COORD_MAX);
   const y = num(r.y, COORD_MIN, COORD_MAX);
   const width = num(r.width, LIMITS.drillWidthMin, LIMITS.drillWidthMax);
@@ -134,7 +141,7 @@ function parseDrill(r: Record<string, unknown>, id: string): DrillObject | null 
  * eval); her tjekkes kun grænserne: 1–20 linjer à højst 80 tegn efter rensning, decimaler 0–4,
  * titel højst 60 tegn. Alt andet → null (dokumentet afvises).
  */
-function parseFormula(r: Record<string, unknown>, id: string): FormulaObject | null {
+function parseFormula(r: Record<string, unknown>, id: string): NoPage<FormulaObject> | null {
   const x = num(r.x, COORD_MIN, COORD_MAX);
   const y = num(r.y, COORD_MIN, COORD_MAX);
   const width = num(r.width, LIMITS.drillWidthMin, LIMITS.drillWidthMax);
@@ -156,15 +163,16 @@ function parseFormula(r: Record<string, unknown>, id: string): FormulaObject | n
   return { id, type: "formula", x, y, width, lines, decimals, title: cleanTitle };
 }
 
-function parseFigure(r: Record<string, unknown>, id: string, withCalc: ReadonlySet<string>, notes?: string[]): FigureObject | null {
+function parseFigure(r: Record<string, unknown>, id: string, page: number, withCalc: ReadonlySet<string>, notes?: string[]): FigureObject | null {
   const def = getFigureDef(r.figure);
-  return def ? parseFigureOf(def, r, id, withCalc, notes) : null;
+  return def ? parseFigureOf(def, r, id, page, withCalc, notes) : null;
 }
 
 function parseFigureOf<K extends FigureKind>(
   def: FigureDefFor<K>,
   r: Record<string, unknown>,
   id: string,
+  page: number,
   withCalc: ReadonlySet<string>,
   notes?: string[],
 ): FigureObject | null {
@@ -185,7 +193,7 @@ function parseFigureOf<K extends FigureKind>(
       if (alias) aliases[p.key] = alias;
     }
   }
-  const fig: FigureObjectFor<K> = { id, type: "figure", figure: def.type, x, y, shape, params };
+  const fig: FigureObjectFor<K> = { id, type: "figure", figure: def.type, x, y, shape, params, page };
   // Dublet-aliasser (gamle dokumenter fra før aliasConflict): parametre med et regnestykke
   // får aliaset først, derefter vinkler før sider, ellers parameterrækkefølgen. Et alias, der
   // allerede er i brug (som navn eller nøgle på en anden parameter), smides væk med en besked.
@@ -206,7 +214,8 @@ function parseCalc(r: Record<string, unknown>, id: string, figures: Map<string, 
   if (x === null || y === null || typeof r.figureId !== "string" || typeof r.param !== "string") return null;
   const fig = figures.get(r.figureId);
   if (!fig || !has(fig.params, r.param)) return null; // forældreløst regnestykke
-  return { id, type: "calc", x, y, figureId: fig.id, param: r.param };
+  // Regnestykket står altid på figurens side (et gemt `page` ignoreres).
+  return { id, type: "calc", x, y, figureId: fig.id, param: r.param, page: fig.page };
 }
 
 /** Skemamigrering: tilføj en case pr. ny version. Ukendt version → null. */
@@ -236,6 +245,10 @@ export function parseDocument(input: unknown, notes?: string[]): SheetDoc | null
   const name = raw.name.trim() === "" ? "" : cleanName(raw.name);
   if (name === null) return null;
 
+  // Sider: mangler feltet (dokument fra før sider) → én side; ellers heltal 1–LIMITS.pages.
+  const pageCount = has(raw, "pageCount") ? int(raw.pageCount, 1, LIMITS.pages) : 1;
+  if (pageCount === null) return null;
+
   // Hvilke (figur, parameter) har et regnestykke — afgør, hvem der beholder et dublet-alias.
   const withCalc = new Set<string>();
   for (const o of raw.objects as unknown[]) {
@@ -250,24 +263,28 @@ export function parseDocument(input: unknown, notes?: string[]): SheetDoc | null
     const o: unknown = raw.objects[i];
     if (!isObj(o) || typeof o.id !== "string" || !ID_RE.test(o.id) || seen.has(o.id)) return null;
     seen.add(o.id);
+    if (o.type === "calc") continue; // andet gennemløb (siden følger figuren)
+    // Siden: mangler → 0; ellers heltal 0–pageCount−1.
+    const page = has(o, "page") ? int(o.page, 0, pageCount - 1) : 0;
+    if (page === null) return null;
     if (o.type === "text") {
       const t = parseText(o, o.id);
       if (!t) return null;
-      parsed.set(i, t);
+      parsed.set(i, { ...t, page });
     } else if (o.type === "figure") {
-      const f = parseFigure(o, o.id, withCalc, figNotes);
+      const f = parseFigure(o, o.id, page, withCalc, figNotes);
       if (!f) return null;
       parsed.set(i, f);
       figures.set(f.id, f);
     } else if (o.type === "drill") {
       const dr = parseDrill(o, o.id);
       if (!dr) return null;
-      parsed.set(i, dr);
+      parsed.set(i, { ...dr, page });
     } else if (o.type === "formula") {
       const fo = parseFormula(o, o.id);
       if (!fo) return null;
-      parsed.set(i, fo);
-    } else if (o.type !== "calc") {
+      parsed.set(i, { ...fo, page });
+    } else {
       return null; // ukendt type
     }
   }
@@ -288,5 +305,5 @@ export function parseDocument(input: unknown, notes?: string[]): SheetDoc | null
   const objects = [...parsed.entries()].sort((a, b) => a[0] - b[0]).map(([, o]) => o);
   notes?.push(...figNotes);
 
-  return { schemaVersion: SCHEMA_VERSION, subject: raw.subject as Subject, name, settings: parseSettings(raw.settings), objects };
+  return { schemaVersion: SCHEMA_VERSION, subject: raw.subject as Subject, name, settings: parseSettings(raw.settings), pageCount, objects };
 }

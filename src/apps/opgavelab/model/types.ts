@@ -14,7 +14,11 @@ export type Bounds = { minX: Mm; minY: Mm; maxX: Mm; maxY: Mm };
 /** Synlighed og evt. alias for en parameter (alias vises i stedet for nøglen, fx C → "X"). */
 export type ParamState = { visible: boolean; alias?: string };
 
-export type TextObject = { id: string; type: "text"; x: Mm; y: Mm; width: Mm; text: string; sizePt: number };
+/**
+ * Alle objekter har `page`: 0-baseret side (vises som "Side 1"). Gamle dokumenter (trin 1-5) uden
+ * feltet indlæses med side 0. Et regnestykke står ALTID på sin figurs side (validate.ts, model/pages.ts).
+ */
+export type TextObject = { id: string; type: "text"; x: Mm; y: Mm; width: Mm; text: string; sizePt: number; page: number };
 
 /** Retvinklet trekant i dansk notation: C = 90°, a = BC, b = AC (kateter i mm). */
 export type RightTriangleShape = {
@@ -93,9 +97,12 @@ export type FigureObjectOf<K extends string, S> = {
   shape: S;
   /** Fx a, b, c, A, B, C for den retvinklede trekant. */
   params: Record<string, ParamState>;
+  /** 0-baseret side (som TextObject.page). */
+  page: number;
 };
 
-export type CalcObject = { id: string; type: "calc"; x: Mm; y: Mm; figureId: string; param: string };
+/** Regnestykke til en figurs parameter. `page` er altid figurens side. */
+export type CalcObject = { id: string; type: "calc"; x: Mm; y: Mm; figureId: string; param: string; page: number };
 
 /** Regningsart i et regneark: plus, minus, gange, division. */
 export type DrillOp = "add" | "sub" | "mul" | "div";
@@ -135,6 +142,8 @@ export type DrillObject = {
   /** uint32; samme seed + config giver altid de samme opgaver. */
   seed: number;
   config: DrillConfig;
+  /** 0-baseret side (som TextObject.page). */
+  page: number;
 };
 
 /**
@@ -154,6 +163,8 @@ export type FormulaObject = {
   decimals: 0 | 1 | 2 | 3 | 4;
   /** Overskrift (højst LIMITS.formulaTitle tegn; tom = ingen). */
   title: string;
+  /** 0-baseret side (som TextObject.page). */
+  page: number;
 };
 
 export type SheetObject = TextObject | FigureObject | CalcObject | DrillObject | FormulaObject;
@@ -170,6 +181,11 @@ export type Document = {
   subject: Subject;
   name: string;
   settings: DocSettings;
+  /**
+   * Antal A4-sider, 1–LIMITS.pages. Eksplicit (ikke max(page) + 1), så tomme sider kan gemmes.
+   * Mangler i gamle dokumenter → 1 (schemaVersion er stadig 1; ændringen er rent additiv).
+   */
+  pageCount: number;
   objects: SheetObject[];
 };
 
@@ -179,7 +195,10 @@ export const PAGE = { w: 210, h: 297, margin: 10 } as const;
 export const PT_MM = 25.4 / 72;
 
 export const LIMITS = {
-  objects: 200,
+  /** Objekter pr. dokument (alle sider tilsammen). */
+  objects: 400,
+  /** Sider pr. dokument. */
+  pages: 20,
   textChars: 2000,
   nameChars: 60,
   jsonBytes: 200_000,

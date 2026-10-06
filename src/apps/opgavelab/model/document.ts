@@ -21,6 +21,7 @@ export function newDocument(name = ""): SheetDoc {
     subject: "matematik",
     name,
     settings: { ...DEFAULT_SETTINGS },
+    pageCount: 1,
     objects: [],
   };
 }
@@ -33,7 +34,8 @@ function cascade(existing: number): number {
   return (existing % 6) * 8;
 }
 
-export function makeText(id: string, existing: number): TextObject {
+/** Nye objekter lægges på siden `page` (0-baseret; standard første side). */
+export function makeText(id: string, existing: number, page = 0): TextObject {
   const o = cascade(existing);
   return {
     id,
@@ -43,11 +45,12 @@ export function makeText(id: string, existing: number): TextObject {
     width: TEXT_DEFAULTS.width,
     text: DEFAULT_TEXT,
     sizePt: TEXT_DEFAULTS.sizePt,
+    page,
   };
 }
 
 /** Ny figur (figurens newShape) med bounding box centreret midt på arket (let forskudt pr. eksisterende figur). */
-export function makeFigure<K extends FigureKind>(id: string, kind: K, existing: number): FigureObject | null {
+export function makeFigure<K extends FigureKind>(id: string, kind: K, existing: number, page = 0): FigureObject | null {
   if (!Object.prototype.hasOwnProperty.call(FIGURES, kind)) return null;
   const def = FIGURES[kind];
   const shape = def.newShape();
@@ -63,6 +66,7 @@ export function makeFigure<K extends FigureKind>(id: string, kind: K, existing: 
     y: cy - (b.minY + b.maxY) / 2,
     shape,
     params: defaultParams(def),
+    page,
   });
 }
 
@@ -79,7 +83,7 @@ export function newSeed(): number {
 export const DRILL_WIDTH = 180;
 
 /** Nyt regneark med standardindstillinger: ved venstre margen, let forskudt nedad pr. eksisterende regneark. */
-export function makeDrill(id: string, existing: number, seed: number): DrillObject {
+export function makeDrill(id: string, existing: number, seed: number, page = 0): DrillObject {
   const o = cascade(existing);
   return {
     id,
@@ -89,6 +93,7 @@ export function makeDrill(id: string, existing: number, seed: number): DrillObje
     width: DRILL_WIDTH,
     seed: seed >>> 0,
     config: { ...DEFAULT_DRILL_CONFIG, ops: [...DEFAULT_DRILL_CONFIG.ops], tables: [...DEFAULT_DRILL_CONFIG.tables] },
+    page,
   };
 }
 
@@ -97,7 +102,7 @@ export const DEFAULT_FORMULA_LINES = ["3 · (4 + 5) ="];
 export const DEFAULT_FORMULA_TITLE = "Regn ud";
 
 /** Ny formelblok med ét eksempel-stykke: ved venstre margen, let forskudt nedad pr. eksisterende blok. */
-export function makeFormula(id: string, existing: number): FormulaObject {
+export function makeFormula(id: string, existing: number, page = 0): FormulaObject {
   const o = cascade(existing);
   return {
     id,
@@ -108,10 +113,11 @@ export function makeFormula(id: string, existing: number): FormulaObject {
     lines: [...DEFAULT_FORMULA_LINES],
     decimals: 2,
     title: DEFAULT_FORMULA_TITLE,
+    page,
   };
 }
 
-/** Nyt regnestykke placeret under figuren (kan flyttes uafhængigt). */
+/** Nyt regnestykke placeret under figuren (kan flyttes uafhængigt) — altid på figurens side. */
 export function makeCalc(id: string, fig: FigureObject, param: string, siblings: number): CalcObject {
   const b = figureBoundsOnSheet(fig);
   return {
@@ -121,9 +127,20 @@ export function makeCalc(id: string, fig: FigureObject, param: string, siblings:
     param,
     x: b.minX,
     y: Math.min(b.maxY + 14 + siblings * 9, PAGE.h - PAGE.margin - 6),
+    page: fig.page,
   };
 }
 
 export function findObject(doc: SheetDoc, id: string | null): SheetObject | undefined {
   return id ? doc.objects.find((o) => o.id === id) : undefined;
+}
+
+/** Objekterne på siden `page` (0-baseret), i dokumentets rækkefølge. */
+export function pageObjects(doc: SheetDoc, page: number): SheetObject[] {
+  return doc.objects.filter((o) => o.page === page);
+}
+
+/** Siden (0-baseret), objektet står på — eller null, hvis det ikke findes. */
+export function pageOf(doc: SheetDoc, id: string | null): number | null {
+  return findObject(doc, id)?.page ?? null;
 }

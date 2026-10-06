@@ -1,7 +1,8 @@
 // Opgavelab — semi-automatisk nummerering: blokke (figurer, regneark og formelblokke) "1", "2", …
 // efter placering (rækker top→bund, i rækken venstre→højre; se ROW_MM), regnestykker "1a", "1b", … pr. figur efter (y, x),
 // og opgaverne i et regneark / linjerne i en formelblok "3a"–"3t" (itemLabel). Fritstående tekst nummereres ikke.
-// Samme map bruges til opgave og svarark.
+// Samme map bruges til opgave og svarark. Flere sider: rækkereglen køres for hver side for sig, og numrene
+// fortsætter side for side (side 1 → 1…k, side 2 → k+1…). Regnestykker følger deres figur (og dens side).
 //
 // Ingen runtime-imports (kun `import type`).
 
@@ -94,11 +95,25 @@ export function itemLabel(nr: string, i: number, count: number): string {
   return count <= 26 ? nr + letters(i) : `${nr}.${i + 1}`;
 }
 
+/** Rækkereglen (ROW_MM/ROW_OVERLAP/orderRow) på blokkene på ÉN side: blokkene i nummerrækkefølge. */
+function orderPage<B extends { b: Bounds; i: number }>(blocks: B[]): B[] {
+  const sorted = [...blocks].sort((p, q) => p.b.minY - q.b.minY || p.b.minX - q.b.minX || p.i - q.i);
+  const rows: B[][] = [];
+  for (const f of sorted) {
+    // Første række (øverst), hvis anker f står ved siden af, og hvor f ikke står over/under en anden blok.
+    const row = rows.find((r) => besides(r[0].b, f.b) && !r.some((m) => stacked(m.b, f.b)));
+    if (row) row.push(f);
+    else rows.push([f]);
+  }
+  return rows.flatMap(orderRow);
+}
+
 /**
  * @param figureBounds bounding box for figuren i ARK-koordinater (mm).
  * @param blockBounds regnearkets/formelblokkens udstrækning på arket (layoutets boks); udeladt →
  *   estimateBlockBounds (uden tekstmåling).
- * @returns objekt-id → nummer ("1" for figurer og blokke, "1a" for regnestykker).
+ * @returns objekt-id → nummer ("1" for figurer og blokke, "1a" for regnestykker). Blokkene på side 1 får
+ *   de laveste numre, derefter side 2 osv.; inden for en side gælder rækkereglen.
  */
 export function numberDocument(
   doc: Document,
@@ -113,15 +128,15 @@ export function numberDocument(
         p.fig.type === "figure" || p.fig.type === "drill" || p.fig.type === "formula",
     )
     .map(({ fig, i }) => ({ fig, i, b: fig.type === "figure" ? figureBounds(fig) : blockBounds(fig) }));
-  blocks.sort((p, q) => p.b.minY - q.b.minY || p.b.minX - q.b.minX || p.i - q.i);
-  const rows: (typeof blocks)[] = [];
+  // Pr. side (manglende side = 0, som i dokumenter fra før sider), siderne i stigende rækkefølge.
+  const pages = new Map<number, typeof blocks>();
   for (const f of blocks) {
-    // Første række (øverst), hvis anker f står ved siden af, og hvor f ikke står over/under en anden blok.
-    const row = rows.find((r) => besides(r[0].b, f.b) && !r.some((m) => stacked(m.b, f.b)));
-    if (row) row.push(f);
-    else rows.push([f]);
+    const p = f.fig.page ?? 0;
+    const list = pages.get(p);
+    if (list) list.push(f);
+    else pages.set(p, [f]);
   }
-  const ordered = rows.flatMap(orderRow);
+  const ordered = [...pages.keys()].sort((p, q) => p - q).flatMap((p) => orderPage(pages.get(p)!));
 
   const calcs = new Map<string, { calc: CalcObject; i: number }[]>();
   doc.objects.forEach((o, i) => {

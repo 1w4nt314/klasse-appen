@@ -95,7 +95,7 @@ export function takenBoxes(doc: SheetDoc, measure: Measure, ownId?: string, ownE
 
 export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measure: Measure): Point {
   // Svararket er bredest; bruges, så stykket også passer inden for margenen dér.
-  const probe: CalcObject = { id: "probe", type: "calc", x: 0, y: 0, figureId: fig.id, param };
+  const probe: CalcObject = { id: "probe", type: "calc", x: 0, y: 0, figureId: fig.id, param, page: fig.page };
   const c = calcContent(doc, probe, "svarark", "00a", measure);
   const w = c.widthMm;
   const h = c.sizeMm * LINE_HEIGHT;
