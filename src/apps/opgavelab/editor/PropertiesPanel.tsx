@@ -166,11 +166,15 @@ function FigureSection({
             const st = fig.params[key] ?? { visible: true };
             const name = displayName(fig, key);
             const existing = calcs.find((c) => c.param === key);
-            const reason = vis.has(key)
-              ? `Skjul ${name} først — den, der skal findes, må ikke stå på opgavearket`
-              : existing
-                ? `Der er allerede et regnestykke for ${name}`
-                : null;
+            // Størrelser uden regel (fx trapezets ben): ingen Find, med en forklaring under tabellen.
+            const noRule = def.solvableFrom(key).length === 0;
+            const reason = noRule
+              ? (p.noFind ?? `${name} kan ikke findes med et regnestykke`)
+              : vis.has(key)
+                ? `Skjul ${name} først — den, der skal findes, må ikke stå på opgavearket`
+                : existing
+                  ? `Der er allerede et regnestykke for ${name}`
+                  : null;
             return (
               <tr key={key} data-ol-param-row={key}>
                 <th scope="row">{name}</th>
@@ -203,11 +207,16 @@ function FigureSection({
                     Find {name}
                   </button>
                   {reason && (
-                    <span id={`ol-find-why-${key}`} className={vis.has(key) ? "sr-only" : "ol-find-why"}>
+                    <span id={`ol-find-why-${key}`} className={vis.has(key) || noRule ? "sr-only" : "ol-find-why"}>
                       {reason}
                     </span>
                   )}
-                  {reason && vis.has(key) && (
+                  {noRule && (
+                    <span className="ol-find-why ol-find-why-short" aria-hidden="true" data-ol-find-why={key}>
+                      Kan ikke findes
+                    </span>
+                  )}
+                  {reason && !noRule && vis.has(key) && (
                     // Kort, synlig årsag for musebrugere (den fulde tekst står i title og for skærmlæsere).
                     <span className="ol-find-why ol-find-why-short" aria-hidden="true" data-ol-find-why={key}>
                       Skjul først
@@ -223,6 +232,13 @@ function FigureSection({
         Skjulte størrelser står ikke på opgavearket, kun navnet. Omdøb en størrelse (fx A til X), fjern flueben ved Vis,
         og tryk Find.
       </p>
+      {[...new Set(def.params.filter((p) => def.solvableFrom(p.key).length === 0).map((p) => p.noFind ?? ""))]
+        .filter((t) => t !== "")
+        .map((t) => (
+          <p key={t} className="ol-hint" data-ol-nofind-hint="">
+            {t}
+          </p>
+        ))}
       {def.params.some((p) => p.derived) && (
         <p className="ol-hint" data-ol-derived-hint="">
           Afledte mål (fx areal og omkreds) er skjult som standard. Sæt flueben ved Vis, så står de under figuren.

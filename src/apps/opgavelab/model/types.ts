@@ -46,6 +46,19 @@ export type RectangleShape = { l: Mm; b: Mm };
 /** Kvadrat: side s i mm; ankeret er øverste venstre hjørne. */
 export type SquareShape = { s: Mm };
 
+/**
+ * Parallelogram: grundlinje g (vandret) og skrå side b i mm, vinkel v (grader) ved nederste
+ * venstre hjørne mellem g og b (20–90°; venstrehældende er den spejlede, samme figur).
+ * Ankeret er nederste venstre hjørne.
+ */
+export type ParallelogramShape = { g: Mm; b: Mm; v: number };
+
+/**
+ * Trapez (parallelle sider vandrette): a nederst, b øverst, højde h og forskydning off (mm) af
+ * øverste venstre hjørne i forhold til nederste venstre. Ankeret er nederste venstre hjørne.
+ */
+export type TrapezoidShape = { a: Mm; b: Mm; h: Mm; off: Mm };
+
 /** Cirkel: radius r i mm; ankeret er centrum. */
 export type CircleShape = { r: Mm };
 
@@ -114,6 +127,11 @@ export type ParamDef = {
   kind: ParamKind;
   /** Afledt mål (areal, omkreds, rumfang …): standard skjult og tegnes kun når synligt. */
   derived?: true;
+  /**
+   * Parameteren har ingen Find-regel (solvableFrom er tom): Find-knappen er slået fra, og panelet
+   * viser denne forklaring (udeladt → en almindelig tekst).
+   */
+  noFind?: string;
 };
 
 /** Formatering injiceres i solve, så core-filerne ikke har runtime-imports. */

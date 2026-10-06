@@ -124,6 +124,118 @@ export function sideLabel(
   return { c: besides(mid, n, LABEL_GAP + 0.6, hw, hh), hw, hh, dir, n };
 }
 
+// ---- placering ----
+
+/**
+ * Ligger boksen (centrum c, halve mål hw/hh) inde i den konvekse polygon med mindst `gap` mm til
+ * alle sider? (Tjekker boksens udstrækning vinkelret på hver side.)
+ */
+export function insideConvex(c: Point, hw: number, hh: number, poly: readonly Point[], gap: number): boolean {
+  let cx = 0;
+  let cy = 0;
+  for (const p of poly) {
+    cx += p.x / poly.length;
+    cy += p.y / poly.length;
+  }
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i];
+    const q = poly[(i + 1) % poly.length];
+    const d = unit(sub(q, p));
+    const n = { x: -d.y, y: d.x };
+    const inward = Math.sign((cx - p.x) * n.x + (cy - p.y) * n.y) || 1;
+    const dist = ((c.x - p.x) * n.x + (c.y - p.y) * n.y) * inward;
+    if (dist - (Math.abs(n.x) * hw + Math.abs(n.y) * hh) < gap) return false;
+  }
+  return true;
+}
+
+/** Overlapper de to etiketbokse (med `m` mm luft)? */
+export function boxesOverlap(
+  a: { c: Point; hw: number; hh: number },
+  b: { c: Point; hw: number; hh: number },
+  m = 0.3,
+): boolean {
+  return Math.abs(a.c.x - b.c.x) < a.hw + b.hw + m && Math.abs(a.c.y - b.c.y) < a.hh + b.hh + m;
+}
+
+type Box = { c: Point; hw: number; hh: number };
+
+/** Boksen om et lodret eller vandret linjestykke (uden tekst), så etiketter kan holde sig fri af stiplede linjer. */
+export function lineBox(p: Point, q: Point, half = 0.4): Box {
+  return {
+    c: { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 },
+    hw: Math.abs(q.x - p.x) / 2 + half,
+    hh: Math.abs(q.y - p.y) / 2 + half,
+  };
+}
+
+/**
+ * Flytter en sideetiket det mindste stykke langs siden (så længe der er plads), ellers udad, til den
+ * ikke rammer de andre etiketter. Uændret, hvis den ikke rammer, eller hvis intet virker.
+ */
+export function freeSpot(label: Label, others: readonly (Label | Box)[], margin = 0.6): void {
+  const hit = (c: Point) => others.some((o) => o !== label && boxesOverlap({ c, hw: label.hw, hh: label.hh }, o, margin));
+  if (!hit(label.c)) return;
+  const { dir, n } = label;
+  if (dir) {
+    for (let t = 0.5; t <= 30; t += 0.5) {
+      for (const sgn of [1, -1]) {
+        const c = add(label.c, dir, sgn * t);
+        if (!hit(c)) {
+          label.c = c;
+          return;
+        }
+      }
+    }
+  }
+  if (n) {
+    for (let t = 0.5; t <= 15; t += 0.5) {
+      const c = add(label.c, n, t);
+      if (!hit(c)) {
+        label.c = c;
+        return;
+      }
+    }
+  }
+}
+
+/** Sideetiketter (med dir/n), der rammer en anden etiket eller en af `lines`, flyttes det mindste stykke (freeSpot). */
+export function separateLabels(out: Label[], lines: readonly Box[] = []): void {
+  for (const l of out) {
+    const all = [...out, ...lines];
+    if (l.dir && all.some((o) => o !== l && boxesOverlap(l, o))) freeSpot(l, all);
+  }
+}
+
+/**
+ * "h = 4,5 cm" ved en stiplet højde fra `top` ned til `foot`: på et sted langs linjen, til højre eller
+ * venstre for den, inde i polygonen `poly` og uden at ramme de andre etiketter eller retvinkelmærket
+ * (`mark`, boks i lokale mm). null hvis der ikke er plads (så står h i mål-boksen).
+ */
+export function placeHeightLabel(o: {
+  foot: Point;
+  top: Point;
+  poly: readonly Point[];
+  text: string;
+  measure: Measure;
+  others: readonly Label[];
+  mark: { c: Point; hw: number; hh: number } | null;
+}): Label | null {
+  const { hw, hh } = labelBox(o.text, o.measure);
+  for (const side of [{ x: 1, y: 0 }, { x: -1, y: 0 }]) {
+    for (const t of [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8]) {
+      const at = { x: o.foot.x + (o.top.x - o.foot.x) * t, y: o.foot.y + (o.top.y - o.foot.y) * t };
+      const c = besides(at, side, LABEL_GAP + 0.6, hw, hh);
+      const box = { c, hw, hh };
+      if (o.others.some((l) => boxesOverlap(l, box))) continue;
+      if (o.mark && boxesOverlap(o.mark, box, 0.2)) continue;
+      if (!insideConvex(c, hw, hh, o.poly, 0.6)) continue;
+      return { key: "sideh", text: o.text, c, hw, hh, fill: INK, data: { "data-ol-param": "h" } };
+    }
+  }
+  return null;
+}
+
 // ---- streger ----
 
 /** Skjulte kanter (3D) tegnes stiplet; svg2pdf forstår stroke-dasharray. */

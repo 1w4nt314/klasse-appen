@@ -32,9 +32,11 @@
 // Bliver nøglen og `type` ikke ens, giver TypeScript en fejl på FIGURES.
 
 import { circle } from "./circle";
+import { parallelogram } from "./parallelogram";
 import { rectangle } from "./rectangle";
 import { rightTriangle } from "./rightTriangle";
 import { square } from "./square";
+import { trapezoid } from "./trapezoid";
 import { triangle } from "./triangle";
 import type { FigureObjectOf } from "../model/types";
 import type { FigureDef, FigureGroup } from "./types";
@@ -44,6 +46,8 @@ const DEFS = {
   triangle,
   rectangle,
   square,
+  parallelogram,
+  trapezoid,
   circle,
 };
 
