@@ -55,6 +55,9 @@ export function PropertiesPanel({
   if (!selected) {
     return (
       <aside className="ol-props" aria-label="Egenskaber">
+        <p className="sr-only" aria-live="polite" data-ol-announce="">
+          Intet er valgt.
+        </p>
         <h2 className="ol-panel-title">Egenskaber</h2>
         <p className="ol-hint">Intet er valgt. Klik på et objekt på arket, eller tilføj et fra værktøjerne.</p>
       </aside>
@@ -73,6 +76,9 @@ export function PropertiesPanel({
 
   return (
     <aside className="ol-props" aria-label="Egenskaber" data-ol-panel={selected.type}>
+      <p className="sr-only" aria-live="polite" data-ol-announce="">
+        {`Valgt: ${title}. Tryk Escape for at afmarkere.`}
+      </p>
       <h2 className="ol-panel-title">{title}</h2>
       {selected.type === "text" && (
         <label className="ol-field">
@@ -174,6 +180,7 @@ function FigureSection({
                     <input
                       type="checkbox"
                       data-ol-vis={key}
+                      aria-label={`Vis ${name} på opgavearket`}
                       checked={st.visible}
                       onChange={(e) => onSetParam(fig.id, key, { visible: e.target.checked })}
                     />
@@ -185,7 +192,7 @@ function FigureSection({
                     type="text"
                     className="ol-alias"
                     data-ol-alias={key}
-                    aria-label={`Navn for ${key}`}
+                    aria-label={`Nyt navn for ${key} (højst ${ALIAS_MAX} tegn)`}
                     placeholder={key}
                     maxLength={ALIAS_MAX}
                     value={st.alias ?? ""}
@@ -216,8 +223,8 @@ function FigureSection({
         </tbody>
       </table>
       <p className="ol-hint">
-        Skjulte størrelser vises ikke på opgavearket; figuren viser kun navnet. Giv en størrelse et andet navn (fx X),
-        skjul den, og tryk Find.
+        Skjulte størrelser står ikke på opgavearket, kun navnet. Omdøb en størrelse (fx A til X), fjern flueben ved Vis,
+        og tryk Find.
       </p>
       {problems.map(({ calc, text }) => (
         <p key={calc.id} className="ol-warn" role="status" data-ol-warning={calc.id}>
@@ -244,6 +251,7 @@ function FigureSection({
           <input
             type="checkbox"
             data-ol-setting="snapCm"
+            aria-label="Snap til 0,5 cm når du trækker i hjørnerne"
             checked={doc.settings.snapCm > 0}
             onChange={(e) => onSettings({ snapCm: e.target.checked ? 0.5 : 0 })}
           />
@@ -253,12 +261,13 @@ function FigureSection({
           <input
             type="checkbox"
             data-ol-setting="snapDeg"
+            aria-label="Hele grader når du trækker i hjørnerne"
             checked={doc.settings.snapDeg}
             onChange={(e) => onSettings({ snapDeg: e.target.checked })}
           />
           <span>Hele grader</span>
         </label>
-        <p className="ol-hint">Hold Shift for at dreje i trin på 15°. Piletaster flytter 1 mm (Shift: 5 mm).</p>
+        <p className="ol-hint">Hold Shift for at dreje i trin på 15°. Piletaster flytter figuren 1 mm (Shift: 5 mm); på et hjørne ændrer de trekanten.</p>
       </fieldset>
     </>
   );

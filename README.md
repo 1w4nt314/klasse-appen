@@ -45,6 +45,27 @@ Læreren kan justere grænsen (træk i stregen på lydmåleren), hvor ofte der k
 nye dyr (hvert 20./10./5. sekund) og hvor mange dyr der højst må være. Indstillingerne
 huskes i browseren.
 
+### Opgavelab (V1)
+
+Laver opgaveark i A4 med figurer og ét-klik-svarark. Læreren lægger en retvinklet
+trekant på arket, trækker i hjørnerne (sidelængder og vinkler følger med live),
+skjuler og omdøber størrelser (fx vinkel A → X) og trykker "Find X" for at få et
+nummereret regnestykke (`1a  X = ________`). "Eksporter" henter to PDF-filer:
+opgaven (uden facit) og svararket (med udregning og alle værdier).
+
+- Koden ligger i `src/apps/opgavelab/`: `core/` (ren matematik: sider, vinkler,
+  løsningsformler, hjørnetræk, nummerering — testes uden browser), `model/`
+  (dokumentformat og validering), `render/` (arket som ren SVG, samme komponent
+  på skærmen og i PDF), `editor/` (værktøjer, ark, egenskabspanel) og `export/`
+  (PDF med jsPDF + svg2pdf.js og indlejret DejaVu Sans fra `public/fonts/`).
+- Ny figurtype: tilføj en `FigureDef` i `model/figures.ts` (se `model/types.ts`).
+- Gem/indlæs sker som server actions i `actions.ts` på lærerens egen konto
+  (ejerskab tjekkes i hver action; JSON maks. 200 KB og valideres i
+  `model/validate.ts`).
+- Tastatur: Tab når alle knapper og objekter på arket, Enter markerer, piletaster
+  flytter (1 mm, Shift 5 mm) eller ændrer et markeret hjørne, Delete sletter,
+  Ctrl+Z fortryder, Escape afmarkerer.
+
 ## Lokal udvikling
 
 ```bash
@@ -54,7 +75,8 @@ npm run dev
 
 Databasen oprettes automatisk i `./data/klasse-appen.db` ved første request.
 Findes mappen `/var/data` (Render-disk), bruges den i stedet. `DATA_DIR`
-overstyrer begge. Tabellerne (`users`, `sessions`, `favorites`)
+overstyrer begge. Tabellerne (`users`, `sessions`, `favorites`,
+`opgavelab_docs` — lærerens gemte opgaveark, unikke navne pr. lærer)
 oprettes/migreres af [`src/lib/db.ts`](src/lib/db.ts).
 
 ## Login

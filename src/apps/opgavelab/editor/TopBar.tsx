@@ -77,6 +77,7 @@ export function TopBar({
             className="ol-view-btn"
             data-ol-view={v}
             aria-pressed={view === v}
+            aria-label={v === "opgave" ? "Opgave — vis arket til eleverne" : "Svarark — vis arket med alle svar"}
             onClick={() => onView(v)}
           >
             {v === "opgave" ? "Opgave" : "Svarark"}
@@ -93,10 +94,10 @@ export function TopBar({
         </span>
       )}
       <div className="ol-top-actions">
-        <button type="button" className="ol-btn" data-ol-new="" onClick={onNew} disabled={busy}>
+        <button type="button" className="ol-btn" data-ol-new="" aria-label="Ny opgave" onClick={onNew} disabled={busy}>
           Ny
         </button>
-        <button type="button" className="ol-btn" data-ol-save="" onClick={onSave} disabled={busy}>
+        <button type="button" className="ol-btn" data-ol-save="" aria-label="Gem opgaven" onClick={onSave} disabled={busy}>
           Gem
         </button>
         {onSaveCopy && (
@@ -104,7 +105,7 @@ export function TopBar({
             Gem som kopi
           </button>
         )}
-        <button type="button" className="ol-btn" data-ol-load="" onClick={onLoad} disabled={busy}>
+        <button type="button" className="ol-btn" data-ol-load="" aria-label="Indlæs en gemt opgave" onClick={onLoad} disabled={busy}>
           Indlæs
         </button>
         <button
@@ -114,11 +115,18 @@ export function TopBar({
           onClick={onExport}
           disabled={busy || exporting}
           aria-busy={exporting}
+          aria-label={exporting ? "Eksporterer opgave og svarark…" : "Eksporter opgave og svarark som PDF"}
           title="Hent opgaven og svararket som to PDF-filer"
         >
           {exporting ? "Eksporterer…" : "Eksporter"}
         </button>
-        <button type="button" className="ol-btn ol-btn-strong" onClick={onUndo} disabled={!canUndo}>
+        <button
+          type="button"
+          className="ol-btn ol-btn-strong"
+          aria-label="Fortryd sidste ændring"
+          onClick={onUndo}
+          disabled={!canUndo}
+        >
           Fortryd
         </button>
       </div>

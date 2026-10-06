@@ -307,6 +307,20 @@ export default function Opgavelab({ userKey }: AppProps) {
         act.current.save();
         return;
       }
+      if (e.key === "Escape" && !e.defaultPrevented && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const cur = latest.current;
+        if (cur.selectedId) {
+          e.preventDefault();
+          setAskDelete(null);
+          cur.select(null);
+          // Panelet forsvinder: læg fokus på arket, så tastaturbrugeren ikke mister sin plads.
+          const target = e.target;
+          if (target instanceof Element && target.closest(".ol-props, .ol-sheet")) {
+            document.querySelector<SVGSVGElement>(".ol-sheet svg")?.focus({ preventScroll: true });
+          }
+        }
+        return;
+      }
       if (isTyping(e.target)) return;
       const cur = latest.current;
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "z") {

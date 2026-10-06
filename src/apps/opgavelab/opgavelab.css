@@ -717,3 +717,79 @@
   font-size: 1rem;
   line-height: 1;
 }
+
+/* ---------- Hjælp, fokus og tilgængelighed ---------- */
+
+.ol-help {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.ol-help summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--ink);
+}
+.ol-help ol {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+  list-style: decimal;
+}
+.ol-help li + li {
+  margin-top: 3px;
+}
+.ol-help p {
+  margin-top: 6px;
+}
+
+/* Tydelig fokusring overalt i appen (globalt :focus-visible findes, men er svag på SVG-objekter). */
+.ol-root :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+.ol-view-btn:focus-visible {
+  outline-offset: 0;
+}
+.ol-sheet svg:focus {
+  outline: none;
+}
+.ol-sheet [data-ol-hit]:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 1px;
+}
+.ol-sheet [data-ol-handle]:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 0;
+}
+
+/* ---------- Telefon (≤ 600 px): alt stables, ingen vandret scroll ---------- */
+
+@media (max-width: 600px) {
+  .ol-root {
+    overflow-x: hidden;
+  }
+  .ol-topbar {
+    gap: 6px 10px;
+  }
+  .ol-name {
+    flex: 1 1 100%;
+    max-width: none;
+    order: 5;
+  }
+  .ol-top-actions {
+    flex: 1 1 100%;
+  }
+  .ol-top-actions .ol-btn {
+    flex: 1 1 auto;
+  }
+  .ol-tool {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+  .ol-values {
+    table-layout: auto;
+  }
+  .ol-rename {
+    flex-wrap: wrap;
+  }
+}

@@ -140,9 +140,14 @@ type Label = {
   bold?: boolean;
   fill: string;
   data: Record<`data-${string}`, string>;
+  /** Kun sideetiketter: sidens retning, så etiketten kan glide langs siden. */
+  dir?: Point;
+  /** Kun sideetiketter: enhedsnormal væk fra figuren. */
+  n?: Point;
 };
 
 const LABEL_GAP = 1; // mm luft mellem etiket og linje
+const OUTSIDE_GAP = 1.6; // mm mellem hjørnenavn og vinkelværdi, når værdien står udenfor
 /** Halv højde af en tekstlinje (versaler/cifre) i forhold til skriftstørrelsen. */
 const HALF_H = 0.37;
 
@@ -170,45 +175,8 @@ function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode:
     C: [v.A, v.B],
   };
 
-  for (const k of ["A", "B", "C"] as const) {
-    const [p, q] = neighbors[k];
-    // Vinkelhalveringslinjen ind i trekanten; hjørnenavnet står modsat (udad).
-    const bis = unit(add(unit(sub(p, v[k])), unit(sub(q, v[k]))));
-    const name = displayName(fig, k);
-    const nb = labelBox(name, measure, true);
-    const outward = { x: -bis.x, y: -bis.y };
-    const nameC = besides(v[k], outward, 1.6, nb.hw, nb.hh);
-    out.push({
-      key: `name${k}`,
-      text: name,
-      c: nameC,
-      ...nb,
-      bold: true,
-      fill: INK,
-      data: { "data-ol-name": k },
-    });
-
-    if (!shown(k)) continue;
-    // Vinkelværdien står på halveringslinjen så langt inde, at boksen hverken rammer
-    // siderne, vinkelbuen eller retvinkel-kvadratet.
-    const text = FMT.ang(values[k]);
-    const { hw, hh } = labelBox(text, measure);
-    const along = Math.abs(bis.x) * hw + Math.abs(bis.y) * hh;
-    const across = Math.abs(bis.y) * hw + Math.abs(bis.x) * hh;
-    const theta = (values[k] * Math.PI) / 360; // halv vinkel
-    const dSides = along + (LABEL_GAP + across * Math.cos(theta)) / Math.max(Math.sin(theta), 0.02);
-    const inner = k === "C" ? (shown("C") ? 3 * Math.SQRT2 : 0) : arcRadius(v[k], p, q, 5);
-    const dInner = along + inner + 0.6;
-    const minSide = Math.min(Math.hypot(p.x - v[k].x, p.y - v[k].y), Math.hypot(q.x - v[k].x, q.y - v[k].y));
-    const want = Math.max(dSides, dInner);
-    // Er der ikke plads inde i vinklen (små figurer), står værdien udenfor, efter hjørnenavnet.
-    const c =
-      want <= 0.6 * minSide
-        ? add(v[k], bis, want)
-        : besides(nameC, outward, 0.8 + Math.abs(bis.x) * nb.hw + Math.abs(bis.y) * nb.hh, hw, hh);
-    out.push({ key: `ang${k}`, text, c, hw, hh, fill: color(k), data: { "data-ol-param": k } });
-  }
-
+  // Sidetekster og hjørnenavne placeres først, så vinkelværdier uden for figuren kan undgå dem.
+  const sideLabels: Label[] = [];
   // Sider: a = BC (modstående A), b = AC (modstående B), c = AB (modstående C).
   const sides: { key: "a" | "b" | "c"; p: Point; q: Point; opp: Point }[] = [
     { key: "a", p: v.B, q: v.C, opp: v.A },
@@ -224,7 +192,7 @@ function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode:
     const name = displayName(fig, s.key);
     const text = shown(s.key) ? `${name} = ${FMT.len(values[s.key])}` : name;
     const { hw, hh } = labelBox(text, measure);
-    out.push({
+    sideLabels.push({
       key: `side${s.key}`,
       text,
       c: besides(mid, n, LABEL_GAP + 0.6, hw, hh),
@@ -232,8 +200,101 @@ function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode:
       hh,
       fill: color(s.key),
       data: { "data-ol-param": s.key },
+      dir,
+      n,
     });
   }
+  const nameLabels = {} as Record<"A" | "B" | "C", { label: Label; bis: Point; nb: { hw: number; hh: number } }>;
+  for (const k of ["A", "B", "C"] as const) {
+    const [p, q] = neighbors[k];
+    // Vinkelhalveringslinjen ind i trekanten; hjørnenavnet står modsat (udad).
+    const bis = unit(add(unit(sub(p, v[k])), unit(sub(q, v[k]))));
+    const name = displayName(fig, k);
+    const nb = labelBox(name, measure, true);
+    const outward = { x: -bis.x, y: -bis.y };
+    nameLabels[k] = {
+      bis,
+      nb,
+      label: {
+        key: `name${k}`,
+        text: name,
+        c: besides(v[k], outward, 1.6, nb.hw, nb.hh),
+        ...nb,
+        bold: true,
+        fill: INK,
+        data: { "data-ol-name": k },
+      },
+    };
+  }
+  // Små figurer: en sideetiket, der rammer et hjørnenavn, glider det mindste stykke langs siden.
+  const overlaps = (a: Label, c: Point, b: Label) =>
+    Math.abs(c.x - b.c.x) < a.hw + b.hw + 1.2 && Math.abs(c.y - b.c.y) < a.hh + b.hh + 0.6;
+  for (const sl of sideLabels) {
+    const names = (["A", "B", "C"] as const).map((k) => nameLabels[k].label);
+    if (!sl.dir || !names.some((nl) => overlaps(sl, sl.c, nl))) continue;
+    const dir = sl.dir;
+    let moved = false;
+    search: for (let t = 0.5; t <= 8; t += 0.5) {
+      for (const sgn of [1, -1]) {
+        const at = add(sl.c, dir, sgn * t);
+        if (!names.some((nl) => overlaps(sl, at, nl))) {
+          sl.c = at;
+          moved = true;
+          break search;
+        }
+      }
+    }
+    // Er etiketten bredere end siden, rykkes den i stedet længere væk fra figuren.
+    if (!moved && sl.n) {
+      for (let t = 0.5; t <= 8; t += 0.5) {
+        const at = add(sl.c, sl.n, t);
+        if (!names.some((nl) => overlaps(sl, at, nl))) {
+          sl.c = at;
+          break;
+        }
+      }
+    }
+  }
+  const obstacles: Label[] = [...sideLabels, ...(["A", "B", "C"] as const).map((k) => nameLabels[k].label)];
+
+  for (const k of ["A", "B", "C"] as const) {
+    const [p, q] = neighbors[k];
+    const { bis, nb, label: nameLabel } = nameLabels[k];
+    out.push(nameLabel);
+
+    if (!shown(k)) continue;
+    // Vinkelværdien står på halveringslinjen så langt inde, at boksen hverken rammer
+    // siderne, vinkelbuen eller retvinkel-kvadratet.
+    const text = FMT.ang(values[k]);
+    const { hw, hh } = labelBox(text, measure);
+    const along = Math.abs(bis.x) * hw + Math.abs(bis.y) * hh;
+    const across = Math.abs(bis.y) * hw + Math.abs(bis.x) * hh;
+    const theta = (values[k] * Math.PI) / 360; // halv vinkel
+    const dSides = along + (LABEL_GAP + across * Math.cos(theta)) / Math.max(Math.sin(theta), 0.02);
+    const inner = k === "C" ? (shown("C") ? 3 * Math.SQRT2 : 0) : arcRadius(v[k], p, q, 5);
+    const dInner = along + inner + 0.6;
+    const minSide = Math.min(Math.hypot(p.x - v[k].x, p.y - v[k].y), Math.hypot(q.x - v[k].x, q.y - v[k].y));
+    const want = Math.max(dSides, dInner);
+    let c: Point;
+    if (want <= 0.6 * minSide) {
+      c = add(v[k], bis, want);
+    } else {
+      // Ikke plads inde i vinklen (små figurer): værdien står udenfor på samme linje som
+      // hjørnenavnet, helst lige til højre for det ("A  53,1°"), ellers til venstre.
+      const nameC = nameLabel.c;
+      const right = { x: nameC.x + nb.hw + OUTSIDE_GAP + hw, y: nameC.y };
+      const left = { x: nameC.x - nb.hw - OUTSIDE_GAP - hw, y: nameC.y };
+      const hits = (at: Point) =>
+        obstacles.some(
+          (o) => o !== nameLabel && Math.abs(at.x - o.c.x) < hw + o.hw + 0.3 && Math.abs(at.y - o.c.y) < hh + o.hh + 0.3,
+        );
+      c = !hits(right) || hits(left) ? right : left;
+    }
+    const angle: Label = { key: `ang${k}`, text, c, hw, hh, fill: color(k), data: { "data-ol-param": k } };
+    out.push(angle);
+    obstacles.push(angle);
+  }
+  out.push(...sideLabels);
   return out;
 }
 

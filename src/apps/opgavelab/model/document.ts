@@ -51,11 +51,15 @@ export function makeText(id: string, existing: number): TextObject {
   };
 }
 
+const NEW_TRIANGLE_MM = { a: 80, b: 60 } as const;
+
 /** Ny figur med bounding box centreret midt på arket (let forskudt pr. eksisterende figur). */
 export function makeFigure(id: string, kind: FigureKind, existing: number): FigureObject | null {
   const def = getFigureDef(kind);
   if (!def) return null;
-  const shape = def.defaultShape();
+  // Ny trekant: 8 × 6 cm (c = 10 cm), så vinkelværdierne får plads inde i figuren.
+  const base = def.defaultShape();
+  const shape = kind === "rightTriangle" ? { ...base, a: NEW_TRIANGLE_MM.a, b: NEW_TRIANGLE_MM.b } : base;
   const b = def.bounds(shape);
   const o = cascade(existing);
   const cx = PAGE.w / 2 + o;

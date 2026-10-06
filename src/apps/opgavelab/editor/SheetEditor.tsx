@@ -4,9 +4,17 @@
 // flyt af objekter og hjørnetræk med pointer events. Overlayet sendes som
 // `children` til SheetSvg og findes derfor aldrig i eksport-træet.
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { numberDocument } from "../core/numbering";
-import { calcProblem, dragOpts, figureBoundsOnSheet, getFigureDef } from "../model/figures";
+import { FMT } from "../core/format";
+import { calcProblem, displayName, dragOpts, figureBoundsOnSheet, getFigureDef } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
@@ -107,6 +115,8 @@ export function SheetEditor({
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [activeHandle, setActiveHandle] = useState<string | null>(null);
+  /** Kort tekst til skærmlæsere efter et tastatur-hjørnetræk. */
+  const [announce, setAnnounce] = useState("");
 
   useEffect(() => {
     const el = stageRef.current;
@@ -127,9 +137,9 @@ export function SheetEditor({
   const selected = doc.objects.find((o) => o.id === selectedId) ?? null;
 
   // Piletaster flytter det markerede objekt (1 mm, Shift = 5 mm); hvert tryk er ét fortryd-trin.
-  const latest = useRef({ doc, selected, numbering, measure, onMove, onCommit, mode });
+  const latest = useRef({ doc, selected, numbering, measure, onMove, onCommit, mode, keyVertex });
   useEffect(() => {
-    latest.current = { doc, selected, numbering, measure, onMove, onCommit, mode };
+    latest.current = { doc, selected, numbering, measure, onMove, onCommit, mode, keyVertex };
   });
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -145,6 +155,12 @@ export function SheetEditor({
       const obj = cur.selected;
       if (!v || !obj || drag.current || cur.mode !== "opgave") return;
       e.preventDefault();
+      // Står fokus på et hjørnehåndtag, ændrer piletasterne trekanten i stedet for at flytte den.
+      const handle = e.target instanceof Element ? e.target.closest("[data-ol-handle]")?.getAttribute("data-ol-handle") : null;
+      if (handle && obj.type === "figure") {
+        cur.keyVertex(obj, handle, v, e.shiftKey);
+        return;
+      }
       const step = e.shiftKey ? NUDGE_BIG : NUDGE;
       const box = boxFor(obj, cur.doc, cur.numbering, cur.measure);
       const d = clampDelta(box, v.x * step, v.y * step);
@@ -155,6 +171,37 @@ export function SheetEditor({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  /** Piletast på et hjørnehåndtag: flyt hjørnet ét trin (snap-trin, ellers 2 mm; Shift: 5 gange så meget). */
+  function keyVertex(fig: FigureObject, vertex: string, dir: Point, big: boolean) {
+    const def = getFigureDef(fig.figure);
+    const p = def?.vertices(fig.shape)[vertex];
+    if (!def || !p) return;
+    const opts = dragOpts(doc.settings, false);
+    const step = (doc.settings.snapCm > 0 ? opts.snapMm : 2) * (big ? 5 : 1);
+    const d: VertexDrag = {
+      kind: "vertex",
+      pointerId: -1,
+      id: fig.id,
+      vertex,
+      start: p,
+      anchor: { x: fig.x, y: fig.y },
+      shape: fig.shape,
+      grab: p,
+      lastLocal: p,
+      active: true,
+    };
+    const next = reshapeAt(d, fig, { x: p.x + dir.x * step, y: p.y + dir.y * step }, false);
+    if (!next) {
+      setAnnounce("Hjørnet kan ikke flyttes længere i den retning");
+      return;
+    }
+    onReshape(fig.id, next.shape, next.x, next.y);
+    onCommit();
+    const vals = def.compute(next.shape);
+    const parts = def.params.map((q) => `${displayName(next, q.key)} ${q.kind === "angle" ? FMT.ang(vals[q.key]) : FMT.len(vals[q.key])}`);
+    setAnnounce(`Hjørne ${displayName(next, vertex)} flyttet. ${parts.join(", ")}`);
+  }
 
   function endDrag(e: ReactPointerEvent<SVGSVGElement>) {
     const d = drag.current;
@@ -292,6 +339,9 @@ export function SheetEditor({
           Svarark (forhåndsvisning) — skjulte størrelser står i blåt
         </p>
       )}
+      <p className="sr-only" role="status" aria-live="polite" data-ol-announce="">
+        {announce}
+      </p>
       {size && sheetW > 0 && (
         <div className="ol-sheet" style={{ width: sheetW, height: sheetH }}>
           <SheetSvg
@@ -302,7 +352,8 @@ export function SheetEditor({
             svgRef={svgRef}
             svgProps={{
               role: "group",
-              "aria-label": "Opgaveark (A4)",
+              "aria-label": "Opgaveark (A4). Tab går til objekterne; Enter markerer, piletaster flytter, Escape afmarkerer.",
+              tabIndex: -1,
               width: "100%",
               height: "100%",
               style: { touchAction: selectedId ? "none" : "pan-y", display: "block" },
@@ -320,6 +371,7 @@ export function SheetEditor({
               numbering={numbering}
               measure={measure}
               activeHandle={activeHandle}
+              onSelect={onSelect}
             />
           </SheetSvg>
         </div>
@@ -330,8 +382,19 @@ export function SheetEditor({
 
 // ---- overlay ----
 
-function hitProps(id: string) {
+/** Tastaturadgang til et objekt på arket: Tab når det, Enter/mellemrum markerer det. */
+function hitProps(id: string, label: string, pressed: boolean, onSelect: (id: string | null) => void) {
   return {
+    role: "button" as const,
+    tabIndex: 0,
+    "aria-label": label,
+    "aria-pressed": pressed,
+    onKeyDown: (e: ReactKeyboardEvent<SVGElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onSelect(id);
+      }
+    },
     "data-ol-hit": id,
     fill: "transparent",
     stroke: "transparent",
@@ -347,6 +410,7 @@ function Overlay({
   numbering,
   measure,
   activeHandle,
+  onSelect,
 }: {
   doc: SheetDoc;
   mode: SheetMode;
@@ -354,11 +418,19 @@ function Overlay({
   numbering: ReadonlyMap<string, string>;
   measure: Measure;
   activeHandle: string | null;
+  onSelect: (id: string | null) => void;
 }) {
   return (
     <g data-ol-overlay="">
       {doc.objects.map((o) => {
-        if (o.type === "figure") return <FigureHit key={o.id} fig={o} />;
+        const number = numbering.get(o.id);
+        const pressed = selected?.id === o.id;
+        if (o.type === "figure")
+          return <FigureHit key={o.id} fig={o} number={number} pressed={pressed} onSelect={onSelect} />;
+        const label =
+          o.type === "text"
+            ? `Tekst${number ? ` ${number}` : ""}: ${o.text.replace(/\s+/g, " ").trim().slice(0, 40) || "tom"}`
+            : `Regnestykke ${number ?? ""}`.trim();
         const b = objectBox(o, doc, numbering, measure, mode);
         const fig = o.type === "calc" ? doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId) : null;
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
@@ -385,7 +457,7 @@ function Overlay({
               y={b.minY - 1}
               width={b.maxX - b.minX + 2}
               height={b.maxY - b.minY + 2}
-              {...hitProps(o.id)}
+              {...hitProps(o.id, `${label} — tryk Enter for at markere`, pressed, onSelect)}
             />
           </g>
         );
@@ -397,14 +469,25 @@ function Overlay({
   );
 }
 
-function FigureHit({ fig }: { fig: FigureObject }) {
+function FigureHit({
+  fig,
+  number,
+  pressed,
+  onSelect,
+}: {
+  fig: FigureObject;
+  number: string | undefined;
+  pressed: boolean;
+  onSelect: (id: string | null) => void;
+}) {
   const def = getFigureDef(fig.figure);
   if (!def) return null;
   const v = def.vertices(fig.shape);
   const pts = Object.values(v)
     .map((p) => `${fig.x + p.x},${fig.y + p.y}`)
     .join(" ");
-  return <polygon points={pts} strokeWidth={5} strokeLinejoin="round" {...hitProps(fig.id)} />;
+  const label = `${def.name}${number ? ` ${number}` : ""} — tryk Enter for at markere`;
+  return <polygon points={pts} strokeWidth={5} strokeLinejoin="round" {...hitProps(fig.id, label, pressed, onSelect)} />;
 }
 
 function Selection({
@@ -446,6 +529,10 @@ function Selection({
               <circle
                 r={4}
                 fill="transparent"
+                role="button"
+                tabIndex={0}
+                aria-label={`Hjørne ${displayName(obj as FigureObject, k)} — træk for at ændre`}
+                aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
                 data-ol-handle={k}
                 pointerEvents="all"
                 style={{ cursor: active ? "grabbing" : "grab", touchAction: "none" }}
