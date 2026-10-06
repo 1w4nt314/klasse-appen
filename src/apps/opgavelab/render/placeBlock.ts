@@ -10,7 +10,7 @@
 import { defOf } from "../figures/registry";
 import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, Point, TextObject } from "../model/types";
-import { blockBox, type BlockObject } from "./drillLayout";
+import { blockBox, numberSheet, type BlockObject } from "./drillLayout";
 import { figureExtent } from "./figureLayout";
 import { takenBoxes } from "./placeCalc";
 import { objectBox, type Measure } from "./textLayout";
@@ -111,6 +111,39 @@ export function placeFigure(doc: SheetDoc, fig: FigureObject, measure: Measure, 
   // Ikke afrundet: ankeret skal give præcis den fundne udstrækning (en afrunding på 0,005 mm kunne skubbe
   // etiketterne ud over margenen, og så ville editoren afvise ethvert træk i figuren).
   return { x: at.x - ext.minX, y: at.y - ext.minY, free: at.free };
+}
+
+/**
+ * Ankeret (x, y), som objektet `obj` får, når det flyttes til siden `page`: de samme koordinater, hvis pladsen
+ * dér er fri (inden for margenen og uden at røre sidens objekter — for en figur også dens regnestykker, der
+ * følger med), ellers første ledige plads på siden (som et nyt objekt). Er siden fuld, bliver objektet lagt, hvor det
+ * dækker mindst; blockProblem/figureProblem markerer det så som altid. `obj` skal stå i `doc`.
+ */
+export function placeOnPage(
+  doc: SheetDoc,
+  obj: TextObject | FigureObject | BlockObject,
+  page: number,
+  measure: Measure,
+): Point {
+  const numbering = numberSheet(doc, measure);
+  // Nummeret "00": et bredt nok bud på etiketbredden (numrene skifter, når objektet skifter side).
+  const own: Bounds =
+    obj.type === "figure"
+      ? figureExtent(obj, "00", measure)
+      : obj.type === "text"
+        ? objectBox(obj, doc, new Map(), measure)
+        : blockBox(obj, "00", measure);
+  const parts = [own];
+  if (obj.type === "figure") {
+    for (const o of doc.objects) if (o.type === "calc" && o.figureId === obj.id) parts.push(objectBox(o, doc, numbering, measure));
+  }
+  const taken = takenBoxes(doc, measure, page);
+  const m = PAGE.margin;
+  const inside = own.minX >= m - EPS && own.minY >= m - EPS && own.maxX <= PAGE.w - m + EPS && own.maxY <= PAGE.h - m + EPS;
+  if (inside && !parts.some((b) => taken.some((t) => hits(b, t, PAD)))) return { x: obj.x, y: obj.y };
+  const at =
+    obj.type === "figure" ? placeFigure(doc, obj, measure, page) : obj.type === "text" ? placeText(doc, obj, measure, page) : placeBlock(doc, obj, measure, page);
+  return { x: at.x, y: at.y };
 }
 
 export type BlockProblem = {

@@ -249,6 +249,20 @@
   resize: vertical;
 }
 
+.ol-page-field select {
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+  color: var(--ink);
+}
+.ol-page-field .ol-hint {
+  font-weight: 400;
+}
+
 .ol-values {
   width: 100%;
   border-collapse: collapse;
@@ -273,8 +287,126 @@
 .ol-main {
   grid-area: main;
   display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
+}
+
+/* ---------- Sidebjælke (over arket) ---------- */
+
+.ol-pagebar {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  min-width: 0;
+  padding: 8px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.ol-pagebar-status {
+  margin: 0;
+  min-width: 5.5rem;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  color: var(--brand-strong);
+}
+.ol-pagebar-nav,
+.ol-pagebar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ol-pagebar-actions {
+  margin-left: auto;
+}
+.ol-pagebar .ol-btn {
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+}
+.ol-pagebar .ol-pagebar-remove:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.ol-pagetabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--canvas);
+}
+.ol-pagetab {
+  min-width: 28px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.ol-pagetab:hover {
+  background: var(--brand-soft);
+}
+.ol-pagetab[aria-pressed="true"] {
+  background: var(--brand);
+  color: #fff;
+}
+.ol-pagebar-select {
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ol-pagebar-hint {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+@media (pointer: coarse) {
+  .ol-pagetab {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .ol-pagebar-select {
+    min-height: 44px;
+  }
+}
+@media (max-width: 600px) {
+  .ol-pagebar {
+    padding: 8px 12px;
+    gap: 6px 10px;
+  }
+  .ol-pagebar-actions {
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+  .ol-pagebar-actions .ol-btn {
+    flex: 1 1 auto;
+  }
+  .ol-pagebar-word {
+    display: none;
+  }
+  .ol-pagebar .ol-pagebar-step {
+    padding: 2px 12px;
+    font-size: 1.25rem;
+    line-height: 1.2;
+  }
+  .ol-pagebar-hint {
+    text-align: left;
+  }
 }
 
 .ol-stage {
@@ -798,7 +930,8 @@
   outline: 3px solid var(--brand);
   outline-offset: 2px;
 }
-.ol-view-btn:focus-visible {
+.ol-view-btn:focus-visible,
+.ol-pagetab:focus-visible {
   outline-offset: 0;
 }
 .ol-sheet svg:focus {

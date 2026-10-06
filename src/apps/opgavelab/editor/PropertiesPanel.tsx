@@ -46,6 +46,7 @@ export function PropertiesPanel({
   onSetParam,
   onAddCalc,
   onSelect,
+  onMoveToPage,
   onRequestDelete,
   onCancelDelete,
   onRemove,
@@ -61,6 +62,8 @@ export function PropertiesPanel({
   onSetParam: (id: string, param: string, patch: Partial<ParamState>, key?: string) => void;
   onAddCalc: (figureId: string, param: string) => void;
   onSelect: (id: string | null) => void;
+  /** Flytter et objekt (en figur med sine regnestykker) til siden (0-baseret). */
+  onMoveToPage: (id: string, page: number) => void;
   onRequestDelete: (id: string) => void;
   onCancelDelete: () => void;
   onRemove: (id: string) => void;
@@ -98,6 +101,27 @@ export function PropertiesPanel({
         {`Valgt: ${title}. Tryk Escape for at afmarkere.`}
       </p>
       <h2 className="ol-panel-title">{title}</h2>
+      {doc.pageCount > 1 && selected.type !== "calc" && (
+        <label className="ol-field ol-page-field">
+          <span>Side</span>
+          <select
+            data-ol-move-page=""
+            value={selected.page + 1}
+            onChange={(e) => onMoveToPage(selected.id, Number(e.target.value) - 1)}
+          >
+            {Array.from({ length: doc.pageCount }, (_, i) => (
+              <option key={i} value={i + 1}>
+                {`Side ${i + 1}`}
+              </option>
+            ))}
+          </select>
+          {calcs.length > 0 && (
+            <span className="ol-hint" data-ol-move-note="">
+              {calcs.length === 1 ? "Regnestykket flytter med figuren." : "Regnestykkerne flytter med figuren."}
+            </span>
+          )}
+        </label>
+      )}
       {selected.type === "text" && (
         <label className="ol-field">
           <span>Tekst</span>
@@ -154,7 +178,11 @@ export function PropertiesPanel({
                   : "Slet"}
         </button>
       )}
-      <p className="ol-hint">Objekter på arket: {doc.objects.length}</p>
+      <p className="ol-hint" data-ol-count="">
+        {doc.pageCount > 1
+          ? `Objekter: ${doc.objects.filter((o) => o.page === selected.page).length} på siden · ${doc.objects.length} i alt`
+          : `Objekter på arket: ${doc.objects.length}`}
+      </p>
     </aside>
   );
 }
@@ -440,6 +468,11 @@ function CalcSection({
         Gå til figur
       </button>
       <p className="ol-hint">Regnestykket hører til figuren, men kan flyttes frit på arket.</p>
+      {doc.pageCount > 1 && (
+        <p className="ol-hint" data-ol-calc-page-note="">
+          Regnestykket står altid på samme side som figuren. Vil du flytte det til en anden side, så flyt figuren — regnestykket følger med.
+        </p>
+      )}
     </>
   );
 }

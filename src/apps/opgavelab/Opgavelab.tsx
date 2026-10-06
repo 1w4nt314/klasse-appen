@@ -7,6 +7,7 @@ import type { AppProps } from "../runtime";
 import { deleteDoc, listDocs, loadDoc, saveDoc } from "./actions";
 import type { DocSummary } from "./actions";
 import { ConfirmDialog, fmtTime, fmtWhen, LoadDialog, SaveAsDialog } from "./editor/dialogs";
+import { PageBar } from "./editor/PageBar";
 import { PropertiesPanel } from "./editor/PropertiesPanel";
 import { SheetEditor } from "./editor/SheetEditor";
 import { ToolPanel } from "./editor/ToolPanel";
@@ -22,7 +23,7 @@ import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
 import { calcStray, placeCalc } from "./render/placeCalc";
 import { layoutFormula, numberSheet } from "./render/drillLayout";
-import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeText } from "./render/placeBlock";
+import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeOnPage, placeText } from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
@@ -38,6 +39,8 @@ type DialogState =
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
   | { kind: "deleteDoc"; doc: DocSummary }
+  /** Slet siden `index` (0-baseret), som har `count` objekter (regnestykker tæller med). */
+  | { kind: "deletePage"; index: number; count: number }
   | { kind: "exportWarn"; unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
@@ -231,6 +234,41 @@ export default function Opgavelab({ userKey }: AppProps) {
       setParamRaw(id, param, patch, key, fit);
     },
     [setParamRaw, measure],
+  );
+
+  // ---- Sider ----
+  const { removePage: removePageRaw, moveToPage: moveToPageRaw } = d;
+  /** Efter en sletning: lad fokus blive i sidebjælken (knappen kan være blevet deaktiveret, eller dialogen lukket). */
+  const refocusPageBar = () =>
+    window.setTimeout(() => {
+      const a = document.activeElement;
+      if (a && a !== document.body && !(a instanceof HTMLButtonElement && a.disabled)) return;
+      document.querySelector<HTMLElement>("[data-ol-page-tab][aria-pressed=true], [data-ol-page-select]")?.focus();
+    }, 60);
+  /** "Slet side": en tom side straks, en side med indhold først efter bekræftelse (Ctrl+Z gendanner den). */
+  function onRemovePage() {
+    const cur = latest.current;
+    const index = cur.page;
+    if (cur.doc.pageCount <= 1) return;
+    const count = cur.doc.objects.filter((o) => o.page === index).length;
+    if (count === 0) {
+      cur.removePage(index);
+      refocusPageBar();
+    } else {
+      setDialog({ kind: "deletePage", index, count });
+    }
+  }
+  /** Panelets "Side": figur, tekst eller blok til en anden side (en figur tager sine regnestykker med). */
+  const moveToPage = useCallback(
+    (id: string, page: number) => {
+      const { doc, measure } = placeRef.current;
+      const o = doc.objects.find((x) => x.id === id);
+      if (!o || o.type === "calc" || o.page === page) return;
+      const at = placeOnPage(doc, o, page, measure);
+      setAskDelete(null);
+      moveToPageRaw(id, page, at);
+    },
+    [moveToPageRaw],
   );
 
   const select = useCallback(
@@ -524,10 +562,19 @@ export default function Opgavelab({ userKey }: AppProps) {
         full={d.doc.objects.length >= LIMITS.objects}
       />
       <main className="ol-main">
+        <PageBar
+          page={d.page}
+          pageCount={d.doc.pageCount}
+          onPage={d.setPage}
+          onAdd={d.addPage}
+          onRemove={onRemovePage}
+          onMove={d.movePage}
+        />
         <SheetEditor
           doc={d.doc}
           mode={view}
           page={d.page}
+          onPage={d.setPage}
           selectedId={d.selectedId}
           measure={measure}
           onSelect={select}
@@ -551,6 +598,7 @@ export default function Opgavelab({ userKey }: AppProps) {
           d.addCalc(figureId, param, at.x, at.y);
         }}
         onSelect={select}
+        onMoveToPage={moveToPage}
         onRequestDelete={setAskDelete}
         onCancelDelete={() => setAskDelete(null)}
         onRemove={remove}
@@ -620,6 +668,22 @@ export default function Opgavelab({ userKey }: AppProps) {
           error={err}
           onCancel={() => void showLoad()}
           onConfirm={() => void removeDoc(dialog.doc)}
+        />
+      )}
+      {dialog?.kind === "deletePage" && (
+        <ConfirmDialog
+          title="Slet side"
+          message={`Slet side ${dialog.index + 1} og dens ${dialog.count} ${
+            dialog.count === 1 ? "objekt" : "objekter"
+          }? Du kan fortryde med Fortryd (Ctrl+Z).`}
+          confirmLabel="Slet side"
+          danger
+          onCancel={closeDialog}
+          onConfirm={() => {
+            removePageRaw(dialog.index);
+            setDialog(null);
+            refocusPageBar();
+          }}
         />
       )}
       {dialog?.kind === "exportWarn" && (

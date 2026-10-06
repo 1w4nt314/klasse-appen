@@ -162,6 +162,7 @@ export function SheetEditor({
   doc,
   mode,
   page,
+  onPage,
   selectedId,
   measure,
   onSelect,
@@ -174,6 +175,8 @@ export function SheetEditor({
   mode: SheetMode;
   /** Den viste og redigerede side (0-baseret); kun dens objekter tegnes, måles og kan markeres. */
   page: number;
+  /** PageUp/PageDown: skift til denne side (SheetEditor holder den inden for dokumentet). */
+  onPage: (page: number) => void;
   selectedId: string | null;
   measure: Measure;
   onSelect: (id: string | null) => void;
@@ -297,13 +300,25 @@ export function SheetEditor({
   }
 
   // Piletaster flytter det markerede objekt (1 mm, Shift = 5 mm); hvert tryk er ét fortryd-trin.
-  const latest = useRef({ doc, selected, boxes, onMove, onCommit, mode, keyVertex });
+  const latest = useRef({ doc, page, onPage, selected, boxes, onMove, onCommit, mode, keyVertex });
   useEffect(() => {
-    latest.current = { doc, selected, boxes, onMove, onCommit, mode, keyVertex };
+    latest.current = { doc, page, onPage, selected, boxes, onMove, onCommit, mode, keyVertex };
   });
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+      // PageDown/PageUp: næste/forrige side (ikke under træk eller bag en dialog).
+      if ((e.key === "PageDown" || e.key === "PageUp") && !e.shiftKey) {
+        if (drag.current || document.querySelector("dialog[open]")) return;
+        const { page: p, doc: dd, onPage: go } = latest.current;
+        const next = p + (e.key === "PageDown" ? 1 : -1);
+        e.preventDefault();
+        if (next < 0 || next >= dd.pageCount) return;
+        // Fokus på et objekt (der forsvinder med siden) flyttes til arket, så tastaturbrugeren ikke mister sin plads.
+        if (e.target instanceof Element && svgRef.current?.contains(e.target)) svgRef.current.focus({ preventScroll: true });
+        go(next);
+        return;
+      }
       const dir: Record<string, Point> = {
         ArrowLeft: { x: -1, y: 0 },
         ArrowRight: { x: 1, y: 0 },
