@@ -300,6 +300,10 @@ export function parseShown(text: string): number {
  * C = 90°), så "indsat → resultat" altid kan eftergøres med lommeregner. `approx` er sand,
  * når resultatet er afrundet (vises som "≈"), og falsk når det er eksakt (fx 180° − A − B).
  */
+/** Hvor meget et facit må afvige fra figurens viste værdi, før det regnes som en afvigelse. */
+export const DRIFT_CM = 0.1;
+export const DRIFT_DEG = 1;
+
 export function solve(
   target: string,
   visible: ReadonlySet<string>,
@@ -312,10 +316,13 @@ export function solve(
   const kind = KIND[target];
   const shownText = (key: string, x: number) => (KIND[key] === "angle" ? fmt.ang(x) : fmt.num(x, 1));
   const resultText = (x: number) => (kind === "angle" ? fmt.ang(x) : fmt.len(x));
-  // W7: af de anvendelige regler (alle givne synlige) bruges den, hvis facit — regnet på de
-  // viste tal og vist som på arket — ligger tættest på figurens egen (viste) værdi; ved
-  // uafgjort vinder tabellens rækkefølge. Fx a = c · sin A frem for √(c² − b²), når den
-  // sidste giver 0,0 cm for en side på 1 cm.
+  // Af de anvendelige regler (alle givne synlige) bruges den første i tabellens rækkefølge,
+  // hvis facit — regnet på de viste tal og vist som på arket — ligger inden for tolerancen
+  // af figurens egen (viste) værdi. Så står Pythagoras/vinkelsum stabilt på svararket og
+  // skifter ikke formel ved små ryk. Holder ingen regel tolerancen, bruges den med mindst
+  // afvigelse (ved uafgjort tabellens rækkefølge) — fx a = c · sin A frem for √(c² − b²),
+  // når den sidste giver 0,0 cm for en side på 1 cm.
+  const tol = (kind === "angle" ? DRIFT_DEG : DRIFT_CM) + 1e-9;
   const truthRaw = target === "C" ? 90 : values[target];
   const truth = Number.isFinite(truthRaw) ? parseShown(resultText(truthRaw)) : NaN;
   let best: { rule: Rule; v: Record<string, number>; value: number; dev: number } | null = null;
@@ -332,6 +339,10 @@ export function solve(
     const value = rule.value(v);
     if (!Number.isFinite(value)) continue;
     const dev = Number.isFinite(truth) ? Math.abs(parseShown(resultText(value)) - truth) : 0;
+    if (dev <= tol) {
+      best = { rule, v, value, dev };
+      break;
+    }
     if (!best || dev < best.dev - 1e-9) best = { rule, v, value, dev };
   }
   if (!best) return null;

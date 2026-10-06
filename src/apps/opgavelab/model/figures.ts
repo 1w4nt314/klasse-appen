@@ -2,7 +2,7 @@
 // advarsler, svararkets facit. Generiske — intet her kender en bestemt figur.
 
 import { FMT } from "../core/format";
-import { parseShown } from "../core/rightTriangle";
+import { DRIFT_CM, DRIFT_DEG, parseShown } from "../core/rightTriangle";
 import { defOf } from "../figures/registry";
 import { displayName, visibleParams } from "./params";
 import { ALIAS_MAX } from "./types";
@@ -114,8 +114,7 @@ export function docSolvedValues(doc: SheetDoc, fig: FigureObject): Record<string
   return solvedValues(fig, doc.settings, params);
 }
 
-export const DRIFT_CM = 0.1;
-export const DRIFT_DEG = 1;
+export { DRIFT_CM, DRIFT_DEG };
 
 /**
  * Advarsel, hvis facit regnet på de viste (afrundede) tal afviger tydeligt fra figurens egen
@@ -126,7 +125,7 @@ export const DRIFT_DEG = 1;
  */
 export function calcDrift(fig: FigureObject, param: string, settings: DocSettings): string | null {
   const d = calcDriftInfo(fig, param, settings);
-  return d ? `Afrunding: med de viste tal bliver ${d.name} ≈ ${d.result}, men figuren måler ${d.drawn} — vis fx andre størrelser` : null;
+  return d ? `Afrunding: med de viste tal bliver ${d.name} ${d.approx ? "≈" : "="} ${d.result}, men figuren måler ${d.drawn} — vis fx andre størrelser` : null;
 }
 
 /** Afvigelsen bag calcDrift som data (til eksport-dialogen). null = ingen advarsel. */
