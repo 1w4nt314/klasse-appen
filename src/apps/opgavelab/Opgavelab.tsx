@@ -14,13 +14,15 @@ import { ToolPanel } from "./editor/ToolPanel";
 import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
 import { useDocument } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
-import { newDocument, newSeed } from "./model/document";
+import { makeDrill, newDocument, newSeed } from "./model/document";
 import { calcDriftInfo, displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject } from "./model/types";
 import { cleanName, parseDocument } from "./model/validate";
 import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
+import type { Measure } from "./render/textLayout";
 import { placeCalc } from "./render/placeCalc";
+import { drillProblem, drillProblemText, placeDrill } from "./render/placeDrill";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
@@ -36,7 +38,7 @@ type DialogState =
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
   | { kind: "deleteDoc"; doc: DocSummary }
-  | { kind: "exportWarn"; unsolved: string[]; drift: string[] };
+  | { kind: "exportWarn"; unsolved: string[]; drift: string[]; layout: string[] };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -60,9 +62,20 @@ const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på 
  * hvis facit (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
  * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"].
  */
-function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { unsolved: string[]; drift: string[] } {
+function calcWarnings(
+  doc: SheetDoc,
+  numbering: ReadonlyMap<string, string>,
+  measure: Measure,
+): { unsolved: string[]; drift: string[]; layout: string[] } {
   const unsolved: string[] = [];
   const drift: string[] = [];
+  // Regneark, der går ud over arket eller dækker andre objekter, fx ["Regneark 1 går ud over arkets bund"].
+  const layout: string[] = [];
+  for (const o of doc.objects) {
+    if (o.type !== "drill") continue;
+    const p = drillProblem(doc, o, numbering, measure);
+    if (p) layout.push(...drillProblemText(p, `Regneark ${numbering.get(o.id) ?? ""}`.trim()));
+  }
   for (const o of doc.objects) {
     if (o.type !== "calc") continue;
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
@@ -80,7 +93,7 @@ function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { 
     const name = fig ? displayName(fig, o.param) : o.param;
     unsolved.push(num ? `${num} (${name})` : name);
   }
-  return { unsolved, drift };
+  return { unsolved, drift, layout };
 }
 
 /** "1a (X)" / "1a (X) og 2b (c)". */
@@ -296,10 +309,10 @@ export default function Opgavelab({ userKey }: AppProps) {
       document.querySelector<HTMLInputElement>(".ol-name input")?.focus();
       return;
     }
-    const { unsolved, drift } = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet));
-    if (unsolved.length > 0 || drift.length > 0) {
+    const { unsolved, drift, layout } = calcWarnings(doc, numberDocument(doc, figureBoundsOnSheet), measure);
+    if (unsolved.length > 0 || drift.length > 0 || layout.length > 0) {
       setErr(null);
-      setDialog({ kind: "exportWarn", unsolved, drift });
+      setDialog({ kind: "exportWarn", unsolved, drift, layout });
     } else void runExport(doc, name);
   }
 
@@ -413,7 +426,12 @@ export default function Opgavelab({ userKey }: AppProps) {
       <ToolPanel
         onAddText={d.addText}
         onAddFigure={d.addFigure}
-        onAddDrill={() => d.addDrill(newSeed())}
+        onAddDrill={() => {
+          // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
+          const seed = newSeed();
+          const at = placeDrill(d.doc, makeDrill("probe", 0, seed), measure);
+          d.addDrill(seed, { x: at.x, y: at.y });
+        }}
         full={d.doc.objects.length >= LIMITS.objects}
       />
       <main className="ol-main">
@@ -432,6 +450,7 @@ export default function Opgavelab({ userKey }: AppProps) {
         doc={d.doc}
         selected={d.selected}
         numbering={numbering}
+        measure={measure}
         askDelete={askDelete}
         onUpdate={d.update}
         onSetParam={d.setParam}
@@ -515,7 +534,13 @@ export default function Opgavelab({ userKey }: AppProps) {
       )}
       {dialog?.kind === "exportWarn" && (
         <ConfirmDialog
-          title={dialog.unsolved.length > 0 ? "Ikke alle regnestykker kan løses" : "Svararket afviger fra figuren"}
+          title={
+            dialog.unsolved.length > 0
+              ? "Ikke alle regnestykker kan løses"
+              : dialog.drift.length > 0
+                ? "Svararket afviger fra figuren"
+                : "Regnearket passer ikke på arket"
+          }
           message={[
             dialog.unsolved.length > 0
               ? `Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
@@ -523,6 +548,7 @@ export default function Opgavelab({ userKey }: AppProps) {
                 } ikke kan findes ud fra det, der er synligt på figuren.`
               : "",
             ...dialog.drift.map((t) => `${t} — vis fx andre størrelser.`),
+            ...dialog.layout.map((t) => `${t} — flyt det, eller vælg færre opgaver.`),
             "Eksportér alligevel?",
           ]
             .filter(Boolean)

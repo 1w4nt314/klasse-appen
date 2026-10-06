@@ -848,3 +848,84 @@
     flex-wrap: wrap;
   }
 }
+
+/* ---------- Regneark (egenskabspanel) ---------- */
+
+.ol-drill-group {
+  min-width: 0;
+}
+.ol-drill-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.ol-drill-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+.ol-drill-field > span:first-child {
+  flex: 0 0 7.5rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ol-drill-field select,
+.ol-drill-field input[type="text"] {
+  min-height: 34px;
+  padding: 4px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  color: var(--ink);
+}
+.ol-drill-field input[type="text"]:not(.ol-num) {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+.ol-drill-field select:disabled {
+  opacity: 0.55;
+}
+.ol-drill-field.ol-range > span:first-child {
+  flex-basis: 100%;
+}
+.ol-num {
+  width: 5.2rem;
+  text-align: right;
+}
+.ol-num[aria-invalid="true"] {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.ol-unit {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.ol-field-error {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+.ol-tables {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+.ol-table-check {
+  font-size: 0.875rem;
+}
+.ol-warn-sticky {
+  position: sticky;
+  top: -16px; /* panelets luft (padding), så indholdet ikke titter frem ovenover */
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(22, 33, 46, 0.12);
+}
+@media (max-width: 900px) {
+  .ol-warn-sticky {
+    position: static;
+    box-shadow: none;
+  }
+}

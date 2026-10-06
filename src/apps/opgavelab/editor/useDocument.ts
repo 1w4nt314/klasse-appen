@@ -42,8 +42,8 @@ export type ObjectPatch = Partial<Omit<TextObject, "id" | "type">> &
 type Patch = ObjectPatch;
 
 export type DocAction =
-  /** seed: kun regneark (laves i event-handleren med newSeed, så reduceren er deterministisk). */
-  | { type: "addNew"; id: string; kind: "text" | "drill" | FigureKind; seed?: number }
+  /** seed og at: kun regneark (seed laves i event-handleren med newSeed, så reduceren er deterministisk; at = ledig plads fra placeDrill). */
+  | { type: "addNew"; id: string; kind: "text" | "drill" | FigureKind; seed?: number; at?: { x: number; y: number } }
   | { type: "addCalc"; id: string; figureId: string; param: string; x?: number; y?: number }
   | { type: "update"; id: string; patch: Patch; key?: string }
   | { type: "move"; id: string; x: number; y: number }
@@ -98,7 +98,7 @@ export function reducer(s: DocState, a: DocAction): DocState {
         a.kind === "text"
           ? makeText(a.id, existing)
           : a.kind === "drill"
-            ? makeDrill(a.id, existing, a.seed ?? 0)
+            ? { ...makeDrill(a.id, existing, a.seed ?? 0), ...(a.at ?? {}) }
             : makeFigure(a.id, a.kind, existing);
       if (!obj) return s;
       return commitChange(s, { ...s.doc, objects: [...s.doc.objects, obj] }, null, { selectedId: obj.id });
@@ -220,8 +220,9 @@ export function useDocument() {
     () => ({
       addText: () => dispatch({ type: "addNew", id: newId(), kind: "text" }),
       addFigure: (kind: FigureKind) => dispatch({ type: "addNew", id: newId(), kind }),
-      /** seed: fra newSeed() i event-handleren. */
-      addDrill: (seed: number) => dispatch({ type: "addNew", id: newId("d"), kind: "drill", seed }),
+      /** seed: fra newSeed() i event-handleren; at: placering (fra placeDrill), ellers standardplaceringen. */
+      addDrill: (seed: number, at?: { x: number; y: number }) =>
+        dispatch({ type: "addNew", id: newId("d"), kind: "drill", seed, at }),
       addCalc: (figureId: string, param: string, x?: number, y?: number) =>
         dispatch({ type: "addCalc", id: newId("c"), figureId, param, x, y }),
       update: (id: string, patch: Patch, key?: string) => dispatch({ type: "update", id, patch, key }),

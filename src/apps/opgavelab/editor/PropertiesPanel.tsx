@@ -3,7 +3,12 @@
 // Opgavelab — egenskabspanelet: parametertabel (live-værdi, Vis, Navn, Find …),
 // advarsler, regnestykke-visning og sletning.
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { DRILL_OPS, OP_SIGN } from "../core/drill";
+import { newSeed } from "../model/document";
+import { drillProblem, drillProblemText } from "../render/placeDrill";
+import { layoutDrill } from "../render/drillLayout";
+import type { Measure } from "../render/textLayout";
 import { formatByKind } from "../core/format";
 import {
   aliasConflict,
@@ -15,11 +20,14 @@ import {
   solveParam,
   visibleParams,
 } from "../model/figures";
-import { ALIAS_MAX } from "../model/types";
+import { ALIAS_MAX, LIMITS } from "../model/types";
 import type {
   CalcObject,
   DocSettings,
   Document as SheetDoc,
+  DrillConfig,
+  DrillObject,
+  DrillOp,
   FigureObject,
   ParamState,
   SheetObject,
@@ -31,6 +39,7 @@ export function PropertiesPanel({
   doc,
   selected,
   numbering,
+  measure,
   askDelete,
   onUpdate,
   onSetParam,
@@ -44,6 +53,7 @@ export function PropertiesPanel({
   doc: SheetDoc;
   selected: SheetObject | null;
   numbering: ReadonlyMap<string, string>;
+  measure: Measure;
   /** Id på det objekt, der venter på sletbekræftelse. */
   askDelete: string | null;
   onUpdate: (id: string, patch: ObjectPatch, key?: string) => void;
@@ -110,9 +120,7 @@ export function PropertiesPanel({
       )}
       {selected.type === "calc" && <CalcSection calc={selected} doc={doc} onSelect={onSelect} />}
       {selected.type === "drill" && (
-        <p className="ol-hint" data-ol-drill-info="">
-          {`${selected.config.count} ${selected.config.count === 1 ? "opgave" : "opgaver"} med svar på svararket. Flyt blokken ved at trække i den.`}
-        </p>
+        <DrillSection key={selected.id} drill={selected} doc={doc} numbering={numbering} measure={measure} onUpdate={onUpdate} />
       )}
 
       {confirming ? (
@@ -413,6 +421,308 @@ function CalcSection({
         Gå til figur
       </button>
       <p className="ol-hint">Regnestykket hører til figuren, men kan flyttes frit på arket.</p>
+    </>
+  );
+}
+
+// ---- regneark ----
+
+const OP_NAMES: Record<DrillOp, string> = { add: "Plus", sub: "Minus", mul: "Gange", div: "Division" };
+const TABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+
+/** Helt tal i [min, max] fra et felt (kun cifre), ellers null. */
+function parseInt0(text: string, min: number, max: number): number | null {
+  if (!/^\d{1,6}$/.test(text.trim())) return null;
+  const n = Number(text);
+  return n >= min && n <= max ? n : null;
+}
+
+/** Heltalsfelt med kladde: en ugyldig indtastning vises med fejl, men gemmes ikke i dokumentet. */
+function IntField({
+  name,
+  label,
+  value,
+  min,
+  max,
+  unit,
+  onCommit,
+}: {
+  name: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  unit?: string;
+  onCommit: (n: number) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const errId = useId();
+  const shown = draft ?? String(value);
+  const bad = draft !== null && parseInt0(draft, min, max) === null;
+  return (
+    <div className="ol-drill-row">
+      <label className="ol-drill-field">
+        <span>{label}</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          className="ol-num"
+          data-ol-drill={name}
+          value={shown}
+          aria-invalid={bad || undefined}
+          aria-describedby={bad ? errId : undefined}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            const n = parseInt0(e.target.value, min, max);
+            if (n !== null && n !== value) onCommit(n);
+          }}
+          onBlur={() => setDraft(null)}
+        />
+        {unit && <span className="ol-unit">{unit}</span>}
+      </label>
+      {bad && (
+        <span id={errId} className="ol-field-error" role="alert" data-ol-drill-error={name}>
+          {`Skriv et helt tal fra ${min} til ${max}`}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** To heltalsfelter (mindste og største tal). Gemmes først, når begge er gyldige og mindste ≤ største. */
+function RangeField({
+  name,
+  label,
+  lo,
+  hi,
+  onCommit,
+}: {
+  name: string;
+  label: string;
+  lo: number;
+  hi: number;
+  onCommit: (lo: number, hi: number) => void;
+}) {
+  const [draft, setDraft] = useState<{ lo: string | null; hi: string | null }>({ lo: null, hi: null });
+  const errId = useId();
+  const N = LIMITS.drillNumberMax;
+  const sLo = draft.lo ?? String(lo);
+  const sHi = draft.hi ?? String(hi);
+  const pLo = parseInt0(sLo, 0, N);
+  const pHi = parseInt0(sHi, 0, N);
+  const error =
+    pLo === null || pHi === null
+      ? `Skriv hele tal fra 0 til ${N.toLocaleString("da-DK")}`
+      : pLo > pHi
+        ? "Mindste tal skal være ≤ største"
+        : null;
+  const change = (which: "lo" | "hi", v: string) => {
+    const next = { ...draft, [which]: v };
+    setDraft(next);
+    const a = parseInt0(next.lo ?? String(lo), 0, N);
+    const b = parseInt0(next.hi ?? String(hi), 0, N);
+    if (a !== null && b !== null && a <= b && (a !== lo || b !== hi)) onCommit(a, b);
+  };
+  const field = (which: "lo" | "hi", text: string, what: string) => (
+    <input
+      type="text"
+      inputMode="numeric"
+      className="ol-num"
+      data-ol-drill={`${name}${which === "lo" ? "Min" : "Max"}`}
+      aria-label={`${label}, ${what}`}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error ? errId : undefined}
+      value={text}
+      onChange={(e) => change(which, e.target.value)}
+      // Gyldige kladder er allerede gemt og kan slippes; ugyldige bliver stående med fejlen.
+      onBlur={() =>
+        setDraft((d) => {
+          const a = parseInt0(d.lo ?? String(lo), 0, N);
+          const b = parseInt0(d.hi ?? String(hi), 0, N);
+          return a !== null && b !== null && a <= b ? { lo: null, hi: null } : d;
+        })
+      }
+    />
+  );
+  return (
+    <div className="ol-drill-row">
+      <div className="ol-drill-field ol-range" role="group" aria-label={label}>
+        <span>{label}</span>
+        {field("lo", sLo, "mindste")}
+        <span className="ol-unit">til</span>
+        {field("hi", sHi, "største")}
+      </div>
+      {error && (
+        <span id={errId} className="ol-field-error" role="alert" data-ol-drill-error={name}>
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function DrillSection({
+  drill,
+  doc,
+  numbering,
+  measure,
+  onUpdate,
+}: {
+  drill: DrillObject;
+  doc: SheetDoc;
+  numbering: ReadonlyMap<string, string>;
+  measure: Measure;
+  onUpdate: (id: string, patch: ObjectPatch, key?: string) => void;
+}) {
+  const c = drill.config;
+  const set = (patch: Partial<DrillConfig>, key?: string) =>
+    onUpdate(drill.id, { config: { ...c, ...patch } }, key ? `drill:${drill.id}:${key}` : undefined);
+  const hasDecimalOps = c.ops.includes("add") || c.ops.includes("sub");
+  const layout = layoutDrill(drill, numbering.get(drill.id) ?? "", measure);
+  const problem = drillProblem(doc, drill, numbering, measure);
+  const warnings = problem ? drillProblemText(problem, "Regnearket") : [];
+
+  return (
+    <>
+      <p className="ol-hint" data-ol-drill-info="">
+        {`${c.count} ${c.count === 1 ? "opgave" : "opgaver"} med svar på svararket. Flyt blokken ved at trække i den.`}
+      </p>
+      <button type="button" className="ol-btn" data-ol-reroll="" onClick={() => onUpdate(drill.id, { seed: newSeed() })}>
+        Nye tal
+      </button>
+
+      {warnings.length > 0 && (
+        <p className="ol-warn ol-warn-sticky" role="status" data-ol-drill-warning={drill.id}>
+          {`${warnings.join(". ")}. Gør blokken mindre (færre opgaver, flere kolonner eller smallere), eller flyt den.`}
+        </p>
+      )}
+      {layout.columns < c.columns && (
+        <p className="ol-hint" data-ol-drill-cols="">
+          {`Kun ${layout.columns} ${layout.columns === 1 ? "kolonne" : "kolonner"} er plads til i den valgte bredde.`}
+        </p>
+      )}
+
+      <fieldset className="ol-snap ol-drill-group">
+        <legend>Regningsarter</legend>
+        {DRILL_OPS.map((op) => {
+          const on = c.ops.includes(op);
+          return (
+            <label key={op} className="ol-check">
+              <input
+                type="checkbox"
+                data-ol-drill-op={op}
+                checked={on}
+                // Mindst én regningsart: den sidste kan ikke fjernes.
+                disabled={on && c.ops.length === 1}
+                onChange={(e) => set({ ops: DRILL_OPS.filter((o) => (o === op ? e.target.checked : c.ops.includes(o))) })}
+              />
+              <span>{`${OP_NAMES[op]} (${OP_SIGN[op]})`}</span>
+            </label>
+          );
+        })}
+      </fieldset>
+
+      <fieldset className="ol-snap ol-drill-group">
+        <legend>Tal</legend>
+        <RangeField name="a" label="Første tal" lo={c.aMin} hi={c.aMax} onCommit={(aMin, aMax) => set({ aMin, aMax }, "a")} />
+        <RangeField name="b" label="Andet tal" lo={c.bMin} hi={c.bMax} onCommit={(bMin, bMax) => set({ bMin, bMax }, "b")} />
+        <p className="ol-hint">
+          Ved division er første tal kvotienten (uden rest) eller dividenden (med rest), og andet tal er divisoren.
+        </p>
+      </fieldset>
+
+      <fieldset className="ol-snap ol-drill-group" data-ol-drill-tables="">
+        <legend>Tabeller (gange og division)</legend>
+        <div className="ol-tables">
+          {TABLES.map((t) => (
+            <label key={t} className="ol-check ol-table-check">
+              <input
+                type="checkbox"
+                data-ol-drill-table={t}
+                aria-label={`${t}-tabellen`}
+                checked={c.tables.includes(t)}
+                onChange={(e) => set({ tables: TABLES.filter((x) => (x === t ? e.target.checked : c.tables.includes(x))) })}
+              />
+              <span>{t}</span>
+            </label>
+          ))}
+        </div>
+        <p className="ol-hint">
+          {c.tables.length > 0
+            ? "Gange og division bruger kun de valgte tabeller (andet tal-området gælder ikke)."
+            : "Ingen valgt: gange og division bruger andet tal-området."}
+        </p>
+      </fieldset>
+
+      <fieldset className="ol-snap ol-drill-group">
+        <legend>Regler</legend>
+        <label className="ol-drill-field">
+          <span>Division</span>
+          <select data-ol-drill="division" value={c.division} onChange={(e) => set({ division: e.target.value === "remainder" ? "remainder" : "exact" })}>
+            <option value="exact">Går op (uden rest)</option>
+            <option value="remainder">Med rest</option>
+          </select>
+        </label>
+        <label className="ol-check">
+          <input type="checkbox" data-ol-drill="noNegative" checked={c.noNegative} onChange={(e) => set({ noNegative: e.target.checked })} />
+          <span>Ingen negative svar (minus)</span>
+        </label>
+        <label className="ol-drill-field">
+          <span>Decimaler</span>
+          <select
+            data-ol-drill="decimals"
+            value={c.decimals}
+            disabled={!hasDecimalOps}
+            aria-describedby="ol-decimals-note"
+            onChange={(e) => set({ decimals: Number(e.target.value) === 2 ? 2 : Number(e.target.value) === 1 ? 1 : 0 })}
+          >
+            <option value={0}>Ingen (hele tal)</option>
+            <option value={1}>1 decimal</option>
+            <option value={2}>2 decimaler</option>
+          </select>
+        </label>
+        <p className="ol-hint" id="ol-decimals-note" data-ol-decimals-note="">
+          {hasDecimalOps ? "Decimaler bruges kun ved plus og minus." : "Decimaler kan kun bruges sammen med plus eller minus."}
+        </p>
+      </fieldset>
+
+      <fieldset className="ol-snap ol-drill-group">
+        <legend>Layout</legend>
+        <IntField name="count" label="Antal opgaver" value={c.count} min={1} max={LIMITS.drillCount} onCommit={(count) => set({ count }, "count")} />
+        <label className="ol-drill-field">
+          <span>Kolonner</span>
+          <select
+            data-ol-drill="columns"
+            value={c.columns}
+            onChange={(e) => set({ columns: Math.min(4, Math.max(1, Number(e.target.value))) as DrillConfig["columns"] })}
+          >
+            {[1, 2, 3, 4].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <IntField
+          name="width"
+          label="Bredde"
+          unit="mm"
+          value={Math.round(drill.width)}
+          min={LIMITS.drillWidthMin}
+          max={LIMITS.drillWidthMax}
+          onCommit={(width) => onUpdate(drill.id, { width }, `drill:${drill.id}:width`)}
+        />
+        <label className="ol-drill-field">
+          <span>Overskrift</span>
+          <input
+            type="text"
+            data-ol-drill="title"
+            maxLength={LIMITS.drillTitle}
+            value={c.title}
+            onChange={(e) => set({ title: e.target.value }, "title")}
+          />
+        </label>
+      </fieldset>
     </>
   );
 }
