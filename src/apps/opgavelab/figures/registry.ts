@@ -31,12 +31,18 @@
 // svarark, nummerering, margen og PDF-eksport er generiske og slår op med defOf(fig).
 // Bliver nøglen og `type` ikke ens, giver TypeScript en fejl på FIGURES.
 
+import { circle } from "./circle";
+import { rectangle } from "./rectangle";
 import { rightTriangle } from "./rightTriangle";
+import { square } from "./square";
 import type { FigureObjectOf } from "../model/types";
 import type { FigureDef, FigureGroup } from "./types";
 
 const DEFS = {
   rightTriangle,
+  rectangle,
+  square,
+  circle,
 };
 
 type Defs = typeof DEFS;

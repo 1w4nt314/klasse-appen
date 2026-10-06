@@ -26,6 +26,15 @@ export type RightTriangleShape = {
   mirror: boolean;
 };
 
+/** Rektangel: længde l (vandret) og bredde b (lodret) i mm; ankeret er øverste venstre hjørne. */
+export type RectangleShape = { l: Mm; b: Mm };
+
+/** Kvadrat: side s i mm; ankeret er øverste venstre hjørne. */
+export type SquareShape = { s: Mm };
+
+/** Cirkel: radius r i mm; ankeret er centrum. */
+export type CircleShape = { r: Mm };
+
 // Figurtyperne (FigureKind, FigureShape, FigureObject) afledes af registry'et i
 // figures/registry.ts, så en ny figur kun kræver én ny fil + én linje dér.
 import type { FigureObject } from "../figures/registry";

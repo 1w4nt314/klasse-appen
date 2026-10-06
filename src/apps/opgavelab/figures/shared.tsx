@@ -5,9 +5,9 @@
 import { formatByKind } from "../core/format";
 import { displayName } from "../model/params";
 import type { Bounds, ParamDef, ParamState, Point } from "../model/types";
-import { INK, LABEL_GAP, add, besides, labelBox, r2, sub, unit } from "../render/primitives";
+import { BRAND, INK, LABEL_GAP, add, besides, labelBox, r2, sub, unit } from "../render/primitives";
 import type { Measure } from "../render/textLayout";
-import type { Label } from "./types";
+import type { Label, SheetMode } from "./types";
 
 type HasParams = { params: Record<string, ParamState> };
 
@@ -15,6 +15,8 @@ type HasParams = { params: Record<string, ParamState> };
 
 /** mm fra figurens nederste kant til første linje i mål-boksen (linjens midte). */
 export const DERIVED_GAP = 6;
+/** mm luft (mellem placeringsboksene) til en etiket lige over mål-boksen, fx l/s under en firkant. */
+export const DERIVED_CLEARANCE = 2;
 /** mm mellem linjerne i mål-boksen. */
 export const DERIVED_LINE = 5.5;
 
@@ -23,7 +25,9 @@ export const DERIVED_LINE = 5.5;
  * under figuren ("A = 40,0 cm²"), første linje DERIVED_GAP mm under `bounds.maxY`, DERIVED_LINE mm
  * pr. linje. Skjulte afledte mål tegnes aldrig (heller ikke på svararket: facit står i regnestykket).
  * `others` er figurens øvrige etiketter: rammer boksen en af dem (fx en sideetiket under figuren),
- * skubbes den ned under den. Resultatet afhænger kun af figur og synlighed.
+ * skubbes den ned under den (med `clearance` mm luft mellem placeringsboksene; en linjeboks er
+ * højere end cifrene, så figurer med en etiket lige over mål-boksen bruger ca. 2). Resultatet
+ * afhænger kun af figur og synlighed.
  */
 export function derivedLabels(
   fig: HasParams,
@@ -32,6 +36,7 @@ export function derivedLabels(
   bounds: Bounds,
   measure: Measure,
   others: readonly Label[] = [],
+  clearance = 0.4,
 ): Label[] {
   const items = params
     .filter((p) => p.derived && fig.params[p.key]?.visible && Number.isFinite(values[p.key]))
@@ -53,11 +58,11 @@ export function derivedLabels(
       (o) =>
         o.c.x - o.hw < x0 + width &&
         o.c.x + o.hw > x0 &&
-        o.c.y - o.hh < bottom + 0.4 &&
-        o.c.y + o.hh > top - 0.4,
+        o.c.y - o.hh < bottom + clearance &&
+        o.c.y + o.hh > top - clearance,
     );
     if (!hit) break;
-    y0 = hit.c.y + hit.hh + 0.4 + first.hh;
+    y0 = hit.c.y + hit.hh + clearance + first.hh;
   }
   return items.map((it, i) => ({
     key: `derived${it.key}`,
@@ -68,6 +73,33 @@ export function derivedLabels(
     fill: INK,
     data: { "data-ol-param": it.key },
   }));
+}
+
+// ---- synlighed og farve i opgave/svarark ----
+
+/**
+ * Hvad der vises for figurens parametre i den givne mode. Opgavearket: kun synlige (sort).
+ * Svararket: alle ikke-afledte parametre — de skjulte i BRAND, med facit (`solved`) i stedet
+ * for figurens egen værdi, så figur og regnestykke stemmer. Afledte mål (areal, omkreds …) vises
+ * kun, når de er synlige (se derivedLabels), også på svararket.
+ */
+export function paramShow(
+  fig: HasParams,
+  mode: SheetMode,
+  values: Record<string, number>,
+  solved: Record<string, number> = {},
+) {
+  const answer = mode === "svarark";
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(solved, k);
+  const vis = (k: string) => fig.params[k]?.visible === true;
+  return {
+    /** Skal parameteren skrives med værdi (ellers kun navnet)? */
+    shown: (k: string) => answer || vis(k),
+    /** Værdien på arket (facit på svararket for skjulte parametre). */
+    value: (k: string) => (answer && has(k) ? solved[k] : values[k]),
+    /** BRAND for skjulte parametre på svararket, ellers INK. */
+    color: (k: string) => (answer && !vis(k) ? BRAND : INK),
+  };
 }
 
 // ---- sideetiket ----
