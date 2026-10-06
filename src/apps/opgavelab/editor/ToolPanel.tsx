@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { FIGURES, FIGURE_KINDS } from "../model/figures";
+import { FIGURES, GROUPS, figuresInGroup } from "../model/figures";
 import type { FigureKind } from "../model/types";
 
 export function ToolPanel({
@@ -22,37 +22,53 @@ export function ToolPanel({
   return (
     <aside className="ol-tools" aria-label="Værktøjer">
       <h2 className="ol-panel-title">Tilføj</h2>
-      <div className="ol-tool-list">
-        <button
-          type="button"
-          className="ol-tool"
-          aria-label="Tekst — læg en tekstboks på arket"
-          onClick={onAddText}
-          disabled={full}
-        >
-          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-            <path d="M5 6h14M12 6v13M9 19h6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
-          </svg>
-          Tekst
-        </button>
-        {/* Én knap pr. figur i registry'et (figures/registry.ts). */}
-        {FIGURE_KINDS.map((kind) => {
-          const def = FIGURES[kind];
-          return (
+      <div className="ol-tool-groups">
+        <fieldset className="ol-tool-group" data-ol-group="tekst">
+          <legend>Tekst</legend>
+          <div className="ol-tool-list">
             <button
-              key={kind}
               type="button"
               className="ol-tool"
-              data-ol-tool={kind}
-              aria-label={`${def.name} — læg figuren på arket`}
-              onClick={() => onAddFigure(kind)}
+              aria-label="Tekst — læg en tekstboks på arket"
+              onClick={onAddText}
               disabled={full}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                {def.icon()}
+                <path d="M5 6h14M12 6v13M9 19h6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
               </svg>
-              {def.name}
+              Tekst
             </button>
+          </div>
+        </fieldset>
+        {/* Én gruppe pr. figurgruppe i registry'et (GROUPS i figures/registry.ts); tomme grupper vises ikke. */}
+        {GROUPS.map((group) => {
+          const kinds = figuresInGroup(group.key);
+          if (kinds.length === 0) return null;
+          return (
+            <fieldset key={group.key} className="ol-tool-group" data-ol-group={group.key}>
+              <legend>{group.title}</legend>
+              <div className="ol-tool-list">
+                {kinds.map((kind) => {
+                  const def = FIGURES[kind];
+                  return (
+                    <button
+                      key={kind}
+                      type="button"
+                      className="ol-tool"
+                      data-ol-tool={kind}
+                      aria-label={`${def.name} — læg figuren på arket`}
+                      onClick={() => onAddFigure(kind)}
+                      disabled={full}
+                    >
+                      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                        {def.icon()}
+                      </svg>
+                      {def.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
           );
         })}
       </div>
@@ -64,7 +80,7 @@ export function ToolPanel({
       <details className="ol-help" ref={help} open>
         <summary>Sådan gør du</summary>
         <ol>
-          <li>Læg en trekant på arket, og træk i hjørnerne for at ændre den.</li>
+          <li>Vælg en figur i grupperne (fx Trekanter), og træk i hjørnerne for at ændre den.</li>
           <li>Skjul eller omdøb en størrelse i panelet (fx A til X).</li>
           <li>Tryk Find X for at få et regnestykke til den skjulte størrelse.</li>
           <li>Eksporter laver opgave og svarark som to PDF-filer.</li>

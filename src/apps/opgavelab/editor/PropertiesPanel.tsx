@@ -4,7 +4,7 @@
 // advarsler, regnestykke-visning og sletning.
 
 import { useState } from "react";
-import { FMT } from "../core/format";
+import { formatByKind } from "../core/format";
 import {
   aliasConflict,
   calcDrift,
@@ -175,7 +175,7 @@ function FigureSection({
               <tr key={key} data-ol-param-row={key}>
                 <th scope="row">{name}</th>
                 <td className="ol-val" data-ol-value={key}>
-                  {p.kind === "angle" ? FMT.ang(values[key]) : FMT.len(values[key])}
+                  {formatByKind(p.kind, values[key])}
                 </td>
                 <td className="ol-vis">
                   <label className="ol-check">
@@ -223,6 +223,11 @@ function FigureSection({
         Skjulte størrelser står ikke på opgavearket, kun navnet. Omdøb en størrelse (fx A til X), fjern flueben ved Vis,
         og tryk Find.
       </p>
+      {def.params.some((p) => p.derived) && (
+        <p className="ol-hint" data-ol-derived-hint="">
+          Afledte mål (fx areal og omkreds) er skjult som standard. Sæt flueben ved Vis, så står de under figuren.
+        </p>
+      )}
       {problems.map(({ calc, text }) => (
         <p key={calc.id} className="ol-warn" role="status" data-ol-warning={calc.id}>
           {text}

@@ -172,6 +172,28 @@
   color: var(--muted);
 }
 
+/* Værktøjsgrupper (Tekst, Trekanter, Firkanter …): faste fieldsets med legend som lille overskrift. */
+.ol-tool-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ol-tool-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ol-tool-group legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
 .ol-tool-list {
   display: flex;
   flex-direction: column;
@@ -303,9 +325,21 @@
   .ol-tools .ol-hint {
     display: none;
   }
+  /* Grupperne står som rækker: overskrift og knapper, der ombrydes. */
+  .ol-tool-groups {
+    gap: 8px;
+  }
+  .ol-tool-group legend {
+    margin-bottom: 4px;
+  }
   .ol-tool-list {
     flex-direction: row;
     flex-wrap: wrap;
+    gap: 6px;
+  }
+  .ol-tool {
+    padding: 8px 10px;
+    font-size: 0.8125rem;
   }
   .ol-main {
     order: 2;

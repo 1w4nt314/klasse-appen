@@ -93,7 +93,8 @@ function parseFigureOf<K extends FigureKind>(
   const aliases: Record<string, string> = {};
   for (const p of def.params) {
     const st = has(rawParams, p.key) && isObj(rawParams[p.key]) ? (rawParams[p.key] as Record<string, unknown>) : {};
-    params[p.key] = { visible: typeof st.visible === "boolean" ? st.visible : true };
+    // Manglende synlighed: alt vises, undtagen afledte mål (nye mål i gamle dokumenter forbliver skjulte).
+    params[p.key] = { visible: typeof st.visible === "boolean" ? st.visible : !p.derived };
     if (typeof st.alias === "string") {
       const alias = clipAlias(st.alias.replace(INVISIBLE, "").trim()).trim();
       if (alias) aliases[p.key] = alias;

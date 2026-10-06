@@ -19,6 +19,7 @@ import {
   unit,
 } from "../render/primitives";
 import type { Measure } from "../render/textLayout";
+import { derivedLabels, rightAngleMark, sideLabel } from "./shared";
 import type { FigureDef, Label, SheetMode } from "./types";
 
 type Fig = FigureObjectOf<"rightTriangle", RightTriangleShape>;
@@ -73,24 +74,19 @@ function labels(fig: Fig, mode: SheetMode, measure: Measure, solved: Record<stri
     { key: "c", p: v.A, q: v.B, opp: v.C },
   ];
   for (const s of sides) {
-    const mid: Point = { x: (s.p.x + s.q.x) / 2, y: (s.p.y + s.q.y) / 2 };
-    const dir = unit(sub(s.q, s.p));
-    let n: Point = { x: -dir.y, y: dir.x };
-    const away = sub(mid, s.opp);
-    if (n.x * away.x + n.y * away.y < 0) n = { x: -n.x, y: -n.y };
     const name = displayName(fig, s.key);
     const text = shown(s.key) ? `${name} = ${FMT.len(textValue(s.key))}` : name;
-    const { hw, hh } = labelBox(text, measure);
+    const sl = sideLabel(s.p, s.q, s.opp, text, measure);
     sideLabels.push({
       key: `side${s.key}`,
       text,
-      c: besides(mid, n, LABEL_GAP + 0.6, hw, hh),
-      hw,
-      hh,
+      c: sl.c,
+      hw: sl.hw,
+      hh: sl.hh,
       fill: color(s.key),
       data: { "data-ol-param": s.key },
-      dir,
-      n,
+      dir: sl.dir,
+      n: sl.n,
     });
   }
   const nameLabels = {} as Record<Corner, { label: Label; bis: Point; nb: { hw: number; hh: number } }>;
@@ -184,6 +180,8 @@ function labels(fig: Fig, mode: SheetMode, measure: Measure, solved: Record<stri
     obstacles.push(angle);
   }
   out.push(...sideLabels);
+  // Afledte mål (T, O): kun når de er synlige, i mål-boksen under figuren.
+  out.push(...derivedLabels(fig, rightTriangleSpec.params, values, rightTriangleSpec.bounds(shape), measure, out));
   return out;
 }
 
@@ -205,16 +203,11 @@ function drawing(fig: Fig, mode: SheetMode): ReactNode {
     <path key="arcB" d={arcPath(v.B, v.A, v.C, 5)} fill="none" stroke={INK} strokeWidth={0.3} />,
   ];
   if (answer || vis.has("C")) {
-    const u = unit(sub(v.B, v.C));
-    const w = unit(sub(v.A, v.C));
-    const p1 = add(v.C, u, 3);
-    const p2 = add(p1, w, 3);
-    const p3 = add(v.C, w, 3);
     out.push(
       <path
         key="square"
         data-ol-role="right-angle"
-        d={`M ${r2(p1.x)} ${r2(p1.y)} L ${r2(p2.x)} ${r2(p2.y)} L ${r2(p3.x)} ${r2(p3.y)}`}
+        d={rightAngleMark(v.C, v.B, v.A)}
         fill="none"
         stroke={answer && !vis.has("C") ? BRAND : INK}
         strokeWidth={0.3}
@@ -229,6 +222,7 @@ export const rightTriangle: FigureDef<"rightTriangle", RightTriangleShape> = {
   ...makeSolver(rightTriangleSpec),
   type: "rightTriangle",
   name: "Retvinklet trekant",
+  group: "trekanter",
   icon: () => (
     <>
       <path d="M5 4v16h14L5 4Z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinejoin="round" />

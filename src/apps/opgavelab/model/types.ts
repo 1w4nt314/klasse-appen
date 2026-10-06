@@ -36,7 +36,7 @@ export type FigureObjectOf<K extends string, S> = {
   id: string;
   type: "figure";
   figure: K;
-  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C). */
+  /** Anker på arket: figurens naturlige punkt (retvinklet trekant: hjørne C; rektangel: øverste venstre …). */
   x: Mm;
   y: Mm;
   shape: S;

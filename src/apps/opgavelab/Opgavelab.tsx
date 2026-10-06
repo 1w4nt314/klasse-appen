@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { kindNoun } from "./core/format";
 import { numberDocument } from "./core/numbering";
 import type { AppProps } from "../runtime";
 import { deleteDoc, listDocs, loadDoc, saveDoc } from "./actions";
@@ -71,7 +72,7 @@ function calcWarnings(doc: SheetDoc, numbering: ReadonlyMap<string, string>): { 
       if (d)
         drift.push(
           `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}, men ${
-            d.kind === "angle" ? "vinklen" : "siden"
+            kindNoun(d.kind)
           } er tegnet ${d.drawn}`,
         );
       continue;

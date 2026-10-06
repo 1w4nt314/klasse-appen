@@ -13,7 +13,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { numberDocument } from "../core/numbering";
-import { FMT } from "../core/format";
+import { formatByKind } from "../core/format";
 import { calcDrift, calcProblem, defOf, displayName, dragOpts, figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
 import type { Bounds, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
@@ -63,6 +63,11 @@ type Drag = MoveDrag | VertexDrag;
 /** Objektets udstrækning på arket; for figurer inkl. etiketter og opgavenummer. */
 function boxFor(o: SheetObject, doc: SheetDoc, numbering: ReadonlyMap<string, string>, measure: Measure): Bounds {
   return o.type === "figure" ? figureExtent(o, numbering.get(o.id) ?? "", measure) : objectBox(o, doc, numbering, measure);
+}
+
+/** Navn på et håndtag til skærmlæsere: figurens eget (handleName) eller "Hjørne X". */
+function handleLabel(def: { handleName?: (key: string, displayName: string) => string }, key: string, name: string): string {
+  return def.handleName ? def.handleName(key, name) : `Hjørne ${name}`;
 }
 
 function clampRange(v: number, lo: number, hi: number): number {
@@ -202,8 +207,11 @@ export function SheetEditor({
     onReshape(fig.id, next.shape, next.x, next.y);
     onCommit();
     const vals = def.compute(next.shape);
-    const parts = def.params.map((q) => `${displayName(next, q.key)} ${q.kind === "angle" ? FMT.ang(vals[q.key]) : FMT.len(vals[q.key])}`);
-    setAnnounce(`Hjørne ${displayName(next, vertex)} flyttet. ${parts.join(", ")}`);
+    // Skjulte afledte mål (areal, omkreds …) læses ikke op.
+    const parts = def.params
+      .filter((q) => !q.derived || next.params[q.key]?.visible)
+      .map((q) => `${displayName(next, q.key)} ${formatByKind(q.kind, vals[q.key])}`);
+    setAnnounce(`${handleLabel(def, vertex, displayName(next, vertex))} flyttet. ${parts.join(", ")}`);
   }
 
   function endDrag(e: ReactPointerEvent<SVGSVGElement>) {
@@ -503,8 +511,8 @@ function FigureHit({
   onSelect: (id: string | null) => void;
 }) {
   const def = defOf(fig);
-  const v = def.vertices(fig.shape);
-  const pts = Object.values(v)
+  // Klik-fladen: figurens yderkant (outline), ellers hjørnerne.
+  const pts = (def.outline?.(fig.shape) ?? Object.values(def.vertices(fig.shape)))
     .map((p) => `${fig.x + p.x},${fig.y + p.y}`)
     .join(" ");
   const label = `${def.name}${number ? ` ${number}` : ""} — tryk Enter for at markere`;
@@ -551,7 +559,7 @@ function Selection({
                 fill="transparent"
                 role="button"
                 tabIndex={0}
-                aria-label={`Hjørne ${displayName(obj as FigureObject, k)} — træk for at ændre`}
+                aria-label={`${handleLabel(defOf(obj as FigureObject), k, displayName(obj as FigureObject, k))} — træk for at ændre`}
                 aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
                 data-ol-handle={k}
                 pointerEvents="all"

@@ -1,7 +1,7 @@
 // Opgavelab — figur-hjælpere oven på registry'et (figures/registry.ts): navne, Find,
 // advarsler, svararkets facit. Generiske — intet her kender en bestemt figur.
 
-import { FMT } from "../core/format";
+import { FMT, formatByKind } from "../core/format";
 import { DRIFT_CM, DRIFT_DEG, parseShown, tolerance } from "../core/solveKit";
 import { defOf } from "../figures/registry";
 import { displayName, visibleParams } from "./params";
@@ -27,13 +27,13 @@ export type {
   Solution,
 } from "./types";
 export type { FigureDef } from "../figures/types";
-export { FIGURES, FIGURE_KINDS, defOf, getFigureDef } from "../figures/registry";
+export { FIGURES, FIGURE_KINDS, GROUPS, defOf, figuresInGroup, getFigureDef } from "../figures/registry";
 export { displayName, visibleParams } from "./params";
 
-/** Alle parametre synlige og uden alias. */
+/** Alle parametre synlige og uden alias — undtagen afledte mål (areal, omkreds …), der er skjulte. */
 export function defaultParams(def: { params: ParamDef[] }): Record<string, ParamState> {
   const out: Record<string, ParamState> = {};
-  for (const p of def.params) out[p.key] = { visible: true };
+  for (const p of def.params) out[p.key] = { visible: !p.derived };
   return out;
 }
 
@@ -138,7 +138,7 @@ export function calcDriftInfo(
   const sol = solveParam(fig, param, settings);
   if (!sol) return null;
   const truth = def.compute(fig.shape)[param];
-  const drawn = sol.kind === "angle" ? FMT.ang(truth) : FMT.len(truth);
+  const drawn = formatByKind(sol.kind, truth);
   const shownTruth = parseShown(drawn);
   if (Math.abs(parseShown(sol.result) - shownTruth) <= tolerance(sol.kind, shownTruth) + 1e-9) return null;
   return { name: displayName(fig, param), result: sol.result, drawn, approx: sol.approx, kind: sol.kind };
