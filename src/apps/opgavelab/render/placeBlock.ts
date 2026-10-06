@@ -30,12 +30,12 @@ const overlapArea = (a: Bounds, b: Bounds) =>
   Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX)) * Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY));
 
 /**
- * Plads til en boks på w × h mm.
+ * Plads til en boks på w × h mm på siden `page` (kun sidens objekter tæller).
  * @returns boksens øverste venstre hjørne og `free`: false når arket er fuldt (boksen dækker så det
  *   mindst mulige og lægges nederst blandt de pladser, der dækker lige lidt).
  */
-export function placeBox(doc: SheetDoc, w: number, h: number, measure: Measure): Point & { free: boolean } {
-  const taken = takenBoxes(doc, measure);
+export function placeBox(doc: SheetDoc, w: number, h: number, measure: Measure, page: number): Point & { free: boolean } {
+  const taken = takenBoxes(doc, measure, page);
   const lo = PAGE.margin;
   const hiY = Math.max(lo, PAGE.h - PAGE.margin - h);
   const xMax = Math.max(PAGE.margin, PAGE.w - PAGE.margin - w);
@@ -89,25 +89,25 @@ export function pushIntoSheet(ext: Bounds, dir: Point = { x: 0, y: 0 }): Point |
  * Placering af en ny blok (`block` er ikke i `doc` endnu; kun dens størrelse bruges).
  * @returns x/y (mm) og `free`: false når arket er fuldt.
  */
-export function placeBlock(doc: SheetDoc, block: BlockObject, measure: Measure): Point & { free: boolean } {
+export function placeBlock(doc: SheetDoc, block: BlockObject, measure: Measure, page: number): Point & { free: boolean } {
   // Mål blokken ved (0, 0); nummeret "00" er et bredt nok bud på etiketbredden.
   const box = blockBox({ ...block, x: 0, y: 0 }, "00", measure);
-  return placeBox(doc, box.maxX - box.minX, box.maxY - box.minY, measure);
+  return placeBox(doc, box.maxX - box.minX, box.maxY - box.minY, measure, page);
 }
 
 /** Placering af en ny tekstboks (dens bredde og højde med standardteksten). */
-export function placeText(doc: SheetDoc, text: TextObject, measure: Measure): Point & { free: boolean } {
+export function placeText(doc: SheetDoc, text: TextObject, measure: Measure, page: number): Point & { free: boolean } {
   const box = objectBox({ ...text, x: 0, y: 0 }, doc, new Map(), measure);
-  return placeBox(doc, box.maxX - box.minX, box.maxY - box.minY, measure);
+  return placeBox(doc, box.maxX - box.minX, box.maxY - box.minY, measure, page);
 }
 
 /**
  * Placering af en ny figur (alle typer): hele udstrækningen (etiketter som på svararket og nummer "00")
  * lægges på første ledige plads som en blok. Returnerer figurens anker (x, y).
  */
-export function placeFigure(doc: SheetDoc, fig: FigureObject, measure: Measure): Point & { free: boolean } {
+export function placeFigure(doc: SheetDoc, fig: FigureObject, measure: Measure, page: number): Point & { free: boolean } {
   const ext = figureExtent({ ...fig, x: 0, y: 0 }, "00", measure);
-  const at = placeBox(doc, ext.maxX - ext.minX, ext.maxY - ext.minY, measure);
+  const at = placeBox(doc, ext.maxX - ext.minX, ext.maxY - ext.minY, measure, page);
   // Ikke afrundet: ankeret skal give præcis den fundne udstrækning (en afrunding på 0,005 mm kunne skubbe
   // etiketterne ud over margenen, og så ville editoren afvise ethvert træk i figuren).
   return { x: at.x - ext.minX, y: at.y - ext.minY, free: at.free };
@@ -137,7 +137,7 @@ function outsideOf(box: Bounds): BlockProblem["outside"] {
   return outside;
 }
 
-/** null når blokken ligger inden for margenen og ikke dækker noget andet. */
+/** null når blokken ligger inden for margenen og ikke dækker noget andet på sin side. */
 export function blockProblem(
   doc: SheetDoc,
   block: BlockObject,
@@ -150,7 +150,7 @@ export function blockProblem(
 
   const covers: string[] = [];
   for (const o of doc.objects) {
-    if (o.id === block.id) continue;
+    if (o.id === block.id || o.page !== block.page) continue;
     const num = numbering.get(o.id);
     const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "00", measure) : objectBox(o, doc, numbering, measure));
     // Strengt overlap (ingen luft): en ellers korrekt placeret blok flagges aldrig.
@@ -186,7 +186,7 @@ export function figureProblem(
   const box = boxes?.get(fig.id) ?? figureExtent(fig, numbering.get(fig.id) ?? "", measure);
   const covers: string[] = [];
   for (const o of doc.objects) {
-    if (o.id === fig.id || o.type === "drill" || o.type === "formula") continue;
+    if (o.id === fig.id || o.page !== fig.page || o.type === "drill" || o.type === "formula") continue;
     const num = numbering.get(o.id);
     const other = boxes?.get(o.id) ?? (o.type === "figure" ? figureExtent(o, num ?? "", measure) : objectBox(o, doc, numbering, measure));
     if (!hits(box, other, -EPS)) continue;

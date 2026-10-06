@@ -15,6 +15,7 @@ import {
 } from "react";
 import { formatByKind } from "../core/format";
 import { calcDrift, calcProblem, defOf, displayName, dragOpts } from "../model/figures";
+import { pageObjects } from "../model/document";
 import { LIMITS, PAGE } from "../model/types";
 import type { Bounds, DragResult, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { keyStep } from "../core/keyStep";
@@ -160,6 +161,7 @@ function isTyping(t: EventTarget | null): boolean {
 export function SheetEditor({
   doc,
   mode,
+  page,
   selectedId,
   measure,
   onSelect,
@@ -170,6 +172,8 @@ export function SheetEditor({
   doc: SheetDoc;
   /** "svarark" er en skrivebeskyttet forhåndsvisning (vælg, men ikke flyt). */
   mode: SheetMode;
+  /** Den viste og redigerede side (0-baseret); kun dens objekter tegnes, måles og kan markeres. */
+  page: number;
   selectedId: string | null;
   measure: Measure;
   onSelect: (id: string | null) => void;
@@ -202,13 +206,15 @@ export function SheetEditor({
   // Alle objekters udstrækning, én gang pr. render (figurernes gemmes desuden pr. objekt i figureExtent, så et
   // træk kun regner den trukne figur igen), og hvilke figurer/blokke der dækker andre eller går ud over arket —
   // med billige rektangel-tests i stedet for at regne alle udstrækninger igen for hver figur.
+  // Kun den aktive sides objekter (numrene regnes for hele dokumentet).
+  const pageObjs = useMemo(() => pageObjects(doc, page), [doc, page]);
   const boxes = useMemo<KnownBoxes>(
-    () => new Map(doc.objects.map((o) => [o.id, boxFor(o, doc, numbering, measure)])),
-    [doc, numbering, measure],
+    () => new Map(pageObjs.map((o) => [o.id, boxFor(o, doc, numbering, measure)])),
+    [doc, pageObjs, numbering, measure],
   );
   const layoutWarn = useMemo(() => {
     const out = new Set<string>();
-    for (const o of doc.objects) {
+    for (const o of pageObjs) {
       const p =
         o.type === "figure"
           ? figureProblem(doc, o, numbering, measure, boxes)
@@ -220,7 +226,7 @@ export function SheetEditor({
       else if (o.type === "calc" && calcStray(doc, o, numbering, measure, boxes)) out.add(o.id);
     }
     return out;
-  }, [doc, numbering, measure, boxes]);
+  }, [doc, pageObjs, numbering, measure, boxes]);
 
   const sheetW = size ? Math.max(0, Math.min(size.w, (size.h * PAGE.w) / PAGE.h)) : 0;
   const sheetH = (sheetW * PAGE.h) / PAGE.w;
@@ -503,6 +509,7 @@ export function SheetEditor({
           <SheetSvg
             doc={doc}
             mode={mode}
+            page={page}
             numbering={numbering}
             measure={measure}
             svgRef={svgRef}
@@ -522,6 +529,7 @@ export function SheetEditor({
           >
             <Overlay
               doc={doc}
+              objects={pageObjs}
               mode={mode}
               selected={selected}
               numbering={numbering}
@@ -563,6 +571,7 @@ function hitProps(id: string, label: string, pressed: boolean, onSelect: (id: st
 
 function Overlay({
   doc,
+  objects,
   mode,
   selected,
   numbering,
@@ -573,6 +582,8 @@ function Overlay({
   onSelect,
 }: {
   doc: SheetDoc;
+  /** Den aktive sides objekter. */
+  objects: readonly SheetObject[];
   mode: SheetMode;
   selected: SheetObject | null;
   numbering: ReadonlyMap<string, string>;
@@ -586,7 +597,7 @@ function Overlay({
 }) {
   return (
     <g data-ol-overlay="">
-      {doc.objects.map((o) => {
+      {objects.map((o) => {
         const number = numbering.get(o.id);
         const pressed = selected?.id === o.id;
         if (o.type === "figure") {

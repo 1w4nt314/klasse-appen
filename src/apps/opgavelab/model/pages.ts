@@ -59,7 +59,7 @@ export function swapPages(doc: SheetDoc, i: number, j: number): SheetDoc {
 /** Et regnestykkes nye anker, når figuren flyttes (dx, dy) — standard: holdt inden for margenen som makeCalc. */
 export type CalcFollow = (calc: CalcObject, dx: number, dy: number) => { x: number; y: number };
 
-const followInMargin: CalcFollow = (c, dx, dy) =>
+export const followInMargin: CalcFollow = (c, dx, dy) =>
   dx === 0 && dy === 0
     ? { x: c.x, y: c.y }
     : { x: clamp(c.x + dx, MARGIN, PAGE_W - MARGIN), y: clamp(c.y + dy, MARGIN, PAGE_H - MARGIN - CALC_BOTTOM) };

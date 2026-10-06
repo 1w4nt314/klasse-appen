@@ -36,16 +36,18 @@ function calcLabelBox(doc: SheetDoc, calc: CalcObject, numbering: ReadonlyMap<st
 
 /**
  * De nummererede ting på arket, et regnestykke kan forveksles med: figurer (hele udstrækningen) og
- * regneark/formelblokke. `known`: allerede regnede bokse (editoren).
+ * regneark/formelblokke PÅ SIDEN `page` (en anden side kan aldrig forveksles med). `known`: allerede regnede bokse (editoren).
  */
 function numberedBoxes(
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
+  page: number,
   known?: ReadonlyMap<string, Bounds>,
 ): { id: string; box: Bounds }[] {
   const out: { id: string; box: Bounds }[] = [];
   for (const o of doc.objects) {
+    if (o.page !== page) continue;
     if (o.type !== "figure" && o.type !== "drill" && o.type !== "formula") continue;
     const box =
       known?.get(o.id) ??
@@ -69,7 +71,7 @@ export function calcStray(
   const box = calcLabelBox(doc, calc, numbering, measure);
   let own = Infinity;
   let other: { id: string; d: number } | null = null;
-  for (const n of numberedBoxes(doc, numbering, measure, known)) {
+  for (const n of numberedBoxes(doc, numbering, measure, calc.page, known)) {
     const d = boxGap(box, n.box);
     if (n.id === calc.figureId) own = d;
     else if (!other || d < other.d) other = { id: n.id, d };
@@ -78,13 +80,14 @@ export function calcStray(
 }
 
 /**
- * Alt, der allerede står på arket, som rektangler. Figurer med hele udstrækningen (etiketter og
- * nummer, som på svararket); regnestykker, regneark og tekst med deres (svararks-)boks.
- * `ownId`/`ownExt`: en figur, hvis udstrækning allerede er regnet (placeCalc).
+ * Alt, der allerede står på siden `page`, som rektangler (andre sider ses ikke). Figurer med hele
+ * udstrækningen (etiketter og nummer, som på svararket); regnestykker, regneark og tekst med deres
+ * (svararks-)boks. Numrene regnes for hele dokumentet. `ownId`/`ownExt`: en figur, hvis udstrækning
+ * allerede er regnet (placeCalc).
  */
-export function takenBoxes(doc: SheetDoc, measure: Measure, ownId?: string, ownExt?: Bounds): Bounds[] {
+export function takenBoxes(doc: SheetDoc, measure: Measure, page: number, ownId?: string, ownExt?: Bounds): Bounds[] {
   const numbering = numberSheet(doc, measure);
-  return doc.objects.map((o) =>
+  return doc.objects.filter((o) => o.page === page).map((o) =>
     o.type === "figure"
       ? o.id === ownId && ownExt
         ? ownExt
@@ -100,10 +103,10 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
   const w = c.widthMm;
   const h = c.sizeMm * LINE_HEIGHT;
   const ext = figureExtent(fig, "00", measure);
-  const taken = takenBoxes(doc, measure, fig.id, ext);
+  const taken = takenBoxes(doc, measure, fig.page, fig.id, ext);
   // Ejerskab måles med opgavearkets smalle boks (nummer + "X = ____"); de andre nummererede ting med deres udstrækning.
   const numbering = numberSheet(doc, measure);
-  const others = numberedBoxes(doc, numbering, measure)
+  const others = numberedBoxes(doc, numbering, measure, fig.page)
     .filter((n) => n.id !== fig.id)
     .map((n) => n.box);
   const label = calcContent(doc, probe, "opgave", "00a", measure).widthMm;

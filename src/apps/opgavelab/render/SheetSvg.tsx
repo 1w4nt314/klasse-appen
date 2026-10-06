@@ -200,9 +200,15 @@ const FigureView = memo(function FigureView({
 
 // ---- arket ----
 
+/** Sidefoden "Side n af N": midt i bundmargenen, under objektgrænsen (PAGE.h − margen = 287). */
+const FOOTER_Y = 291;
+const FOOTER_PT = 9;
+const FOOTER_FILL = "#566372";
+
 export function SheetSvg({
   doc,
   mode,
+  page = 0,
   numbering,
   measure = measureText,
   children,
@@ -211,6 +217,8 @@ export function SheetSvg({
 }: {
   doc: SheetDoc;
   mode: SheetMode;
+  /** Siden (0-baseret), der tegnes: kun dens objekter (+ sidefoden, når dokumentet har flere sider). */
+  page?: number;
   /** Objekt-id → nummer; udledes af dokumentet hvis udeladt. */
   numbering?: ReadonlyMap<string, string>;
   measure?: Measure;
@@ -231,6 +239,7 @@ export function SheetSvg({
     >
       <rect x={0} y={0} width={PAGE.w} height={PAGE.h} fill="#ffffff" />
       {doc.objects.map((o) => {
+        if (o.page !== page) return null;
         if (o.type === "text") return renderText(o, measure);
         if (o.type === "figure")
           return (
@@ -247,6 +256,11 @@ export function SheetSvg({
         if (o.type === "formula") return <FormulaView key={o.id} obj={o} mode={mode} number={nums.get(o.id) ?? ""} measure={measure} />;
         return renderCalc(doc, o, mode, nums.get(o.id) ?? "", measure);
       })}
+      {doc.pageCount > 1 && (
+        <T x={PAGE.w / 2} y={FOOTER_Y} size={FOOTER_PT * PT_MM} anchor="middle" fill={FOOTER_FILL} data-ol-role="pagefooter">
+          {`Side ${page + 1} af ${doc.pageCount}`}
+        </T>
+      )}
       {children}
     </svg>
   );

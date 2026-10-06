@@ -165,36 +165,36 @@ export default function Opgavelab({ userKey }: AppProps) {
 
   // Værktøjsknapperne: faste handlere (ToolPanel er memo), så værktøjspanelet ikke tegnes om ved hvert
   // træk-trin. Placeringen regnes ud fra det seneste dokument (ref'en opdateres efter hver render).
-  const placeRef = useRef({ doc: d.doc, measure });
+  const placeRef = useRef({ doc: d.doc, measure, page: d.page });
   useEffect(() => {
-    placeRef.current = { doc: d.doc, measure };
+    placeRef.current = { doc: d.doc, measure, page: d.page };
   });
   const { addText, addFigure, addDrill, addFormula } = d;
   const toolHandlers = useMemo(
     () => ({
       onAddText: () => {
         // Første ledige plads, så teksten ikke lægges oven på en figur (figurer står nu øverst til venstre).
-        const { doc, measure } = placeRef.current;
-        const at = placeText(doc, makeText("probe", 0), measure);
+        const { doc, measure, page } = placeRef.current;
+        const at = placeText(doc, makeText("probe", 0, page), measure, page);
         addText({ x: at.x, y: at.y });
       },
       onAddFigure: (kind: Parameters<typeof addFigure>[0]) => {
         // Placering i event-handleren: første ledige plads (som regneark), så figurer ikke lægges oven i hinanden.
-        const { doc, measure } = placeRef.current;
-        const probe = makeFigure("probe", kind, 0);
-        const at = probe ? placeFigure(doc, probe, measure) : null;
+        const { doc, measure, page } = placeRef.current;
+        const probe = makeFigure("probe", kind, 0, page);
+        const at = probe ? placeFigure(doc, probe, measure, page) : null;
         addFigure(kind, at ? { x: at.x, y: at.y } : undefined);
       },
       onAddDrill: () => {
         // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
-        const { doc, measure } = placeRef.current;
+        const { doc, measure, page } = placeRef.current;
         const seed = newSeed();
-        const at = placeBlock(doc, makeDrill("probe", 0, seed), measure);
+        const at = placeBlock(doc, makeDrill("probe", 0, seed, page), measure, page);
         addDrill(seed, { x: at.x, y: at.y });
       },
       onAddFormula: () => {
-        const { doc, measure } = placeRef.current;
-        const at = placeBlock(doc, makeFormula("probe", 0), measure);
+        const { doc, measure, page } = placeRef.current;
+        const at = placeBlock(doc, makeFormula("probe", 0, page), measure, page);
         addFormula({ x: at.x, y: at.y });
       },
     }),
@@ -527,6 +527,7 @@ export default function Opgavelab({ userKey }: AppProps) {
         <SheetEditor
           doc={d.doc}
           mode={view}
+          page={d.page}
           selectedId={d.selectedId}
           measure={measure}
           onSelect={select}
