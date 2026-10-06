@@ -4,7 +4,7 @@
 // skemaversion eller for mange objekter giver null (afvist). Forældreløse
 // regnestykker smides væk.
 
-import { getFigureDef } from "./figures";
+import { aliasConflict, clipAlias, getFigureDef } from "./figures";
 import { DEFAULT_SETTINGS, LIMITS, SCHEMA_VERSION } from "./types";
 import type {
   CalcObject,
@@ -23,7 +23,6 @@ const SUBJECTS: readonly Subject[] = ["matematik"];
 const COORD_MIN = -50;
 const COORD_MAX = 350;
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
-export const ALIAS_MAX = 6;
 
 // Kontroltegn og usynlige formattegn (zero-width, retningsskift, BOM).
 const INVISIBLE = /[\u0000-\u001f\u007f​-‏‪-‮⁠-⁩﻿]/g;
@@ -79,16 +78,23 @@ function parseFigure(r: Record<string, unknown>, id: string): FigureObject | nul
   if (!shape) return null;
   const rawParams = isObj(r.params) ? r.params : {};
   const params: Record<string, ParamState> = {};
+  const aliases: Record<string, string> = {};
   for (const p of def.params) {
     const st = has(rawParams, p.key) && isObj(rawParams[p.key]) ? (rawParams[p.key] as Record<string, unknown>) : {};
-    const next: ParamState = { visible: typeof st.visible === "boolean" ? st.visible : true };
+    params[p.key] = { visible: typeof st.visible === "boolean" ? st.visible : true };
     if (typeof st.alias === "string") {
-      const alias = st.alias.replace(INVISIBLE, "").trim().slice(0, ALIAS_MAX);
-      if (alias) next.alias = alias;
+      const alias = clipAlias(st.alias.replace(INVISIBLE, "").trim()).trim();
+      if (alias) aliases[p.key] = alias;
     }
-    params[p.key] = next;
   }
-  return { id, type: "figure", figure: def.type, x, y, shape, params };
+  const fig: FigureObject = { id, type: "figure", figure: def.type, x, y, shape, params };
+  // Aliasser tilføjes i parameterrækkefølge; et alias, der allerede er i brug (som navn
+  // eller nøgle på en anden parameter), smides væk.
+  for (const p of def.params) {
+    const alias = aliases[p.key];
+    if (alias && !aliasConflict(fig, p.key, alias)) params[p.key] = { ...params[p.key], alias };
+  }
+  return fig;
 }
 
 function parseCalc(r: Record<string, unknown>, id: string, figures: Map<string, FigureObject>): CalcObject | null {

@@ -1,7 +1,8 @@
 // Opgavelab — geometri-kerne for den retvinklede trekant (dansk notation).
 // C = 90°, c er hypotenusen, a = BC (modstående A), b = AC (modstående B).
 // Formen gemmes som { a, b, rotation, mirror } med C som anker, så C altid er
-// præcis 90°. Alt regnes uafrundet; afrunding sker kun i formateringen.
+// præcis 90°. Geometrien regnes uafrundet; facit i solve() regnes på de viste
+// (afrundede) tal, så svararket kan eftergøres med lommeregner.
 //
 // Ingen runtime-imports (kun `import type`), ingen enums/parameter properties,
 // så filen kan køres i Node med --experimental-strip-types.
@@ -108,8 +109,9 @@ export function compute(shape: RightTriangleShape): Record<string, number> {
  * start, og `shape` er formen ved trækkets start.
  * - B: a = |p| (snappet, clampet), rotation = retningen C→p (evt. vinkelsnap).
  * - A: b = |projektionen af p på normalen til CB|; skifter projektionen fortegn, spejles figuren.
- * - C: A og B ligger fast; C projiceres på Thales-cirklen over AB, så c og 90° bevares.
- *   Kateterne holdes inden for min/max ved at standse C på cirklen. Ankeret flyttes (offset).
+ * - C: C projiceres på Thales-cirklen over AB (90° bevares). Kateterne holdes inden for
+ *   min/max ved at standse C på cirklen og snappes til hele mm (c ændres ≤ ~0,7 mm; AB
+ *   beholder midtpunkt og retning). Ankeret flyttes (offset).
  */
 export function dragVertex(
   shape: RightTriangleShape,
@@ -161,18 +163,37 @@ export function dragVertex(
     if (a < MIN_SIDE_MM - EPS || a > MAX_SIDE_MM + EPS || b < MIN_SIDE_MM - EPS || b > MAX_SIDE_MM + EPS) {
       return { shape, offset: none }; // umuligt inden for grænserne: afvis trækket
     }
-    // Placér C' med |AC'| = b og |BC'| = a på den side af AB, hvor pointeren er.
+    // Hele mm, så de viste sidelængder er eksakte: af de (op til) fire kombinationer af
+    // op-/nedrunding vælges den, hvis hypotenuse ligger tættest på c. c ændres derfor
+    // højst ca. 0,7 mm, og A og B flytter sig højst det halve langs AB.
+    let best: { a: number; b: number; dc: number } | null = null;
+    for (const ra of [Math.floor(a + EPS), Math.ceil(a - EPS)]) {
+      for (const rb of [Math.floor(b + EPS), Math.ceil(b - EPS)]) {
+        if (ra < MIN_SIDE_MM || ra > MAX_SIDE_MM || rb < MIN_SIDE_MM || rb > MAX_SIDE_MM) continue;
+        const dc = Math.abs(Math.hypot(ra, rb) - c);
+        if (!best || dc < best.dc - EPS) best = { a: ra, b: rb, dc };
+      }
+    }
+    if (best) {
+      a = best.a;
+      b = best.b;
+    }
+    // AB beholder midtpunkt og retning; A' og B' ligger c'/2 fra midtpunktet.
+    const c2 = Math.hypot(a, b);
     const u = { x: ab.x / c, y: ab.y / c };
     const w = { x: -u.y, y: u.x };
+    const A2 = { x: m.x - (u.x * c2) / 2, y: m.y - (u.y * c2) / 2 };
+    // Placér C' med |A'C'| = b og |B'C'| = a på den side af AB, hvor pointeren er.
     const side = (local.x - v.A.x) * w.x + (local.y - v.A.y) * w.y;
     const oldSide = (0 - v.A.x) * w.x + (0 - v.A.y) * w.y;
     const s = side > 0 ? 1 : side < 0 ? -1 : oldSide >= 0 ? 1 : -1;
-    const along = (b * b) / c;
-    const perp = (a * b) / c;
-    const cNew = { x: v.A.x + u.x * along + w.x * s * perp, y: v.A.y + u.y * along + w.y * s * perp };
-    const toB = sub(v.B, cNew);
+    const along = (b * b) / c2;
+    const perp = (a * b) / c2;
+    const cNew = { x: A2.x + u.x * along + w.x * s * perp, y: A2.y + u.y * along + w.y * s * perp };
+    const B2 = { x: m.x + (u.x * c2) / 2, y: m.y + (u.y * c2) / 2 };
+    const toB = sub(B2, cNew);
     const rotation = normDeg(Math.atan2(toB.y, toB.x) / RAD);
-    const toA = sub(v.A, cNew);
+    const toA = sub(A2, cNew);
     const n = normal(rotation);
     const mirror = toA.x * n.x + toA.y * n.y < 0;
     return { shape: { a, b, rotation, mirror }, offset: cNew };
@@ -258,9 +279,22 @@ function fill(rhs: string, param: (key: string) => string, inv: (fn: string) => 
 }
 
 /**
+ * Tallet, som det står på arket: formateringen parses tilbage ("1.234,6 cm" → 1234.6,
+ * "−2,5" → −2.5, "36,9°" → 36.9). NaN hvis der ikke er et tal.
+ */
+export function parseShown(text: string): number {
+  const t = text.replace(/\u2212/g, "-").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+  return t === "" || t === "-" ? NaN : Number(t);
+}
+
+/**
  * Find target ud fra de SYNLIGE parametre. C regnes kun som kendt, når C er synlig
  * (retvinkelmarkeringen tegnes kun da). Returnerer null, hvis target selv er synlig,
  * eller ingen regel kan bruges.
+ *
+ * Facit regnes på de VISTE tal (længder med 1 decimal, vinkler som fmt.ang viser dem,
+ * C = 90°), så "indsat → resultat" altid kan eftergøres med lommeregner. `approx` er sand,
+ * når resultatet er afrundet (vises som "≈"), og falsk når det er eksakt (fx 180° − A − B).
  */
 export function solve(
   target: string,
@@ -273,8 +307,14 @@ export function solve(
   if (!Object.prototype.hasOwnProperty.call(RULES, target) || visible.has(target)) return null;
   const rule = RULES[target].find((r) => r.given.every((g) => visible.has(g)));
   if (!rule) return null;
-  const v: Record<string, number> = { ...values, C: 90 };
-  if (rule.given.some((g) => !Number.isFinite(v[g]))) return null;
+  const shownText = (key: string, x: number) => (KIND[key] === "angle" ? fmt.ang(x) : fmt.num(x, 1));
+  const v: Record<string, number> = { C: 90 };
+  for (const g of rule.given) {
+    const raw = g === "C" ? 90 : values[g];
+    if (!Number.isFinite(raw)) return null;
+    v[g] = parseShown(shownText(g, raw));
+    if (!Number.isFinite(v[g])) return null;
+  }
   const value = rule.value(v);
   if (!Number.isFinite(value)) return null;
 
@@ -283,15 +323,17 @@ export function solve(
     return typeof n === "string" && n.trim() !== "" ? n.trim() : key;
   };
   const inv = (fn: string) => (settings.inverseNotation === "arc" ? `arc${fn}` : `${fn}⁻¹`);
-  const shown = (key: string) => (KIND[key] === "angle" ? fmt.ang(v[key]) : fmt.num(v[key], 1));
   const kind = KIND[target];
+  const result = kind === "angle" ? fmt.ang(value) : fmt.len(value);
+  const rounded = parseShown(result);
 
   return {
     target,
     formula: `${name(target)} = ${fill(rule.rhs, name, inv)}`,
-    substituted: fill(rule.rhs, shown, inv),
-    result: kind === "angle" ? fmt.ang(value) : fmt.len(value),
+    substituted: fill(rule.rhs, (key) => shownText(key, v[key]), inv),
+    result,
     value,
+    approx: !(Math.abs(rounded - value) <= 1e-9 * Math.max(1, Math.abs(value))),
     kind,
   };
 }

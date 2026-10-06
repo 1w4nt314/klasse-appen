@@ -3,14 +3,19 @@
 // Opgavelab — egenskabspanelet: parametertabel (live-værdi, Vis, Navn, Find …),
 // advarsler, regnestykke-visning og sletning.
 
+import { useState } from "react";
 import { FMT } from "../core/format";
 import {
+  aliasConflict,
+  calcDrift,
   calcProblem,
+  clipAlias,
   displayName,
   getFigureDef,
   solveParam,
   visibleParams,
 } from "../model/figures";
+import { ALIAS_MAX } from "../model/types";
 import type {
   CalcObject,
   DocSettings,
@@ -21,8 +26,6 @@ import type {
 } from "../model/types";
 import { ConfirmDelete } from "./ConfirmDelete";
 import type { ObjectPatch } from "./useDocument";
-
-export const ALIAS_MAX = 6;
 
 export function PropertiesPanel({
   doc,
@@ -150,7 +153,7 @@ function FigureSection({
   const values = def.compute(fig.shape);
   const vis = visibleParams(fig);
   const problems = calcs
-    .map((c) => ({ calc: c, text: calcProblem(fig, c.param, doc.settings) }))
+    .map((c) => ({ calc: c, text: calcProblem(fig, c.param, doc.settings) ?? calcDrift(fig, c.param, doc.settings) }))
     .filter((p): p is { calc: CalcObject; text: string } => p.text !== null);
   const sortedCalcs = [...calcs].sort((p, q) => (numbering.get(p.id) ?? "").localeCompare(numbering.get(q.id) ?? ""));
 
@@ -188,18 +191,7 @@ function FigureSection({
                   </label>
                 </td>
                 <td className="ol-rename">
-                  <input
-                    type="text"
-                    className="ol-alias"
-                    data-ol-alias={key}
-                    aria-label={`Nyt navn for ${key} (højst ${ALIAS_MAX} tegn)`}
-                    placeholder={key}
-                    maxLength={ALIAS_MAX}
-                    value={st.alias ?? ""}
-                    onChange={(e) =>
-                      onSetParam(fig.id, key, { alias: e.target.value === "" ? undefined : e.target.value.slice(0, ALIAS_MAX) }, `alias:${fig.id}:${key}`)
-                    }
-                  />
+                  <AliasInput key={`${fig.id}:${key}`} fig={fig} param={key} alias={st.alias} onSetParam={onSetParam} />
                   <button
                     type="button"
                     className="ol-btn ol-find"
@@ -273,6 +265,64 @@ function FigureSection({
   );
 }
 
+/**
+ * Navnefelt for én parameter. Et navn, der allerede er i brug på figuren, bliver stående i
+ * feltet med fejlbeskeden "Navnet er allerede i brug", men gemmes ikke; forlades feltet,
+ * vender det tilbage til det gemte navn.
+ */
+function AliasInput({
+  fig,
+  param,
+  alias,
+  onSetParam,
+}: {
+  fig: FigureObject;
+  param: string;
+  alias: string | undefined;
+  onSetParam: (id: string, param: string, patch: Partial<ParamState>, key?: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const errId = `ol-alias-err-${fig.id}-${param}`;
+  return (
+    <>
+      <input
+        type="text"
+        className="ol-alias"
+        data-ol-alias={param}
+        aria-label={`Nyt navn for ${param} (højst ${ALIAS_MAX} tegn)`}
+        aria-invalid={draft !== null ? true : undefined}
+        aria-describedby={draft !== null ? errId : undefined}
+        placeholder={param}
+        maxLength={ALIAS_MAX * 2}
+        style={draft !== null ? { borderColor: "#a3271b" } : undefined}
+        value={draft ?? alias ?? ""}
+        onChange={(e) => {
+          const v = clipAlias(e.target.value);
+          if (aliasConflict(fig, param, v)) {
+            setDraft(v);
+            return;
+          }
+          setDraft(null);
+          onSetParam(fig.id, param, { alias: v === "" ? undefined : v }, `alias:${fig.id}:${param}`);
+        }}
+        onBlur={() => setDraft(null)}
+      />
+      {draft !== null && (
+        // CSS-filen er uden for denne rundes scope: fejlens farve og placering (efter Find-knappen) står inline.
+        <span
+          id={errId}
+          className="ol-find-why"
+          role="alert"
+          data-ol-alias-error={param}
+          style={{ order: 1, color: "#a3271b", fontWeight: 600 }}
+        >
+          Navnet er allerede i brug
+        </span>
+      )}
+    </>
+  );
+}
+
 function CalcSection({
   calc,
   doc,
@@ -286,6 +336,7 @@ function CalcSection({
   if (!fig) return <p className="ol-hint">Figuren til regnestykket findes ikke.</p>;
   const sol = solveParam(fig, calc.param, doc.settings);
   const problem = calcProblem(fig, calc.param, doc.settings);
+  const drift = calcDrift(fig, calc.param, doc.settings);
   const rhs = sol && sol.formula.includes(" = ") ? sol.formula.slice(sol.formula.indexOf(" = ") + 3) : "";
   return (
     <>
@@ -305,13 +356,14 @@ function CalcSection({
             <dt>Svar</dt>
             <dd data-ol-calc-answer="">
               <b>{sol.result}</b>
+              {sol.approx && <span className="ol-hint"> (afrundet)</span>}
             </dd>
           </>
         )}
       </dl>
-      {problem && (
+      {(problem ?? drift) && (
         <p className="ol-warn" role="status" data-ol-warning={calc.id}>
-          {problem}
+          {problem ?? drift}
         </p>
       )}
       <button type="button" className="ol-btn" data-ol-goto-figure="" onClick={() => onSelect(fig.id)}>

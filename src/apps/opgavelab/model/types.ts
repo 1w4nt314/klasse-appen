@@ -73,6 +73,9 @@ export const LIMITS = {
   sideMaxCm: 15,
 } as const;
 
+/** Højst så mange tegn (kodepunkter) i et alias. */
+export const ALIAS_MAX = 6;
+
 export const DEFAULT_SETTINGS: DocSettings = { inverseNotation: "power", snapCm: 0.5, snapDeg: true };
 
 // ---- Figur-registry-typer (implementeres i core/*, samles i model/figures.ts) ----
@@ -98,8 +101,10 @@ export type Solution = {
   substituted: string;
   /** Formateret resultat, fx "90°". */
   result: string;
-  /** Uafrundet værdi (cm eller grader). */
+  /** Værdi (cm eller grader) regnet på de viste, afrundede tal; uafrundet resultat. */
   value: number;
+  /** true: resultatet er afrundet → vis "≈" før det; false: eksakt → "=". */
+  approx: boolean;
   kind: ParamKind;
 };
 

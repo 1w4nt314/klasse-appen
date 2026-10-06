@@ -67,6 +67,7 @@ export type CalcContent = { number: string; body: string; sizeMm: number; widthM
 /**
  * Indholdet af et regnestykke: opgave → "X = ________", svarark →
  * "X = 180° − A − B = 180° − 36,9° − 53,1° = 90°" (substituted kun hvis den afviger).
+ * Er facit afrundet, står "≈" før det: "a = √(c² − b²) = √(11,1² − 9,3²) ≈ 6,1 cm".
  */
 export function calcContent(
   doc: SheetDoc,
@@ -85,7 +86,7 @@ export function calcContent(
       const rhs = sol.formula.includes(" = ") ? sol.formula.slice(sol.formula.indexOf(" = ") + 3) : sol.formula;
       body = sol.formula;
       if (sol.substituted && sol.substituted !== rhs) body += ` = ${sol.substituted}`;
-      body += ` = ${sol.result}`;
+      body += ` ${sol.approx ? "≈" : "="} ${sol.result}`;
     } else {
       body = `${name} = ?`;
     }

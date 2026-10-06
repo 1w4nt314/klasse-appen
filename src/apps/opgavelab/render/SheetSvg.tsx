@@ -11,11 +11,13 @@ import { FMT } from "../core/format";
 import { numberDocument } from "../core/numbering";
 import {
   displayName,
+  docSolvedValues,
   figureBoundsOnSheet,
   getFigureDef,
+  solvedValues,
   visibleParams,
 } from "../model/figures";
-import { PAGE } from "../model/types";
+import { DEFAULT_SETTINGS, PAGE } from "../model/types";
 import type {
   Bounds,
   CalcObject,
@@ -160,10 +162,22 @@ function besides(p: Point, n: Point, gap: number, hw: number, hh: number): Point
   return add(p, n, gap + Math.abs(n.x) * hw + Math.abs(n.y) * hh);
 }
 
-function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode: SheetMode, measure: Measure): Label[] {
+/**
+ * @param solved svararket: facit for skjulte parametre med et regnestykke (param → værdi).
+ *   Etiketten viser facit i stedet for figurens egen værdi, så figur og udregning stemmer.
+ *   Geometrien (fx vinkelværdiens placering) bruger altid figurens egne værdier.
+ */
+function rightTriangleLabels(
+  fig: FigureObject,
+  shape: RightTriangleShape,
+  mode: SheetMode,
+  measure: Measure,
+  solved: Record<string, number> = {},
+): Label[] {
   const def = getFigureDef(fig.figure)!;
   const v = def.vertices(shape) as Record<"A" | "B" | "C", Point>;
   const values = def.compute(shape);
+  const textValue = (k: string) => (mode === "svarark" && Object.prototype.hasOwnProperty.call(solved, k) ? solved[k] : values[k]);
   const vis = visibleParams(fig);
   const answer = mode === "svarark";
   const shown = (k: string) => answer || vis.has(k);
@@ -190,7 +204,7 @@ function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode:
     const away = sub(mid, s.opp);
     if (n.x * away.x + n.y * away.y < 0) n = { x: -n.x, y: -n.y };
     const name = displayName(fig, s.key);
-    const text = shown(s.key) ? `${name} = ${FMT.len(values[s.key])}` : name;
+    const text = shown(s.key) ? `${name} = ${FMT.len(textValue(s.key))}` : name;
     const { hw, hh } = labelBox(text, measure);
     sideLabels.push({
       key: `side${s.key}`,
@@ -265,7 +279,7 @@ function rightTriangleLabels(fig: FigureObject, shape: RightTriangleShape, mode:
     if (!shown(k)) continue;
     // Vinkelværdien står på halveringslinjen så langt inde, at boksen hverken rammer
     // siderne, vinkelbuen eller retvinkel-kvadratet.
-    const text = FMT.ang(values[k]);
+    const text = FMT.ang(textValue(k));
     const { hw, hh } = labelBox(text, measure);
     const along = Math.abs(bis.x) * hw + Math.abs(bis.y) * hh;
     const across = Math.abs(bis.y) * hw + Math.abs(bis.x) * hh;
@@ -309,11 +323,24 @@ function labelsBounds(labels: Label[], base: Bounds): Bounds {
   return b;
 }
 
+/**
+ * Svararkets etiketter fylder mest; facit kan have en anden bredde end figurens egen værdi
+ * (fx 9,9 → 10,0 cm). Pladsen regnes derfor som foreningen af begge varianter, så den kun
+ * afhænger af figuren (ikke af dokumentets regnestykker) og er ens overalt.
+ */
+function svararkLabelBounds(fig: FigureObject, measure: Measure): Bounds {
+  const def = getFigureDef(fig.figure)!;
+  const base = labelsBounds(rightTriangleLabels(fig, fig.shape, "svarark", measure), def.bounds(fig.shape));
+  const solved = solvedValues(fig, DEFAULT_SETTINGS);
+  return Object.keys(solved).length === 0
+    ? base
+    : labelsBounds(rightTriangleLabels(fig, fig.shape, "svarark", measure, solved), base);
+}
+
 /** Opgavenummerets placering (lokale mm): til venstre for etiketterne, øverst. Ens i begge modes. */
 function numberBox(fig: FigureObject, number: string, measure: Measure): { x: number; baseline: number; box: Bounds } {
-  const def = getFigureDef(fig.figure)!;
   // Svararket viser alle værdier, så dets etiketter er de bredeste: placér ud fra dem.
-  const ext = labelsBounds(rightTriangleLabels(fig, fig.shape, "svarark", measure), def.bounds(fig.shape));
+  const ext = svararkLabelBounds(fig, measure);
   const w = measure(number, NUMBER_MM / PT_MM, true);
   const x = ext.minX - 3.5 - w;
   const top = ext.minY;
@@ -327,7 +354,7 @@ function numberBox(fig: FigureObject, number: string, measure: Measure): { x: nu
 export function figureExtent(fig: FigureObject, number: string, measure: Measure = measureText): Bounds {
   const def = getFigureDef(fig.figure);
   if (!def) return { minX: fig.x, minY: fig.y, maxX: fig.x, maxY: fig.y };
-  let b = labelsBounds(rightTriangleLabels(fig, fig.shape, "svarark", measure), def.bounds(fig.shape));
+  let b = svararkLabelBounds(fig, measure);
   if (number) {
     const nb = numberBox(fig, number, measure).box;
     b = {
@@ -345,6 +372,7 @@ function renderRightTriangle(
   shape: RightTriangleShape,
   mode: SheetMode,
   measure: Measure,
+  solved: Record<string, number>,
 ): ReactNode {
   const def = getFigureDef(fig.figure)!;
   const v = def.vertices(shape) as Record<"A" | "B" | "C", Point>;
@@ -388,7 +416,7 @@ function renderRightTriangle(
     );
   }
 
-  for (const l of rightTriangleLabels(fig, shape, mode, measure)) {
+  for (const l of rightTriangleLabels(fig, shape, mode, measure, solved)) {
     out.push(
       <T
         key={l.key}
@@ -407,7 +435,7 @@ function renderRightTriangle(
   return out;
 }
 
-function renderFigure(fig: FigureObject, mode: SheetMode, number: string, measure: Measure) {
+function renderFigure(doc: SheetDoc, fig: FigureObject, mode: SheetMode, number: string, measure: Measure) {
   const def = getFigureDef(fig.figure);
   if (!def) return null;
   const nb = number ? numberBox(fig, number, measure) : null;
@@ -418,7 +446,7 @@ function renderFigure(fig: FigureObject, mode: SheetMode, number: string, measur
       data-ol-id={fig.id}
       data-ol-type="figure"
     >
-      {renderRightTriangle(fig, fig.shape, mode, measure)}
+      {renderRightTriangle(fig, fig.shape, mode, measure, mode === "svarark" ? docSolvedValues(doc, fig) : {})}
       {nb && (
         <T x={nb.x} y={nb.baseline} size={NUMBER_MM} bold data-ol-role="number">
           {number}
@@ -462,7 +490,7 @@ export function SheetSvg({
       <rect x={0} y={0} width={PAGE.w} height={PAGE.h} fill="#ffffff" />
       {doc.objects.map((o) => {
         if (o.type === "text") return renderText(o, measure);
-        if (o.type === "figure") return renderFigure(o, mode, nums.get(o.id) ?? "", measure);
+        if (o.type === "figure") return renderFigure(doc, o, mode, nums.get(o.id) ?? "", measure);
         return renderCalc(doc, o, mode, nums.get(o.id) ?? "", measure);
       })}
       {children}

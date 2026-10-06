@@ -5,6 +5,8 @@
 
 import { useMemo, useReducer } from "react";
 import { makeCalc, makeFigure, makeText, newDocument, newId } from "../model/document";
+import { aliasConflict, clipAlias } from "../model/figures";
+import { LIMITS } from "../model/types";
 import type {
   CalcObject,
   Document as SheetDoc,
@@ -86,7 +88,7 @@ function mapObject(doc: SheetDoc, id: string, fn: (o: SheetObject) => SheetObjec
 export function reducer(s: DocState, a: DocAction): DocState {
   switch (a.type) {
     case "addNew": {
-      if (s.doc.objects.length >= 200) return s;
+      if (s.doc.objects.length >= LIMITS.objects) return s;
       const existing = s.doc.objects.filter((o) => (a.kind === "text" ? o.type === "text" : o.type === "figure")).length;
       const obj = a.kind === "text" ? makeText(a.id, existing) : makeFigure(a.id, a.kind, existing);
       if (!obj) return s;
@@ -94,7 +96,7 @@ export function reducer(s: DocState, a: DocAction): DocState {
     }
     case "addCalc": {
       const fig = s.doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === a.figureId);
-      if (!fig || !(a.param in fig.params) || s.doc.objects.length >= 200) return s;
+      if (!fig || !(a.param in fig.params) || s.doc.objects.length >= LIMITS.objects) return s;
       // Ét regnestykke pr. størrelse.
       if (s.doc.objects.some((o) => o.type === "calc" && o.figureId === fig.id && o.param === a.param)) return s;
       const siblings = s.doc.objects.filter((o) => o.type === "calc" && o.figureId === fig.id).length;
@@ -155,7 +157,14 @@ export function reducer(s: DocState, a: DocAction): DocState {
     case "setParam": {
       const fig = s.doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === a.id);
       if (!fig || !(a.param in fig.params)) return s;
-      const next: ParamState = { ...fig.params[a.param], ...a.patch };
+      const patch = { ...a.patch };
+      if ("alias" in patch) {
+        // Et navn, der allerede er i brug på figuren, gemmes ikke (panelet viser fejlen).
+        const alias = patch.alias === undefined ? "" : clipAlias(patch.alias);
+        if (aliasConflict(fig, a.param, alias)) return s;
+        patch.alias = alias === "" ? undefined : alias;
+      }
+      const next: ParamState = { ...fig.params[a.param], ...patch };
       const doc = mapObject(s.doc, a.id, (o) => ({ ...(o as FigureObject), params: { ...(o as FigureObject).params, [a.param]: next } }));
       return commitChange(s, doc, a.key ?? null);
     }
