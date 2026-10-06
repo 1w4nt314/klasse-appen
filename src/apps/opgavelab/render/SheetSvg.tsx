@@ -13,10 +13,11 @@ import { defOf } from "../figures/registry";
 import type { SheetMode } from "../figures/types";
 import { docSolvedValues, figureBoundsOnSheet } from "../model/figures";
 import { PAGE } from "../model/types";
-import type { CalcObject, Document as SheetDoc, FigureObject, TextObject } from "../model/types";
+import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, TextObject } from "../model/types";
+import { DRILL_BLANK, layoutDrill } from "./drillLayout";
 import { numberBox } from "./figureLayout";
 import { FONT_FAMILY, measureText } from "./measure";
-import { LABEL_MM, NUMBER_MM, T, labelBaseline, r2 } from "./primitives";
+import { BRAND, LABEL_MM, NUMBER_MM, T, labelBaseline, r2 } from "./primitives";
 import {
   CALC_GAP,
   PT_MM,
@@ -61,6 +62,44 @@ function renderCalc(doc: SheetDoc, obj: CalcObject, mode: SheetMode, number: str
       <T x={obj.x + numW} y={baseline} size={c.sizeMm} data-ol-role="body">
         {c.body}
       </T>
+    </g>
+  );
+}
+
+// ---- regneark ----
+
+/**
+ * Tre runs pr. opgave: nummer (fed), stykket (højrestillet, så "=" står under hinanden) og
+ * svarstregen — på svararket svaret i BRAND i stedet for stregen.
+ */
+function renderDrill(obj: DrillObject, mode: SheetMode, number: string, measure: Measure) {
+  const l = layoutDrill(obj, number, measure);
+  return (
+    <g key={obj.id} data-ol-id={obj.id} data-ol-type="drill">
+      {l.title && (
+        <T x={l.title.x} y={l.title.baseline} size={l.sizeMm} bold data-ol-role="title">
+          {l.title.text}
+        </T>
+      )}
+      {l.items.map((it) => (
+        <g key={it.label} data-ol-item={it.label}>
+          <T x={it.xLabel} y={it.baseline} size={l.sizeMm} bold data-ol-role="number">
+            {it.label}
+          </T>
+          <T x={it.xTextEnd} y={it.baseline} size={l.sizeMm} anchor="end" data-ol-role="body">
+            {it.text}
+          </T>
+          {mode === "svarark" ? (
+            <T x={it.xAnswer} y={it.baseline} size={l.sizeMm} fill={BRAND} data-ol-role="answer">
+              {it.answer}
+            </T>
+          ) : (
+            <T x={it.xAnswer} y={it.baseline} size={l.sizeMm} data-ol-role="blank">
+              {DRILL_BLANK}
+            </T>
+          )}
+        </g>
+      ))}
     </g>
   );
 }
@@ -137,6 +176,7 @@ export function SheetSvg({
       {doc.objects.map((o) => {
         if (o.type === "text") return renderText(o, measure);
         if (o.type === "figure") return renderFigure(doc, o, mode, nums.get(o.id) ?? "", measure);
+        if (o.type === "drill") return renderDrill(o, mode, nums.get(o.id) ?? "", measure);
         return renderCalc(doc, o, mode, nums.get(o.id) ?? "", measure);
       })}
       {children}

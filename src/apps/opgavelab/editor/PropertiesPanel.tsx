@@ -72,7 +72,9 @@ export function PropertiesPanel({
       ? "Tekst"
       : selected.type === "figure"
         ? `${def?.name ?? "Figur"}${numbering.get(selected.id) ? ` ${numbering.get(selected.id)}` : ""}`
-        : `Regnestykke ${numbering.get(selected.id) ?? ""}`.trim();
+        : selected.type === "drill"
+          ? `Regneark ${numbering.get(selected.id) ?? ""}`.trim()
+          : `Regnestykke ${numbering.get(selected.id) ?? ""}`.trim();
 
   const calcs = selected.type === "figure" ? doc.objects.filter((o): o is CalcObject => o.type === "calc" && o.figureId === selected.id) : [];
   const confirming = askDelete === selected.id;
@@ -107,6 +109,11 @@ export function PropertiesPanel({
         />
       )}
       {selected.type === "calc" && <CalcSection calc={selected} doc={doc} onSelect={onSelect} />}
+      {selected.type === "drill" && (
+        <p className="ol-hint" data-ol-drill-info="">
+          {`${selected.config.count} ${selected.config.count === 1 ? "opgave" : "opgaver"} med svar på svararket. Flyt blokken ved at trække i den.`}
+        </p>
+      )}
 
       {confirming ? (
         <ConfirmDelete
@@ -121,7 +128,13 @@ export function PropertiesPanel({
           data-ol-delete=""
           onClick={() => (selected.type === "figure" && calcs.length > 0 ? onRequestDelete(selected.id) : onRemove(selected.id))}
         >
-          {selected.type === "figure" ? "Slet figur" : selected.type === "calc" ? "Slet regnestykke" : "Slet"}
+          {selected.type === "figure"
+            ? "Slet figur"
+            : selected.type === "calc"
+              ? "Slet regnestykke"
+              : selected.type === "drill"
+                ? "Slet regneark"
+                : "Slet"}
         </button>
       )}
       <p className="ol-hint">Objekter på arket: {doc.objects.length}</p>

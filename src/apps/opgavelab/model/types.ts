@@ -97,7 +97,47 @@ export type FigureObjectOf<K extends string, S> = {
 
 export type CalcObject = { id: string; type: "calc"; x: Mm; y: Mm; figureId: string; param: string };
 
-export type SheetObject = TextObject | FigureObject | CalcObject;
+/** Regningsart i et regneark: plus, minus, gange, division. */
+export type DrillOp = "add" | "sub" | "mul" | "div";
+
+/** Regnearkets indstillinger (gemmes; opgaverne selv genereres af core/drill.ts ud fra seed + config). */
+export type DrillConfig = {
+  /** Ikke-tom delmængde, altid i rækkefølgen add, sub, mul, div. */
+  ops: DrillOp[];
+  /** Antal opgaver, 1–LIMITS.drillCount. */
+  count: number;
+  columns: 1 | 2 | 3 | 4;
+  /** Talområder (heltal 0–LIMITS.drillNumberMax, min ≤ max). Division: a = kvotienten (uden rest) / dividenden (med rest), b = divisor. */
+  aMin: number;
+  aMax: number;
+  bMin: number;
+  bMax: number;
+  /** Tabeller (faktorer 1–12) til gange og division; tom = brug bMin–bMax. */
+  tables: number[];
+  /** Division uden rest (a går op) eller med rest ("7 : 2 = 3 rest 1"). */
+  division: "exact" | "remainder";
+  /** Minus: aldrig negative resultater (tallene byttes). */
+  noNegative: boolean;
+  /** Decimaler på tallene — kun ved plus og minus. */
+  decimals: 0 | 1 | 2;
+  /** Overskrift over opgaverne (højst LIMITS.drillTitle tegn; tom = ingen). */
+  title: string;
+};
+
+/** Regneark: en blok med regnestykker (+ − · :), svar på svararket. Ankeret er øverste venstre hjørne. */
+export type DrillObject = {
+  id: string;
+  type: "drill";
+  x: Mm;
+  y: Mm;
+  /** Blokkens bredde i mm (20–190); kolonnerne deler den. */
+  width: Mm;
+  /** uint32; samme seed + config giver altid de samme opgaver. */
+  seed: number;
+  config: DrillConfig;
+};
+
+export type SheetObject = TextObject | FigureObject | CalcObject | DrillObject;
 
 export type DocSettings = {
   /** "power" → tan⁻¹, "arc" → arctan. */
@@ -126,6 +166,12 @@ export const LIMITS = {
   jsonBytes: 200_000,
   sideMinCm: 1,
   sideMaxCm: 15,
+  /** Regneark: højst så mange opgaver, tegn i titlen, største tal i talområderne. */
+  drillCount: 40,
+  drillTitle: 60,
+  drillNumberMax: 10_000,
+  drillWidthMin: 20,
+  drillWidthMax: 190,
 } as const;
 
 /** Højst så mange tegn (kodepunkter) i et alias. */

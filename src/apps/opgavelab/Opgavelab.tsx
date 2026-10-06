@@ -14,7 +14,7 @@ import { ToolPanel } from "./editor/ToolPanel";
 import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/TopBar";
 import { useDocument } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
-import { newDocument } from "./model/document";
+import { newDocument, newSeed } from "./model/document";
 import { calcDriftInfo, displayName, figureBoundsOnSheet, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject } from "./model/types";
@@ -410,7 +410,12 @@ export default function Opgavelab({ userKey }: AppProps) {
         busy={busy !== null}
         status={status}
       />
-      <ToolPanel onAddText={d.addText} onAddFigure={d.addFigure} full={d.doc.objects.length >= LIMITS.objects} />
+      <ToolPanel
+        onAddText={d.addText}
+        onAddFigure={d.addFigure}
+        onAddDrill={() => d.addDrill(newSeed())}
+        full={d.doc.objects.length >= LIMITS.objects}
+      />
       <main className="ol-main">
         <SheetEditor
           doc={d.doc}

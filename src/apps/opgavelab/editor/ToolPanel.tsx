@@ -7,10 +7,13 @@ import type { FigureKind } from "../model/types";
 export function ToolPanel({
   onAddText,
   onAddFigure,
+  onAddDrill,
   full,
 }: {
   onAddText: () => void;
   onAddFigure: (kind: FigureKind) => void;
+  /** Læg et regneark på arket (seedet laves i handleren). */
+  onAddDrill: () => void;
   /** Arket har nået grænsen for antal objekter. */
   full: boolean;
 }) {
@@ -71,6 +74,30 @@ export function ToolPanel({
             </fieldset>
           );
         })}
+        <fieldset className="ol-tool-group" data-ol-group="regning">
+          <legend>Regning</legend>
+          <div className="ol-tool-list">
+            <button
+              type="button"
+              className="ol-tool"
+              data-ol-tool="drill"
+              aria-label="Regneark — læg plus-, minus-, gange- og divisionsstykker på arket"
+              onClick={onAddDrill}
+              disabled={full}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M4 6h3M5.5 4.5v3M10 6h10M4 12h3M10 12h10M4 18h3M10 18h10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  fill="none"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Regneark
+            </button>
+          </div>
+        </fieldset>
       </div>
       {full && (
         <p className="ol-hint" role="status">
@@ -83,6 +110,7 @@ export function ToolPanel({
           <li>Vælg en figur i grupperne (fx Trekanter), og træk i hjørnerne for at ændre den.</li>
           <li>Skjul eller omdøb en størrelse i panelet (fx A til X).</li>
           <li>Tryk Find X for at få et regnestykke til den skjulte størrelse.</li>
+          <li>Regneark (under Regning) laver plus-, minus-, gange- og divisionsstykker med svar på svararket.</li>
           <li>Eksporter laver opgave og svarark som to PDF-filer.</li>
         </ol>
         <p>Delete sletter, Ctrl+Z fortryder, Esc afmarkerer.</p>

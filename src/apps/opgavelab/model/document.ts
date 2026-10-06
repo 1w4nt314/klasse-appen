@@ -1,7 +1,8 @@
 // Opgavelab — nyt dokument, nye objekter og id-generator (ren TS).
 
 import { PAGE, DEFAULT_SETTINGS } from "./types";
-import type { CalcObject, Document as SheetDoc, FigureObject, SheetObject, TextObject } from "./types";
+import type { CalcObject, Document as SheetDoc, DrillObject, FigureObject, SheetObject, TextObject } from "./types";
+import { DEFAULT_DRILL_CONFIG } from "../core/drill";
 import { FIGURES, asFigure, type FigureKind } from "../figures/registry";
 import { defaultParams, figureBoundsOnSheet } from "./figures";
 
@@ -63,6 +64,32 @@ export function makeFigure<K extends FigureKind>(id: string, kind: K, existing: 
     shape,
     params: defaultParams(def),
   });
+}
+
+/**
+ * Nyt seed til et regneark (uint32). Kaldes i event-handleren (aldrig under rendering eller i
+ * reduceren), så samme handling altid giver samme dokument.
+ */
+export function newSeed(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0];
+}
+
+export const DRILL_WIDTH = 180;
+
+/** Nyt regneark med standardindstillinger: ved venstre margen, let forskudt nedad pr. eksisterende regneark. */
+export function makeDrill(id: string, existing: number, seed: number): DrillObject {
+  const o = cascade(existing);
+  return {
+    id,
+    type: "drill",
+    x: PAGE.margin,
+    y: PAGE.margin + 15 + o,
+    width: DRILL_WIDTH,
+    seed: seed >>> 0,
+    config: { ...DEFAULT_DRILL_CONFIG, ops: [...DEFAULT_DRILL_CONFIG.ops], tables: [...DEFAULT_DRILL_CONFIG.tables] },
+  };
 }
 
 /** Nyt regnestykke placeret under figuren (kan flyttes uafhængigt). */

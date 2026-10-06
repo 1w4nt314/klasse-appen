@@ -443,7 +443,9 @@ function Overlay({
         const label =
           o.type === "text"
             ? `Tekst${number ? ` ${number}` : ""}: ${o.text.replace(/\s+/g, " ").trim().slice(0, 40) || "tom"}`
-            : `Regnestykke ${number ?? ""}`.trim();
+            : o.type === "drill"
+              ? `Regneark ${number ?? ""}`.trim()
+              : `Regnestykke ${number ?? ""}`.trim();
         const b = objectBox(o, doc, numbering, measure, mode);
         const fig = o.type === "calc" ? doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId) : null;
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;

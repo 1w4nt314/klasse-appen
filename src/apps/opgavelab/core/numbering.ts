@@ -1,10 +1,11 @@
-// Opgavelab — semi-automatisk nummerering: figurer "1", "2", … efter placering
-// (top→bund, venstre→højre), regnestykker "1a", "1b", … pr. figur efter (y, x).
-// Fritstående tekst nummereres ikke. Samme map bruges til opgave og svarark.
+// Opgavelab — semi-automatisk nummerering: blokke (figurer og regneark) "1", "2", … efter
+// placering (top→bund, venstre→højre), regnestykker "1a", "1b", … pr. figur efter (y, x),
+// og opgaverne i et regneark "3a"–"3t" (itemLabel). Fritstående tekst nummereres ikke.
+// Samme map bruges til opgave og svarark.
 //
 // Ingen runtime-imports (kun `import type`).
 
-import type { Bounds, CalcObject, Document, FigureObject } from "../model/types";
+import type { Bounds, CalcObject, Document, DrillObject, FigureObject } from "../model/types";
 
 /**
  * Rækketolerance i mm. Figurerne sorteres efter top; en ny række starter, når en figurs
@@ -29,17 +30,27 @@ export function letters(index: number): string {
 }
 
 /**
- * @param figureBounds bounding box for figuren i ARK-koordinater (mm).
- * @returns objekt-id → nummer ("1" for figurer, "1a" for regnestykker).
+ * Etiketten på opgave nr. i (0-baseret) i blok nr: højst 26 opgaver → "3a" … "3z",
+ * ellers "3.1" … "3.40" (samme på opgave og svarark).
+ */
+export function itemLabel(nr: string, i: number, count: number): string {
+  return count <= 26 ? nr + letters(i) : `${nr}.${i + 1}`;
+}
+
+/**
+ * @param figureBounds bounding box for figuren i ARK-koordinater (mm). Andre blokke (regneark)
+ *   placeres efter deres øverste venstre hjørne (x, y).
+ * @returns objekt-id → nummer ("1" for figurer og regneark, "1a" for regnestykker).
  */
 export function numberDocument(doc: Document, figureBounds: (fig: FigureObject) => Bounds): Map<string, string> {
   const result = new Map<string, string>();
-  const figures = doc.objects
-    .filter((o): o is FigureObject => o.type === "figure")
-    .map((fig, i) => ({ fig, i, b: figureBounds(fig) }));
-  figures.sort((p, q) => p.b.minY - q.b.minY || p.b.minX - q.b.minX || p.i - q.i);
-  const rows: (typeof figures)[] = [];
-  for (const f of figures) {
+  const blocks = doc.objects
+    .map((fig, i) => ({ fig, i }))
+    .filter((p): p is { fig: FigureObject | DrillObject; i: number } => p.fig.type === "figure" || p.fig.type === "drill")
+    .map(({ fig, i }) => ({ fig, i, b: fig.type === "figure" ? figureBounds(fig) : { minX: fig.x, minY: fig.y, maxX: fig.x, maxY: fig.y } }));
+  blocks.sort((p, q) => p.b.minY - q.b.minY || p.b.minX - q.b.minX || p.i - q.i);
+  const rows: (typeof blocks)[] = [];
+  for (const f of blocks) {
     const row = rows[rows.length - 1];
     if (row && f.b.minY - row[0].b.minY <= ROW_MM) row.push(f);
     else rows.push([f]);
