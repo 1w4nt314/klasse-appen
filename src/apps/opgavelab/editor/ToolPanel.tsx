@@ -135,7 +135,8 @@ export const ToolPanel = memo(function ToolPanel({
           <li>Skjul eller omdøb en størrelse i panelet, og tryk Find X for at få et regnestykke.</li>
           <li>Regneark laver regnestykker i flere regningsarter med svar på svararket.</li>
           <li>Formler: skriv ét stykke pr. linje, fx 3 · (4 + 5) — facit kommer på svararket.</li>
-          <li>Eksporter laver opgave og svarark som to PDF-filer.</li>
+          <li>Brug sidebjælken over arket til at tilføje, slette og flytte A4-sider (PageUp/PageDown skifter side).</li>
+          <li>Eksporter laver opgave og svarark som to PDF-filer med alle sider.</li>
         </ol>
         <p>Delete sletter, Ctrl+Z fortryder, Esc afmarkerer.</p>
         <p>På en touchskærm: tryk én gang for at markere en figur, og træk den derefter.</p>

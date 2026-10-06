@@ -67,14 +67,23 @@ værdier).
   læseretning: rækker oppefra, i rækken fra venstre. Det, der står ved siden af
   en høj figur, hører til dens række; står to ting over hinanden ved siden af
   den, tælles den øverste først.
+- **Sider:** en opgave kan have op til 20 A4-sider. Sidebjælken over arket
+  viser én side ad gangen ("Side 2 af 3") med knapper til at tilføje (efter den
+  aktive side), slette (med bekræftelse, når siden har indhold) og flytte
+  siden; PageUp/PageDown skifter side. Et markeret objekt kan flyttes til en
+  anden side i egenskabspanelet; et regnestykke står altid på sin figurs side.
+  Nummereringen fortsætter side for side (side 1: 1…k, side 2: k+1…), og
+  PDF'erne får lige så mange sider som opgaven, med sidefoden "Side 2 af 3"
+  (kun ved mere end én side). Grænser: 20 sider og 400 objekter i alt.
 - **Regneark:** plus-, minus-, gange- og divisionsstykker (også "med rest" og
   decimaler) i 1-4 kolonner, nummereret 1a, 1b … Opgaverne laves ud fra et
   gemt seed, så arket er det samme ved genindlæsning; "Nye tal" trækker et nyt.
 - **Formler:** egne stykker, ét pr. linje (`3*(4+5)`, `10 : 4`, `2 · π`, `√16`).
   Facit regnes ud af en lille indbygget parser (ingen `eval`); fejl vises pr.
   linje i panelet og som "= ?" på svararket. Højst 20 linjer à 80 tegn.
-- **Datamodel:** et dokument er `{ schemaVersion: 1, objects: [...] }` med
-  objekttyperne `text`, `figure` (`figure` = nøglen i registry'et, `shape` = de
+- **Datamodel:** et dokument er `{ schemaVersion: 1, pageCount, objects: [...] }`
+  (`pageCount` 1-20; hvert objekt har en 0-baseret `page`, og et `calc` arver sin
+  figurs side; dokumenter uden felterne indlæses som én side) med objekttyperne `text`, `figure` (`figure` = nøglen i registry'et, `shape` = de
   rå mål i mm, `params` = synlighed/alias), `calc` (Find-regnestykke), `drill`
   (regneark: `seed` + `config`) og `formula` (`lines`, `decimals`). Typerne ligger
   i `model/types.ts`, valideringen i `model/validate.ts` (alt fra klienten
@@ -95,7 +104,7 @@ værdier).
   `model/validate.ts`).
 - Tastatur: Tab når alle knapper og objekter på arket, Enter markerer, piletaster
   flytter (1 mm, Shift 5 mm) eller ændrer et markeret hjørne, Delete sletter,
-  Ctrl+Z fortryder, Escape afmarkerer.
+  Ctrl+Z fortryder, Escape afmarkerer, PageUp/PageDown skifter side.
 
 ## Lokal udvikling
 
