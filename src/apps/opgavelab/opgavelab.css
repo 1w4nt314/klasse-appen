@@ -1,0 +1,816 @@
+/* Opgavelab — alle klasser er præfikset `ol-` da filen er global. */
+
+/* Samme fontfil bruges på skærmen og i PDF-eksporten (DejaVu Sans, Bitstream Vera-licens). */
+@font-face {
+  font-family: "OpgavelabSans";
+  src: url("/fonts/DejaVuSans.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "OpgavelabSans";
+  src: url("/fonts/DejaVuSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.ol-root {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr) 300px;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas:
+    "top top top"
+    "tools main props";
+  height: 100dvh;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+/* ---------- Topbar ---------- */
+
+.ol-topbar {
+  grid-area: top;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.ol-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-back:hover {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.ol-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--brand-strong);
+}
+
+.ol-name {
+  flex: 1 1 200px;
+  max-width: 340px;
+  min-width: 0;
+}
+.ol-name input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+
+.ol-dirty {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+.ol-dirty[data-ol-status="ok"] {
+  color: var(--ok);
+}
+.ol-dirty[data-ol-status="error"] {
+  flex-basis: 100%;
+  order: 10;
+  padding: 6px 10px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.ol-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ---------- Knapper ---------- */
+
+.ol-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.ol-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ol-btn-strong {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+.ol-btn-strong:hover:not(:disabled) {
+  background: var(--brand-strong);
+  color: #fff;
+}
+.ol-btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.ol-btn-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* ---------- Sidepaneler ---------- */
+
+.ol-tools,
+.ol-props {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--surface);
+}
+.ol-tools {
+  grid-area: tools;
+  border-right: 1px solid var(--line);
+}
+.ol-props {
+  grid-area: props;
+  border-left: 1px solid var(--line);
+}
+
+.ol-panel-title {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ol-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ol-tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-tool:hover:not(:disabled) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.ol-tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ol-hint {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.ol-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-field textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 400;
+  color: var(--ink);
+  resize: vertical;
+}
+
+.ol-values {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+.ol-values th,
+.ol-values td {
+  padding: 5px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+.ol-values th {
+  width: 3.5em;
+  font-weight: 800;
+}
+.ol-values td {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Ark ---------- */
+
+.ol-main {
+  grid-area: main;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ol-stage {
+  position: relative;
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  place-items: center;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ol-sheet {
+  background: #ffffff;
+  box-shadow: var(--shadow-float);
+  line-height: 0;
+}
+
+.ol-stage[data-dragging] {
+  cursor: grabbing;
+}
+
+/* ---------- Smal skærm: ark først, værktøjer som række over arket ---------- */
+
+@media (max-width: 900px) {
+  .ol-root {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .ol-topbar {
+    padding: 8px 12px;
+  }
+  .ol-top-actions {
+    margin-left: 0;
+  }
+  .ol-tools {
+    order: 1;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .ol-tools .ol-panel-title,
+  .ol-tools .ol-hint {
+    display: none;
+  }
+  .ol-tool-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .ol-main {
+    order: 2;
+    display: block;
+  }
+  .ol-stage {
+    width: 100%;
+    aspect-ratio: 210 / 297;
+    padding: 8px;
+  }
+  .ol-props {
+    order: 3;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+}
+
+@media (pointer: coarse) {
+  .ol-btn,
+  .ol-tool,
+  .ol-back {
+    min-height: 44px;
+  }
+}
+
+/* ---------- Snap-indstillinger (egenskabspanel) ---------- */
+
+.ol-snap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+.ol-snap legend {
+  padding: 0 4px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9375rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-check input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brand);
+}
+
+/* ---------- Visning: Opgave / Svarark ---------- */
+
+.ol-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--canvas);
+}
+.ol-view-label {
+  padding: 0 6px 0 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-view-btn {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+.ol-view-btn:hover {
+  background: var(--brand-soft);
+}
+.ol-view-btn[aria-pressed="true"] {
+  background: var(--brand);
+  color: #fff;
+}
+@media (pointer: coarse) {
+  .ol-view-btn {
+    min-height: 40px;
+  }
+}
+
+.ol-viewnote {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 1;
+  max-width: calc(100% - 24px);
+  transform: translateX(-50%);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-strong);
+  text-align: center;
+}
+
+/* ---------- Parametertabel ---------- */
+
+.ol-values {
+  border-collapse: separate;
+}
+.ol-values tbody tr {
+  display: grid;
+  grid-template-columns: 3.2em minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 6px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+.ol-values tbody th,
+.ol-values tbody td {
+  padding: 0;
+  border: 0;
+}
+.ol-values tbody th {
+  width: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 1rem;
+}
+.ol-rename {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 6px;
+}
+.ol-alias {
+  width: 5.2em;
+  padding: 5px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--ink);
+}
+.ol-alias::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+.ol-alias[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+/* Fejlen står efter Find-knappen på sin egen linje. */
+.ol-alias-error {
+  order: 1;
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+.ol-find {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 10px;
+}
+.ol-find-why {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+/* Kort årsag ved siden af en deaktiveret Find-knap ("Skjul først"). */
+.ol-find-why-short {
+  flex: 0 0 auto;
+  flex-basis: auto;
+  white-space: nowrap;
+}
+.ol-vis .ol-check {
+  font-size: 0.875rem;
+}
+
+.ol-subtitle {
+  margin-bottom: 4px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+.ol-calc-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ol-link {
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9375rem;
+  color: var(--brand);
+  text-align: left;
+  cursor: pointer;
+}
+.ol-link:hover {
+  background: var(--brand-soft);
+}
+
+/* ---------- Advarsel, regnestykke-info, bekræftelse ---------- */
+
+.ol-warn {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #e0b340;
+  border-left-width: 4px;
+  border-radius: var(--radius-control);
+  background: #fff6dc;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: #5c4208;
+}
+
+.ol-calc-info {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 0.9375rem;
+}
+.ol-calc-info dt {
+  font-weight: 700;
+  color: var(--muted);
+}
+.ol-calc-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.ol-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+}
+.ol-confirm-q {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.ol-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Dialoger (<dialog> + showModal) ---------- */
+
+.ol-dialog {
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto; /* Tailwind-reset nulstiller UA-marginen, der centrerer modale dialoger */
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+}
+.ol-dialog-wide {
+  width: min(560px, calc(100vw - 32px));
+}
+.ol-dialog::backdrop {
+  background: rgb(22 33 46 / 0.45);
+}
+.ol-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 20px;
+}
+.ol-dialog-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--brand-strong);
+}
+.ol-dialog-note {
+  margin: 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+.ol-dialog-error {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-control);
+  background: var(--danger-soft);
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--danger);
+}
+.ol-dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ol-dialog-form .ol-field input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  font-size: 1rem;
+}
+.ol-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ol-doclist {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: min(50dvh, 420px);
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+}
+.ol-doc {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+.ol-doc + .ol-doc {
+  border-top: 1px solid var(--line);
+}
+.ol-doc-info {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.ol-doc-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.ol-doc-current {
+  font-weight: 400;
+  color: var(--muted);
+}
+.ol-doc-when {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+@media (max-width: 480px) {
+  .ol-doc {
+    flex-wrap: wrap;
+  }
+  .ol-doc-info {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------- PDF-eksport ---------- */
+
+/* Skjult (men renderet) scene til eksport-SVG'erne — ikke display:none, da svg2pdf
+   skal kunne måle tekst og læse attributter fra elementer i dokumentet. */
+.ol-export-stage {
+  position: fixed;
+  top: 0;
+  left: -10000px;
+  width: 794px;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ol-export-stage svg {
+  display: block;
+  width: 794px;
+  height: 1123px;
+}
+
+.ol-export-note {
+  flex-basis: 100%;
+  order: 11;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--brand-soft);
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+.ol-export-again {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+.ol-export-close {
+  padding: 4px 10px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* ---------- Hjælp, fokus og tilgængelighed ---------- */
+
+.ol-help {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.ol-help summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--ink);
+}
+.ol-help ol {
+  margin: 6px 0 0;
+  padding-left: 1.2em;
+  list-style: decimal;
+}
+.ol-help li + li {
+  margin-top: 3px;
+}
+.ol-help p {
+  margin-top: 6px;
+}
+
+/* Tydelig fokusring overalt i appen (globalt :focus-visible findes, men er svag på SVG-objekter). */
+.ol-root :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 2px;
+}
+.ol-view-btn:focus-visible {
+  outline-offset: 0;
+}
+.ol-sheet svg:focus {
+  outline: none;
+}
+.ol-sheet [data-ol-hit]:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 1px;
+}
+.ol-sheet [data-ol-handle]:focus-visible {
+  outline: 3px solid var(--brand);
+  outline-offset: 0;
+}
+/* Chromium sætter :focus på SVG-objekter ved museklik (uden :focus-visible) og tegner sin egen ring. */
+.ol-sheet :is([data-ol-hit], [data-ol-handle]):focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ---------- Telefon (≤ 600 px): alt stables, ingen vandret scroll ---------- */
+
+@media (max-width: 600px) {
+  .ol-root {
+    overflow-x: hidden;
+  }
+  .ol-topbar {
+    gap: 6px 10px;
+  }
+  .ol-name {
+    flex: 1 1 100%;
+    max-width: none;
+    order: 5;
+  }
+  .ol-top-actions {
+    flex: 1 1 100%;
+  }
+  .ol-top-actions .ol-btn {
+    flex: 1 1 auto;
+  }
+  .ol-tool {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+  .ol-values {
+    table-layout: auto;
+  }
+  .ol-rename {
+    flex-wrap: wrap;
+  }
+}

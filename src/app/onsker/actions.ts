@@ -27,6 +27,8 @@ const clean = (v: FormDataEntryValue | null, max: number) =>
 export async function createWish(_: WishFormState, form: FormData): Promise<WishFormState> {
   const teacher = await getTeacher();
   if (!teacher) return { error: "Du skal være logget ind." };
+  // Direkte kald med andet end FormData: samme fejl som en tom overskrift (ingen serverfejl).
+  if (!(form instanceof FormData)) return { error: "Skriv en kort overskrift (mindst 3 tegn)." };
 
   // Browseren sender linjeskift som \r\n, men tæller dem som ét tegn i maxLength.
   const rawTitle = String(form.get("title") ?? "").replace(/\r\n?/g, "\n");

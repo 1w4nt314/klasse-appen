@@ -23,6 +23,10 @@ const components: Record<string, ComponentType<AppProps>> = {
     ssr: false,
     loading: Loading,
   }),
+  opgavelab: dynamic(() => import("./opgavelab/Opgavelab"), {
+    ssr: false,
+    loading: Loading,
+  }),
 };
 
 export function AppRuntime({ slug, userKey }: { slug: string; userKey: string }) {

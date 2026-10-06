@@ -44,6 +44,12 @@ function checkNewPassword(password: string, confirm: string) {
 
 const str = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 
+/**
+ * En action kan kaldes direkte (fx et genafspillet request) med andet end FormData;
+ * så svares med samme generiske fejl som ved ugyldigt input i stedet for en serverfejl.
+ */
+const isForm = (form: unknown): form is FormData => form instanceof FormData;
+
 /** Kun interne stier, så ?next= ikke kan sende folk ud af sitet. */
 function safeNext(next: string) {
   return next.startsWith("/") && !next.startsWith("//") ? next : "/apps";
@@ -74,6 +80,7 @@ function ipv6Prefix64(ip: string) {
 const LOGIN_WINDOW = 15 * 60 * 1000;
 
 export async function login(_: FormState, form: FormData): Promise<FormState> {
+  if (!isForm(form)) return { error: "Forkert e-mail eller adgangskode." };
   const email = str(form, "email").toLowerCase();
   const password = String(form.get("password") ?? "");
   const values = { email: str(form, "email") };
@@ -125,6 +132,7 @@ export async function login(_: FormState, form: FormData): Promise<FormState> {
 }
 
 export async function signup(_: FormState, form: FormData): Promise<FormState> {
+  if (!isForm(form)) return { error: "Udfyld venligst navn, skole og e-mail." };
   const fullName = str(form, "full_name");
   const school = str(form, "school");
   const email = str(form, "email").toLowerCase();
@@ -221,6 +229,7 @@ const recipientAllowed = (kind: string, email: string) => !mailLimiter.limited(`
  * ikke kan forhindre en lærer i at nulstille ved selv at bede om links.
  */
 export async function requestPasswordReset(_: FormState, form: FormData): Promise<FormState> {
+  if (!isForm(form)) return { error: "E-mailadressen ser ikke rigtig ud." };
   const email = str(form, "email").toLowerCase();
   const values = { email: str(form, "email") };
   if (!emailEnabled())
@@ -262,6 +271,7 @@ export async function requestPasswordReset(_: FormState, form: FormData): Promis
  * ikke bruger det op.)
  */
 export async function confirmSignup(_: FormState, form: FormData): Promise<FormState> {
+  if (!isForm(form)) return { error: "Linket er udløbet eller allerede brugt. Opret dig igen." };
   const token = form.get("token");
   const password = String(form.get("password") ?? "");
   const pending = findPendingSignup(token);
@@ -298,6 +308,7 @@ export async function confirmSignup(_: FormState, form: FormData): Promise<FormS
 
 /** Ny adgangskode fra linket på /nulstil. Logger alle andre steder ud. */
 export async function resetPassword(_: FormState, form: FormData): Promise<FormState> {
+  if (!isForm(form)) return { error: "Linket er udløbet eller allerede brugt. Bed om et nyt." };
   const token = form.get("token");
   const password = String(form.get("password") ?? "");
   const confirm = String(form.get("password_confirm") ?? "");

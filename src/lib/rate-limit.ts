@@ -70,3 +70,4 @@ export const wishLimiter = createLimiter();
 export const likeLimiter = createLimiter();
 export const mailLimiter = createLimiter();
 export const zooLimiter = createLimiter();
+export const opgavelabLimiter = createLimiter();

@@ -124,6 +124,20 @@ const MIGRATIONS = [
     primary key (user_id, collection, theme, creature)
   );
   `,
+  // Opgavelab: lærerens gemte opgaveark (JSON i data). Navnet er unikt pr. lærer.
+  `
+  create table opgavelab_docs (
+    id text primary key,
+    user_id text not null references users (id) on delete cascade,
+    name text not null,
+    subject text not null default 'matematik',
+    data text not null,
+    created_at integer not null,
+    updated_at integer not null,
+    unique (user_id, name)
+  );
+  create index opgavelab_docs_user on opgavelab_docs (user_id, updated_at);
+  `,
 ];
 
 /** Hvor databasen ligger. scripts/admin.mjs finder den på samme måde (DATA_DIR → /var/data → ./data). */

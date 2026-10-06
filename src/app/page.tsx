@@ -36,7 +36,7 @@ const PROMISES = [
   },
   {
     title: "Flere apps på vej",
-    text: "Stillezoonen og Navnetrækker er de første. Nye apps dukker op på din liste, når de er klar.",
+    text: "Stillezoonen, Navnetrækker og Opgavelab er de første. Nye apps dukker op på din liste, når de er klar.",
   },
 ];
 
@@ -60,6 +60,11 @@ export default async function Home() {
               Klasse-appen samler enkle, gratis værktøjer, du kan sætte op på
               smartboardet med ét klik. Opret en bruger, og du har adgang til
               alle apps – også dem der kommer senere.
+            </p>
+            <p className="mt-3 max-w-xl leading-relaxed text-muted">
+              Fx Stillezoonen til ro i timen, Navnetrækker til tilfældige elever
+              og Opgavelab, hvor du laver opgaveark med figurer og får svararket
+              med ét klik.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
