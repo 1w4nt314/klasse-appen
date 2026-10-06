@@ -12,7 +12,7 @@ import { PAGE } from "../model/types";
 import type { Bounds, CalcObject, Document as SheetDoc, FigureObject, Point, SheetObject, TextObject } from "../model/types";
 import { blockBox, numberSheet, type BlockObject } from "./drillLayout";
 import { figureExtent } from "./figureLayout";
-import { calcStray, placeCalc, takenBoxes } from "./placeCalc";
+import { calcGuards, calcStray, placeCalc, strayCount, takenBoxes } from "./placeCalc";
 import { objectBox, type Measure } from "./textLayout";
 
 const PAD = 1.5; // mm luft mellem det nye objekt og andre objekter
@@ -31,11 +31,24 @@ const overlapArea = (a: Bounds, b: Bounds) =>
 
 /**
  * Plads til en boks på w × h mm på siden `page` (kun sidens objekter tæller).
- * @returns boksens øverste venstre hjørne og `free`: false når arket er fuldt (boksen dækker så det
- *   mindst mulige og lægges nederst blandt de pladser, der dækker lige lidt).
+ * `numbered`: den del af boksen (relativt til dens øverste venstre hjørne), der er en nummereret ting — en figurs
+ * udstrækning, et regneark, en formelblok (udeladt for tekst). Den lægges aldrig nærmere et eksisterende regnestykke
+ * end regnestykkets egen figur (så ville det blive "stray", calcStray); kan ingen ledig plads opfylde det, bruges den
+ * ledige plads, der rammer færrest regnestykker (først i læseretningen), og editoren/eksporten advarer som altid.
+ * @returns boksens øverste venstre hjørne, `free`: false når arket er fuldt (boksen dækker så det
+ *   mindst mulige og lægges nederst blandt de pladser, der dækker lige lidt), og `strays`: antal regnestykker,
+ *   pladsen står nærmere end deres egen figur (0, når der var en plads uden).
  */
-export function placeBox(doc: SheetDoc, w: number, h: number, measure: Measure, page: number): Point & { free: boolean } {
+export function placeBox(
+  doc: SheetDoc,
+  w: number,
+  h: number,
+  measure: Measure,
+  page: number,
+  numbered?: Bounds,
+): Point & { free: boolean; strays: number } {
   const taken = takenBoxes(doc, measure, page);
+  const guards = numbered ? calcGuards(doc, measure, page) : [];
   const lo = PAGE.margin;
   const hiY = Math.max(lo, PAGE.h - PAGE.margin - h);
   const xMax = Math.max(PAGE.margin, PAGE.w - PAGE.margin - w);
@@ -46,11 +59,22 @@ export function placeBox(doc: SheetDoc, w: number, h: number, measure: Measure, 
   for (let y = lo; y <= hiY + 1e-9; y += Y_STEP) ys.push(r2(y));
   if (ys[ys.length - 1] !== r2(hiY)) ys.push(r2(hiY));
 
+  let least: { x: number; y: number; n: number } | null = null;
   for (const y of ys) {
     for (const x of xs) {
-      if (!taken.some((b) => hits({ minX: x, minY: y, maxX: x + w, maxY: y + h }, b, PAD))) return { x, y, free: true };
+      if (taken.some((b) => hits({ minX: x, minY: y, maxX: x + w, maxY: y + h }, b, PAD))) continue;
+      if (guards.length === 0 || !numbered) return { x, y, free: true, strays: 0 };
+      const n = strayCount(guards, {
+        minX: x + numbered.minX,
+        minY: y + numbered.minY,
+        maxX: x + numbered.maxX,
+        maxY: y + numbered.maxY,
+      });
+      if (n === 0) return { x, y, free: true, strays: 0 };
+      if (!least || n < least.n) least = { x, y, n };
     }
   }
+  if (least) return { x: least.x, y: least.y, free: true, strays: least.n };
   // Fuldt ark: mindst dækket areal; ved lighed nederst, derefter længst til venstre.
   let best: { x: number; y: number; cost: number } = { x: PAGE.margin, y: r2(hiY), cost: Infinity };
   for (let k = ys.length - 1; k >= 0; k--) {
@@ -65,7 +89,7 @@ export function placeBox(doc: SheetDoc, w: number, h: number, measure: Measure, 
       if (cost < best.cost - 1e-6) best = { x, y, cost };
     }
   }
-  return { x: best.x, y: best.y, free: false };
+  return { x: best.x, y: best.y, free: false, strays: 0 };
 }
 
 /**
@@ -92,7 +116,9 @@ export function pushIntoSheet(ext: Bounds, dir: Point = { x: 0, y: 0 }): Point |
 export function placeBlock(doc: SheetDoc, block: BlockObject, measure: Measure, page: number): Point & { free: boolean } {
   // Mål blokken ved (0, 0); nummeret "00" er et bredt nok bud på etiketbredden.
   const box = blockBox({ ...block, x: 0, y: 0 }, "00", measure);
-  return placeBox(doc, box.maxX - box.minX, box.maxY - box.minY, measure, page);
+  const w = box.maxX - box.minX;
+  const h = box.maxY - box.minY;
+  return placeBox(doc, w, h, measure, page, { minX: 0, minY: 0, maxX: w, maxY: h });
 }
 
 /** Placering af en ny tekstboks (dens bredde og højde med standardteksten). */
@@ -107,7 +133,9 @@ export function placeText(doc: SheetDoc, text: TextObject, measure: Measure, pag
  */
 export function placeFigure(doc: SheetDoc, fig: FigureObject, measure: Measure, page: number): Point & { free: boolean } {
   const ext = figureExtent({ ...fig, x: 0, y: 0 }, "00", measure);
-  const at = placeBox(doc, ext.maxX - ext.minX, ext.maxY - ext.minY, measure, page);
+  const w = ext.maxX - ext.minX;
+  const h = ext.maxY - ext.minY;
+  const at = placeBox(doc, w, h, measure, page, { minX: 0, minY: 0, maxX: w, maxY: h });
   // Ikke afrundet: ankeret skal give præcis den fundne udstrækning (en afrunding på 0,005 mm kunne skubbe
   // etiketterne ud over margenen, og så ville editoren afvise ethvert træk i figuren).
   return { x: at.x - ext.minX, y: at.y - ext.minY, free: at.free };
@@ -154,7 +182,9 @@ export function placeOnPage(
   const taken = takenBoxes(doc, measure, page);
   const m = PAGE.margin;
   const inside = own.minX >= m - EPS && own.minY >= m - EPS && own.maxX <= PAGE.w - m + EPS && own.maxY <= PAGE.h - m + EPS;
-  if (inside && !parts.some((b) => taken.some((t) => hits(b, t, PAD)))) return { x: obj.x, y: obj.y };
+  // Et nummereret objekt må heller ikke komme nærmere et af målsidens regnestykker end dets egen figur (placeBox).
+  const strays = obj.type === "text" ? 0 : strayCount(calcGuards(doc, measure, page), own);
+  if (inside && strays === 0 && !parts.some((b) => taken.some((t) => hits(b, t, PAD)))) return { x: obj.x, y: obj.y };
   if (parts.length > 1) {
     // En figur med regnestykker: helst en ledig plads til det hele (figur og regnestykker med samme indbyrdes
     // placering), så lærerens opstilling bevares. Er der ingen, lægges figuren alene (followToPage ordner resten).
@@ -167,8 +197,9 @@ export function placeOnPage(
     const w = all.maxX - all.minX;
     const h = all.maxY - all.minY;
     if (w <= PAGE.w - 2 * m && h <= PAGE.h - 2 * m) {
-      const spot = placeBox(doc, w, h, measure, page);
-      if (spot.free) return { x: obj.x + spot.x - all.minX, y: obj.y + spot.y - all.minY };
+      const fig = { minX: own.minX - all.minX, minY: own.minY - all.minY, maxX: own.maxX - all.minX, maxY: own.maxY - all.minY };
+      const spot = placeBox(doc, w, h, measure, page, fig);
+      if (spot.free && spot.strays === 0) return { x: obj.x + spot.x - all.minX, y: obj.y + spot.y - all.minY };
     }
   }
   const at =

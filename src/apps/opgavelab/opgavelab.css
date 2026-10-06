@@ -223,6 +223,18 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* Mens arkets font hentes (oftest et øjeblik): knapperne dæmpes først efter 0,4 s (som hintet i ToolPanel), så en
+   hurtig indlæsning ikke blinker. */
+.ol-tools[aria-busy="true"] .ol-tool:disabled {
+  cursor: progress;
+  opacity: 1;
+  animation: ol-tools-wait 0s linear 0.4s forwards;
+}
+@keyframes ol-tools-wait {
+  to {
+    opacity: 0.5;
+  }
+}
 
 .ol-hint {
   font-size: 0.8125rem;

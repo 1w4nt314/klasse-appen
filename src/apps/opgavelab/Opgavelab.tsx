@@ -280,10 +280,23 @@ function savedLabel(ts: number): string {
   return new Date(ts).toDateString() === new Date().toDateString() ? `Gemt kl. ${fmtTime(ts)}` : `Gemt ${fmtWhen(ts)}`;
 }
 
+/** Så længe (ms) venter værktøjerne højst på arkets font. */
+const FONT_WAIT_MS = 15000;
+
 export default function Opgavelab({ userKey }: AppProps) {
   void userKey; // persistens er på serveren (lærerens konto); nøglen holder klientstate adskilt
   const d = useDocument();
   const measure = useSheetMeasure();
+  // Værktøjerne venter på arkets font: placeringen (margen, luft, regnestykkernes plads) regnes med de målte
+  // tekstbredder, ikke skønnet — ellers kan en figur, der lægges, mens fonten hentes, ende en anelse uden for
+  // margenen eller for tæt på noget, når fonten er der. Hentes den ikke inden FONT_WAIT_MS, arbejdes videre med skønnet.
+  const fontsReady = measure === measureText;
+  const [fontWaitOver, setFontWaitOver] = useState(false);
+  useEffect(() => {
+    if (fontsReady) return;
+    const t = window.setTimeout(() => setFontWaitOver(true), FONT_WAIT_MS);
+    return () => window.clearTimeout(t);
+  }, [fontsReady]);
   const [view, setView] = useState<View>("opgave");
   // Figur (eller objekt), der venter på sletbekræftelse.
   const [askDelete, setAskDelete] = useState<string | null>(null);
@@ -696,6 +709,7 @@ export default function Opgavelab({ userKey }: AppProps) {
       <ToolPanel
         {...toolHandlers}
         full={d.doc.objects.length >= LIMITS.objects}
+        waiting={!fontsReady && !fontWaitOver}
       />
       <main className="ol-main">
         <PageBar

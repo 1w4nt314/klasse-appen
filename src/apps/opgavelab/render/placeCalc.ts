@@ -79,6 +79,38 @@ export function calcStray(
   return other && other.d + OWN_MARGIN_MM < own ? other.id : null;
 }
 
+/** mm ekstra luft i placeBox' regnestykke-vagt: numre og "00"-bud kan ændre bredderne en smule efter placeringen. */
+const GUARD_SLACK_MM = 0.5;
+
+/**
+ * Regnestykkerne på siden `page`, der i dag står ved deres egen figur (calcStray null), med opgavearkets boks og
+ * afstanden til figuren. placeBox bruger dem, så et nyt objekt (eller et, der flyttes hertil) ikke lægges nærmere et
+ * regnestykke end dets egen figur — så ville regnestykket blive "stray" (samme regel som calcStray).
+ */
+export type CalcGuard = { label: Bounds; own: number };
+
+export function calcGuards(doc: SheetDoc, measure: Measure, page: number): CalcGuard[] {
+  const out: CalcGuard[] = [];
+  let numbering: ReadonlyMap<string, string> | null = null;
+  for (const c of doc.objects) {
+    if (c.type !== "calc" || c.page !== page) continue;
+    const fig = doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === c.figureId);
+    if (!fig || fig.page !== page) continue;
+    numbering ??= numberSheet(doc, measure);
+    if (calcStray(doc, c, numbering, measure) !== null) continue; // advarer allerede
+    const label = calcLabelBox(doc, c, numbering, measure);
+    out.push({ label, own: boxGap(label, figureExtent(fig, numbering.get(fig.id) ?? "", measure)) });
+  }
+  return out;
+}
+
+/** Hvor mange af regnestykkerne `guards`, en nummereret ting med boksen `box` ville stå nærmere end deres egen figur. */
+export function strayCount(guards: readonly CalcGuard[], box: Bounds): number {
+  let n = 0;
+  for (const g of guards) if (boxGap(g.label, box) + OWN_MARGIN_MM < g.own + GUARD_SLACK_MM) n++;
+  return n;
+}
+
 /**
  * Alt, der allerede står på siden `page`, som rektangler (andre sider ses ikke). Figurer med hele
  * udstrækningen (etiketter og nummer, som på svararket); regnestykker, regneark og tekst med deres
@@ -169,6 +201,20 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
     const y = column(x, free);
     if (y !== null) return { x, y };
   }
-  // Arket er fuldt: nederst i figurens spalte (læreren kan flytte det).
-  return { x: x0, y: Math.max(lo, hi) };
+  // Arket er fuldt: dér, hvor regnestykket dækker mindst (også figurens andre regnestykker, så to aldrig lægges
+  // oven i hinanden); ved lighed nærmest figurens spalte og nederst. Læreren kan flytte det; markeringen viser det.
+  let full = { x: x0, y: Math.max(lo, hi), cost: Infinity, dx: Infinity };
+  for (const x of xs) {
+    const dx = Math.abs(x - x0);
+    for (let y = Math.max(lo, hi); y >= lo - 1e-9; y -= 1) {
+      const box = { minX: x, minY: y, maxX: x + w, maxY: y + h };
+      let cost = 0;
+      for (const b of taken) {
+        cost += Math.max(0, Math.min(box.maxX, b.maxX) - Math.max(box.minX, b.minX)) * Math.max(0, Math.min(box.maxY, b.maxY) - Math.max(box.minY, b.minY));
+        if (cost > full.cost + 1e-6) break;
+      }
+      if (cost < full.cost - 1e-6 || (cost < full.cost + 1e-6 && dx < full.dx)) full = { x, y: r2(y), cost, dx };
+    }
+  }
+  return { x: full.x, y: full.y };
 }

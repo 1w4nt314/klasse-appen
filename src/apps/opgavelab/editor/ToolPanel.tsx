@@ -1,16 +1,17 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { FIGURES, GROUPS, figuresInGroup } from "../model/figures";
 import type { FigureKind } from "../model/types";
 
-/** memo: tegnes kun om, når handlerne eller "full" skifter (ikke ved hvert træk-trin). */
+/** memo: tegnes kun om, når handlerne, "full" eller "waiting" skifter (ikke ved hvert træk-trin). */
 export const ToolPanel = memo(function ToolPanel({
   onAddText,
   onAddFigure,
   onAddDrill,
   onAddFormula,
   full,
+  waiting = false,
 }: {
   onAddText: () => void;
   onAddFigure: (kind: FigureKind) => void;
@@ -20,15 +21,30 @@ export const ToolPanel = memo(function ToolPanel({
   onAddFormula: () => void;
   /** Arket har nået grænsen for antal objekter. */
   full: boolean;
+  /** Arkets font hentes endnu: knapperne venter (placeringen måles med den rigtige font). */
+  waiting?: boolean;
 }) {
+  const off = full || waiting;
+  // Hintet vises først, når fonten har været mere end 0,4 s om det (en hurtig indlæsning blinker ikke).
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!waiting) return;
+    const t = window.setTimeout(() => setSlow(true), 400);
+    return () => window.clearTimeout(t);
+  }, [waiting]);
   const help = useRef<HTMLDetailsElement>(null);
   // Hjælpen er åben på brede skærme og lukket på smalle (så arket ikke skubbes ned).
   useEffect(() => {
     if (help.current) help.current.open = !window.matchMedia("(max-width: 900px)").matches;
   }, []);
   return (
-    <aside className="ol-tools" aria-label="Værktøjer">
+    <aside className="ol-tools" aria-label="Værktøjer" aria-busy={waiting || undefined} data-ol-tools-waiting={waiting ? "" : undefined}>
       <h2 className="ol-panel-title">Tilføj</h2>
+      {waiting && slow && !full && (
+        <p className="ol-hint" role="status" data-ol-fonts-wait="">
+          Henter arkets skrifttype …
+        </p>
+      )}
       <div className="ol-tool-groups">
         <fieldset className="ol-tool-group" data-ol-group="tekst">
           <legend>Tekst</legend>
@@ -38,7 +54,7 @@ export const ToolPanel = memo(function ToolPanel({
               className="ol-tool"
               aria-label="Tekst — læg en tekstboks på arket"
               onClick={onAddText}
-              disabled={full}
+              disabled={off}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                 <path d="M5 6h14M12 6v13M9 19h6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
@@ -65,7 +81,7 @@ export const ToolPanel = memo(function ToolPanel({
                       data-ol-tool={kind}
                       aria-label={`${def.name} — læg figuren på arket`}
                       onClick={() => onAddFigure(kind)}
-                      disabled={full}
+                      disabled={off}
                     >
                       <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                         {def.icon()}
@@ -87,7 +103,7 @@ export const ToolPanel = memo(function ToolPanel({
               data-ol-tool="drill"
               aria-label="Regneark — læg plus-, minus-, gange- og divisionsstykker på arket"
               onClick={onAddDrill}
-              disabled={full}
+              disabled={off}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                 <path
@@ -106,7 +122,7 @@ export const ToolPanel = memo(function ToolPanel({
               data-ol-tool="formula"
               aria-label="Formler — skriv dine egne regnestykker, fx 3 · (4 + 5), med facit på svararket"
               onClick={onAddFormula}
-              disabled={full}
+              disabled={off}
             >
               <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                 <path

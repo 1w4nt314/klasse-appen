@@ -102,7 +102,8 @@ export function PropertiesPanel({
       </p>
       <h2 className="ol-panel-title">{title}</h2>
       {doc.pageCount > 1 && selected.type !== "calc" && (
-        <PageMoveField obj={selected} pageCount={doc.pageCount} calcCount={calcs.length} onMoveToPage={onMoveToPage} />
+        // key: et ikke-udført valg i "Side" hører til dette objekt og overlever ikke, at et andet markeres.
+        <PageMoveField key={`side:${selected.id}`} obj={selected} pageCount={doc.pageCount} calcCount={calcs.length} onMoveToPage={onMoveToPage} />
       )}
       {selected.type === "text" && (
         <label className="ol-field">
@@ -403,11 +404,16 @@ function AliasInput({
   );
 }
 
+const NAV_KEYS = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"]);
+
 /**
  * Panelets "Side": flytter objektet til en anden side. Et valg med musen flytter straks; et valg med tastaturet
  * (piletaster, Home/End, bogstaver …) vælger kun — så vises "Flyt til side N", og Enter (eller knappen) flytter,
  * Escape fortryder valget. PageUp/PageDown gør intet her (de skifter ellers side og ville
  * springe mellem siderne i feltet). Ctrl+Z virker også med fokus i feltet (Opgavelab).
+ * Åbnes listen med tastaturet (Alt+pil, F4, mellemrum, Enter), vælger tastaturet også kun: piletasterne i listen
+ * skifter værdien med det samme, så et "change" dér kan ikke skelnes fra en gennembladning.
+ * Valget nulstilles, når et andet objekt markeres (key i panelet), og når objektet skifter side (flyt, fortryd).
  */
 function PageMoveField({
   obj,
@@ -423,8 +429,15 @@ function PageMoveField({
   const id = useId();
   // Valgt med tastaturet, men ikke flyttet endnu: gælder kun for dette objekt på denne side.
   const [choice, setChoice] = useState<{ id: string; from: number; to: number } | null>(null);
+  // Objektet har skiftet side (flyttet, fortrudt …): et gammelt valg gælder ikke længere — heller ikke, hvis det
+  // senere kommer tilbage til siden, valget blev gjort på.
+  const [seenPage, setSeenPage] = useState(obj.page);
+  if (seenPage !== obj.page) {
+    setSeenPage(obj.page);
+    setChoice(null);
+  }
   const pending = choice && choice.id === obj.id && choice.from === obj.page && choice.to !== obj.page ? choice.to : null;
-  // Sidste ændring kom fra tastaturet (keydown før change); en mus nulstiller det.
+  // Sidste ændring kom fra tastaturet (keydown før change); en mus (pointerdown) eller blur nulstiller det.
   const keyed = useRef(false);
   const move = (to: number) => {
     setChoice(null);
@@ -455,7 +468,10 @@ function PageMoveField({
               // Kun valget fortrydes (objektet forbliver markeret).
               e.preventDefault();
               setChoice(null);
-            } else if (e.key !== "Enter") {
+            } else if (NAV_KEYS.has(e.key) || e.key === "Enter" || e.key === "F4" || (e.key.length === 1 && !e.ctrlKey && !e.metaKey)) {
+              // Kun taster, der skifter værdien eller åbner listen (pile, Home/End, bogstaver, mellemrum, Enter, F4):
+              // i en liste, der er åbnet med tastaturet, skifter piletasterne værdien med det samme (Chromium), så
+              // også dér vælger tastaturet kun. Tab, Ctrl+Z, Shift … rører ikke ved det.
               keyed.current = true;
             }
           }}
