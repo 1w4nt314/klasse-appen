@@ -7,6 +7,7 @@ import type { AppProps } from "../runtime";
 import { deleteDoc, listDocs, loadDoc, saveDoc } from "./actions";
 import type { DocSummary } from "./actions";
 import { ConfirmDialog, fmtTime, fmtWhen, LoadDialog, SaveAsDialog } from "./editor/dialogs";
+import { PageBar } from "./editor/PageBar";
 import { PropertiesPanel } from "./editor/PropertiesPanel";
 import { SheetEditor } from "./editor/SheetEditor";
 import { ToolPanel } from "./editor/ToolPanel";
@@ -14,6 +15,7 @@ import { TopBar, type ExportedFiles, type TopStatus, type View } from "./editor/
 import { useDocument, type FitFigure } from "./editor/useDocument";
 import { buildPdfs, downloadBlob, downloadBoth, preparePdfExport, type PdfFiles } from "./export/pdf";
 import { makeDrill, makeFigure, makeFormula, makeText, newDocument, newSeed } from "./model/document";
+import { emptyPages } from "./model/pages";
 import { calcDriftInfo, defOf, displayName, solveParam } from "./model/figures";
 import { LIMITS } from "./model/types";
 import type { Document as SheetDoc, FigureObject, ParamState } from "./model/types";
@@ -22,13 +24,31 @@ import { loadSheetFonts, measureText, useSheetMeasure } from "./render/measure";
 import type { Measure } from "./render/textLayout";
 import { calcStray, placeCalc } from "./render/placeCalc";
 import { layoutFormula, numberSheet } from "./render/drillLayout";
-import { blockProblem, blockProblemText, figureProblem, fitFigure, placeBlock, placeFigure, placeText } from "./render/placeBlock";
+import {
+  blockProblem,
+  blockProblemText,
+  calcCovers,
+  calcOutside,
+  figureProblem,
+  fitFigure,
+  followToPage,
+  placeBlock,
+  placeFigure,
+  placeOnPage,
+  placeText,
+  type BlockProblem,
+} from "./render/placeBlock";
 import { SheetSvg } from "./render/SheetSvg";
 import "./opgavelab.css";
 
 function isTyping(t: EventTarget | null): boolean {
   if (!(t instanceof HTMLElement)) return false;
   return t.isContentEditable || t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT";
+}
+
+/** Fokus i et tekstfelt, hvor Ctrl+Z fortryder tastningen (et <select> har ingen egen fortryd). */
+function isTextEntry(t: EventTarget | null): boolean {
+  return isTyping(t) && !(t instanceof HTMLSelectElement);
 }
 
 type DialogState =
@@ -38,7 +58,13 @@ type DialogState =
   | { kind: "discard"; next: "new" | "load" }
   | { kind: "overwrite"; name: string; copy: boolean }
   | { kind: "deleteDoc"; doc: DocSummary }
-  | { kind: "exportWarn"; unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string };
+  /** Slet siden `index` (0-baseret), som har `count` objekter (regnestykker tæller med). */
+  | { kind: "deletePage"; index: number; count: number }
+  | ({ kind: "exportWarn" } & ExportWarnings);
+
+/** En layout-advarsel og siden (0-baseret), den gælder. */
+type LayoutWarning = { page: number; text: string };
+type ExportWarnings = { unsolved: string[]; formula: string[]; drift: string[]; layout: LayoutWarning[]; layoutTitle: string };
 
 const STALE = "Siden er blevet opdateret — genindlæs siden (dine ændringer er ikke gemt).";
 const OFFLINE = "Forbindelsen svigtede. Prøv igen om lidt — dine ændringer er ikke gemt.";
@@ -62,85 +88,173 @@ const NEED_NAME = "Giv opgaven et navn først — navnet bruges som filnavn på 
  * ikke kan regnes ud (svararket viser "= ?"), fx ["2b (3 · (4 +)"]; regnestykker, hvis facit
  * (regnet på de viste tal) afviger tydeligt fra figuren (calcDrift), fx
  * ["Svararket vil vise a ≈ 0,0 cm for 1a, men siden er tegnet 1,0 cm"]; og blokke, der går ud
- * over arket eller dækker andet, som færdige sætninger.
+ * over arket eller dækker andet, som færdige sætninger. Har dokumentet flere sider, nævnes siden
+ * ("Regneark 5 (side 2) går ud over …", "1a (X, side 2)"), advarslerne kommer side for side, og tomme
+ * sider nævnes til sidst ("Side 3 er tom — …"); et ensidet dokument giver præcis de samme tekster som før.
+ * Et regnestykke, hvis boks (den bredeste af de to ark) går ud over margenen, nævnes som en blok ("Regnestykke 2a
+ * går ud over arkets højre margen — flyt det."). Ligger noget oven i hinanden (en figur, et regnestykke eller en blok
+ * dækker noget), nævnes hvert par én gang ("Regnestykke 1a dækker regnestykke 1b — flyt det.").
+ * Layout-advarslerne har deres side med (dialogen grupperer dem pr. side).
  */
 function calcWarnings(
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
-): { unsolved: string[]; formula: string[]; drift: string[]; layout: string[]; layoutTitle: string } {
+): ExportWarnings {
   const unsolved: string[] = [];
   const formula: string[] = [];
   const drift: string[] = [];
   // Blokke, der går ud over arket eller dækker andre objekter, fx "Regneark 1 går ud over arkets bund — …".
-  const layout: string[] = [];
+  const layout: LayoutWarning[] = [];
   let drillLayout = false;
   let figureLayout = false;
+  let calcLayout = false;
   let strayLayout = false;
-  for (const o of doc.objects) {
+  let coverLayout = false;
+  // Par af objekter, der ligger oven i hinanden og allerede er nævnt ("a|b"): hvert par nævnes kun én gang
+  // (figuren nævner regnestykket, den dækker; regnestykket så ikke figuren igen).
+  const pairs = new Set<string>();
+  const pairKey = (a: string, b: string) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  /** De dækkede objekter, hvis par med `id` ikke er nævnt endnu (og som nu er nævnt). */
+  const newCovers = (id: string, p: BlockProblem): string[] =>
+    p.covers.filter((_, i) => {
+      const other = p.coverIds?.[i];
+      if (other === undefined) return true;
+      const k = pairKey(id, other);
+      if (pairs.has(k)) return false;
+      pairs.add(k);
+      return true;
+    });
+  const multi = doc.pageCount > 1;
+  /** " (side 2)" ved flere sider, ellers "". */
+  const onPage = (page: number) => (multi ? ` (side ${page + 1})` : "");
+  // Side for side (stabil sortering: inden for en side som i dokumentet).
+  const objects = multi ? [...doc.objects].sort((a, b) => a.page - b.page) : doc.objects;
+  for (const o of objects) {
     if (o.type === "figure") {
-      // Figurer, der går ud over margenen (fx et langt navn på en størrelse); overlap markeres kun i editoren.
+      // Figurer, der går ud over margenen (fx et langt navn på en størrelse) eller dækker andre objekter (fx lagt
+      // på et fuldt ark): begge dele ville stå sådan i PDF'en.
       const p = figureProblem(doc, o, numbering, measure);
-      if (!p || p.outside.length === 0) continue;
-      figureLayout = true;
+      if (!p) continue;
       const nr = numbering.get(o.id) ?? "";
-      layout.push(
-        ...blockProblemText({ outside: p.outside, covers: [] }, `${defOf(o).name} ${nr}`.trim()).map(
-          (t) => `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
-        ),
-      );
+      const subject = `${defOf(o).name} ${nr}`.trim() + onPage(o.page);
+      if (p.outside.length > 0) {
+        figureLayout = true;
+        layout.push(
+          ...blockProblemText({ outside: p.outside, covers: [] }, subject).map((t) => ({
+            page: o.page,
+            text: `${t} — flyt den, gør den mindre, eller giv størrelserne kortere navne.`,
+          })),
+        );
+      }
+      const covers = newCovers(o.id, p);
+      if (covers.length > 0) {
+        coverLayout = true;
+        layout.push(...blockProblemText({ outside: [], covers }, subject).map((t) => ({ page: o.page, text: `${t} — flyt den.` })));
+      }
       continue;
     }
     if (o.type !== "drill" && o.type !== "formula") continue;
     const nr = numbering.get(o.id) ?? "";
     if (o.type === "formula") {
-      for (const it of layoutFormula(o, nr, measure).items) if (it.error) formula.push(`${it.label} (${it.text.replace(/ =$/, "")})`);
+      for (const it of layoutFormula(o, nr, measure).items)
+        if (it.error) formula.push(`${it.label} (${it.text.replace(/ =$/, "")})${multi ? ` på side ${o.page + 1}` : ""}`);
     }
     const p = blockProblem(doc, o, numbering, measure);
     if (!p) continue;
+    // Blokkene nævner alt, de dækker (som før); parrene huskes, så regnestykket ikke nævner blokken igen.
+    for (const other of p.coverIds ?? []) pairs.add(pairKey(o.id, other));
     if (o.type === "drill") drillLayout = true;
     const suffix = o.type === "drill" ? "flyt det, eller vælg færre opgaver." : "flyt den, eller fjern nogle linjer.";
-    layout.push(...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim()).map((t) => `${t} — ${suffix}`));
+    layout.push(
+      ...blockProblemText(p, `${o.type === "drill" ? "Regneark" : "Formler"} ${nr}`.trim() + onPage(o.page)).map((t) => ({
+        page: o.page,
+        text: `${t} — ${suffix}`,
+      })),
+    );
   }
-  for (const o of doc.objects) {
+  for (const o of objects) {
     if (o.type !== "calc") continue;
     const fig = doc.objects.find((f): f is FigureObject => f.type === "figure" && f.id === o.figureId);
     const num = numbering.get(o.id);
     // Regnestykket står ved en anden figur (eller et regneark) end sin egen: eleven kan ikke se, hvad "2a" hører til.
-    const strayId = fig ? calcStray(doc, o, numbering, measure) : null;
+    // Regnestykket (den bredeste af de to ark) går ud over arkets margen: det klippes i PDF'en.
+    const off = calcOutside(doc, o, numbering, measure);
+    if (off.length > 0) {
+      calcLayout = true;
+      layout.push(
+        ...blockProblemText({ outside: off, covers: [] }, `Regnestykke ${num ?? ""}`.trim() + onPage(o.page)).map((t) => ({
+          page: o.page,
+          text: `${t} — flyt det.`,
+        })),
+      );
+    }
+    // Regnestykket dækker et andet objekt (fx to regnestykker oven i hinanden): det ville stå sådan i PDF'en.
+    const cov = calcCovers(doc, o, numbering, measure);
+    const covers = cov ? newCovers(o.id, cov) : [];
+    if (covers.length > 0) {
+      coverLayout = true;
+      layout.push(
+        ...blockProblemText({ outside: [], covers }, `Regnestykke ${num ?? ""}`.trim() + onPage(o.page)).map((t) => ({
+          page: o.page,
+          text: `${t} — flyt det.`,
+        })),
+      );
+    }
+    const strayId = fig && off.length === 0 ? calcStray(doc, o, numbering, measure) : null;
     const stray = strayId ? doc.objects.find((x) => x.id === strayId) : undefined;
     if (fig && stray) {
       strayLayout = true;
       const figName = `figur ${numbering.get(fig.id) ?? ""}`.trim();
       const kind = stray.type === "figure" ? "figur" : stray.type === "drill" ? "regneark" : "formlerne";
       const otherName = `${kind} ${numbering.get(stray.id) ?? ""}`.trim();
-      layout.push(`Regnestykke ${num ?? ""} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`);
+      layout.push({
+        page: o.page,
+        text: `Regnestykke ${num ?? ""}${onPage(o.page)} hører til ${figName}, men står ved ${otherName} — flyt det hen til ${figName}.`,
+      });
     }
     if (fig && solveParam(fig, o.param, doc.settings)) {
       const d = calcDriftInfo(fig, o.param, doc.settings);
       if (d)
         drift.push(
-          `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}, men ${
+          `Svararket vil vise ${d.name} ${d.approx ? "≈" : "="} ${d.result}${num ? ` for ${num}` : ""}${
+            multi ? ` på side ${o.page + 1}` : ""
+          }, men ${
             kindNoun(d.kind)
           } er tegnet ${d.drawn}`,
         );
       continue;
     }
     const name = fig ? displayName(fig, o.param) : o.param;
-    unsolved.push(num ? `${num} (${name})` : name);
+    const where = multi ? `, side ${o.page + 1}` : "";
+    unsolved.push(num ? `${num} (${name}${where})` : `${name}${multi ? ` (side ${o.page + 1})` : ""}`);
   }
+  // Tomme sider eksporteres som blanke sider (med sidefod) — det er lovligt, men nok en fejl.
+  // Kun ved flere sider: et ensidet, tomt dokument giver (som før) ingen advarsel.
+  const empty = multi ? emptyPages(doc) : [];
+  for (const p of empty) layout.push({ page: p, text: `Side ${p + 1} er tom — slet den, eller læg noget på den.` });
+  const otherLayout = layout.length > empty.length; // andre layoutproblemer end tomme sider
   return {
     unsolved,
     formula,
     drift,
-    layout,
+    // Side for side (stabil: inden for en side figurer og blokke, så regnestykker, så "tom").
+    layout: multi ? [...layout].sort((a, b) => a.page - b.page) : layout,
     layoutTitle: drillLayout
       ? "Regnearket passer ikke på arket"
       : figureLayout
         ? "En figur går ud over arket"
-        : strayLayout && !layout.some((t) => !t.startsWith("Regnestykke "))
-          ? "Et regnestykke står ved en anden figur"
-          : "Formlerne passer ikke på arket",
+        : calcLayout
+          ? "Et regnestykke går ud over arket"
+          : coverLayout
+            ? "Noget på arket ligger oven i hinanden"
+            : strayLayout && !layout.some(({ text }) => !text.startsWith("Regnestykke ") && !/^Side \d+ er tom/.test(text))
+              ? "Et regnestykke står ved en anden figur"
+              : !otherLayout && empty.length > 0
+                ? empty.length === 1
+                  ? "En side er tom"
+                  : "Nogle sider er tomme"
+                : "Formlerne passer ikke på arket",
   };
 }
 
@@ -149,15 +263,86 @@ function joinList(items: string[]): string {
   return items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} og ${items[items.length - 1]}`;
 }
 
+/**
+ * Eksport-advarslens tekst: først de uløselige regnestykker/formler og afvigelserne (som ét afsnit), så
+ * layout-advarslerne som en liste — ved flere sider grupperet pr. side ("Side 2" med sine punkter) — i en boks
+ * med højst ~40 % af skærmens højde (rul), og til sidst spørgsmålet. Mellemrum mellem punkterne, så teksten
+ * (textContent) læses som før.
+ */
+function ExportWarnMessage({ w, multi }: { w: ExportWarnings; multi: boolean }) {
+  const intro = [
+    w.unsolved.length > 0
+      ? `Svararket vil vise ? for ${joinList(w.unsolved)}, fordi ${
+          w.unsolved.length === 1 ? "den" : "de"
+        } ikke kan findes ud fra det, der er synligt på figuren.`
+      : "",
+    w.formula.length > 0
+      ? `Svararket vil vise ? for ${joinList(w.formula)}, fordi ${
+          w.formula.length === 1 ? "stykket" : "stykkerne"
+        } ikke kan regnes ud — se fejlen i formelblokkens panel.`
+      : "",
+    ...w.drift.map((t) => `${t} — vis fx andre størrelser.`),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const groups: { page: number; items: string[] }[] = [];
+  for (const l of w.layout) {
+    const last = groups[groups.length - 1];
+    if (multi && last && last.page === l.page) last.items.push(l.text);
+    else if (!multi && last) last.items.push(l.text);
+    else groups.push({ page: l.page, items: [l.text] });
+  }
+  const list = (items: string[]) => (
+    <ul className="ol-export-warn-items">
+      {items.map((t, i) => (
+        <li key={i}>{`${t} `}</li>
+      ))}
+    </ul>
+  );
+  return (
+    <>
+      {intro && <p className="ol-export-warn-intro">{`${intro} `}</p>}
+      {groups.length > 0 && (
+        <div className="ol-export-warn-list" data-ol-export-warn-list="" role="region" aria-label="Advarsler" tabIndex={0}>
+          {multi
+            ? groups.map((g) => (
+                <section key={g.page} className="ol-export-warn-page" data-ol-export-warn-page={g.page + 1}>
+                  <h3>{`Side ${g.page + 1} `}</h3>
+                  {list(g.items)}
+                </section>
+              ))
+            : list(groups[0].items)}
+        </div>
+      )}
+      <p className="ol-export-warn-ask">Eksportér alligevel?</p>
+    </>
+  );
+}
+
 /** "Gemt kl. 14.32" (i dag) eller "Gemt 5. okt. kl. 14.32". Kaldes kun fra hændelser, ikke under rendering. */
 function savedLabel(ts: number): string {
   return new Date(ts).toDateString() === new Date().toDateString() ? `Gemt kl. ${fmtTime(ts)}` : `Gemt ${fmtWhen(ts)}`;
 }
 
+/** Så længe (ms) venter værktøjerne højst på arkets font. */
+const FONT_WAIT_MS = 15000;
+
 export default function Opgavelab({ userKey }: AppProps) {
   void userKey; // persistens er på serveren (lærerens konto); nøglen holder klientstate adskilt
   const d = useDocument();
   const measure = useSheetMeasure();
+  // Værktøjerne venter på arkets font: placeringen (margen, luft, regnestykkernes plads) regnes med de målte
+  // tekstbredder, ikke skønnet — ellers kan en figur, der lægges, mens fonten hentes, ende en anelse uden for
+  // margenen eller for tæt på noget, når fonten er der. Hentes den ikke inden FONT_WAIT_MS, arbejdes videre med skønnet.
+  const fontsReady = measure === measureText;
+  const [fontWaitOver, setFontWaitOver] = useState(false);
+  useEffect(() => {
+    if (fontsReady) return;
+    const t = window.setTimeout(() => setFontWaitOver(true), FONT_WAIT_MS);
+    return () => window.clearTimeout(t);
+  }, [fontsReady]);
+  // Værktøjerne, panelets "Find" og "Side" venter (samme regel).
+  const fontWait = !fontsReady && !fontWaitOver;
   const [view, setView] = useState<View>("opgave");
   // Figur (eller objekt), der venter på sletbekræftelse.
   const [askDelete, setAskDelete] = useState<string | null>(null);
@@ -165,36 +350,36 @@ export default function Opgavelab({ userKey }: AppProps) {
 
   // Værktøjsknapperne: faste handlere (ToolPanel er memo), så værktøjspanelet ikke tegnes om ved hvert
   // træk-trin. Placeringen regnes ud fra det seneste dokument (ref'en opdateres efter hver render).
-  const placeRef = useRef({ doc: d.doc, measure });
+  const placeRef = useRef({ doc: d.doc, measure, page: d.page });
   useEffect(() => {
-    placeRef.current = { doc: d.doc, measure };
+    placeRef.current = { doc: d.doc, measure, page: d.page };
   });
   const { addText, addFigure, addDrill, addFormula } = d;
   const toolHandlers = useMemo(
     () => ({
       onAddText: () => {
         // Første ledige plads, så teksten ikke lægges oven på en figur (figurer står nu øverst til venstre).
-        const { doc, measure } = placeRef.current;
-        const at = placeText(doc, makeText("probe", 0), measure);
+        const { doc, measure, page } = placeRef.current;
+        const at = placeText(doc, makeText("probe", 0, page), measure, page);
         addText({ x: at.x, y: at.y });
       },
       onAddFigure: (kind: Parameters<typeof addFigure>[0]) => {
         // Placering i event-handleren: første ledige plads (som regneark), så figurer ikke lægges oven i hinanden.
-        const { doc, measure } = placeRef.current;
-        const probe = makeFigure("probe", kind, 0);
-        const at = probe ? placeFigure(doc, probe, measure) : null;
+        const { doc, measure, page } = placeRef.current;
+        const probe = makeFigure("probe", kind, 0, page);
+        const at = probe ? placeFigure(doc, probe, measure, page) : null;
         addFigure(kind, at ? { x: at.x, y: at.y } : undefined);
       },
       onAddDrill: () => {
         // Seed og placering i event-handleren: første ledige plads, så blokken ikke dækker noget.
-        const { doc, measure } = placeRef.current;
+        const { doc, measure, page } = placeRef.current;
         const seed = newSeed();
-        const at = placeBlock(doc, makeDrill("probe", 0, seed), measure);
+        const at = placeBlock(doc, makeDrill("probe", 0, seed, page), measure, page);
         addDrill(seed, { x: at.x, y: at.y });
       },
       onAddFormula: () => {
-        const { doc, measure } = placeRef.current;
-        const at = placeBlock(doc, makeFormula("probe", 0), measure);
+        const { doc, measure, page } = placeRef.current;
+        const at = placeBlock(doc, makeFormula("probe", 0, page), measure, page);
         addFormula({ x: at.x, y: at.y });
       },
     }),
@@ -217,8 +402,9 @@ export default function Opgavelab({ userKey }: AppProps) {
   const exportingRef = useRef(false);
   // Dokumentet, der lige nu eksporteres (monteres skjult uden editor-overlay).
   const [stageDoc, setStageDoc] = useState<SheetDoc | null>(null);
-  const opgaveSvgRef = useRef<SVGSVGElement>(null);
-  const svarSvgRef = useRef<SVGSVGElement>(null);
+  // Eksport-scenens SVG'er, én pr. side (callback-refs; indeks = side).
+  const opgaveSvgRefs = useRef<(SVGSVGElement | null)[]>([]);
+  const svarSvgRefs = useRef<(SVGSVGElement | null)[]>([]);
   // Seneste eksport (Blobs), så hver fil kan hentes igen. Gælder kun det uændrede dokument.
   const [exported, setExported] = useState<{ doc: SheetDoc; files: PdfFiles } | null>(null);
 
@@ -231,6 +417,43 @@ export default function Opgavelab({ userKey }: AppProps) {
       setParamRaw(id, param, patch, key, fit);
     },
     [setParamRaw, measure],
+  );
+
+  // ---- Sider ----
+  const { removePage: removePageRaw, moveToPage: moveToPageRaw } = d;
+  /** Efter en sletning: lad fokus blive i sidebjælken (knappen kan være blevet deaktiveret, eller dialogen lukket). */
+  const refocusPageBar = () =>
+    window.setTimeout(() => {
+      const a = document.activeElement;
+      if (a && a !== document.body && !(a instanceof HTMLButtonElement && a.disabled)) return;
+      document.querySelector<HTMLElement>("[data-ol-page-tab][aria-pressed=true], [data-ol-page-select]")?.focus();
+    }, 60);
+  /** "Slet side": en tom side straks, en side med indhold først efter bekræftelse (Ctrl+Z gendanner den). */
+  function onRemovePage() {
+    const cur = latest.current;
+    const index = cur.page;
+    if (cur.doc.pageCount <= 1) return;
+    const count = cur.doc.objects.filter((o) => o.page === index).length;
+    if (count === 0) {
+      cur.removePage(index);
+      refocusPageBar();
+    } else {
+      setDialog({ kind: "deletePage", index, count });
+    }
+  }
+  /** Panelets "Side": figur, tekst eller blok til en anden side (en figur tager sine regnestykker med). */
+  const moveToPage = useCallback(
+    (id: string, page: number) => {
+      const { doc, measure } = placeRef.current;
+      const o = doc.objects.find((x) => x.id === id);
+      if (!o || o.type === "calc" || o.page === page) return;
+      const at = placeOnPage(doc, o, page, measure);
+      // Regnestykkerne følger figuren med deres boks inden for margenen (eller lægges ved den, se followToPage).
+      const follow = o.type === "figure" ? followToPage(doc, o, page, at, measure) : undefined;
+      setAskDelete(null);
+      moveToPageRaw(id, page, at, follow);
+    },
+    [moveToPageRaw],
   );
 
   const select = useCallback(
@@ -378,10 +601,16 @@ export default function Opgavelab({ userKey }: AppProps) {
       await Promise.all([preparePdfExport(), loadSheetFonts()]);
       await document.fonts.ready;
       flushSync(() => setStageDoc(doc));
-      const opgaveSvg = opgaveSvgRef.current;
-      const svarSvg = svarSvgRef.current;
-      if (!opgaveSvg || !svarSvg) throw new Error("Eksport-arkene blev ikke monteret");
-      const files = await buildPdfs({ opgaveSvg, svarSvg, name });
+      const opgaveSvgs: SVGSVGElement[] = [];
+      const svarSvgs: SVGSVGElement[] = [];
+      for (let i = 0; i < doc.pageCount; i++) {
+        const o = opgaveSvgRefs.current[i];
+        const s = svarSvgRefs.current[i];
+        if (!o || !s) throw new Error("Eksport-arkene blev ikke monteret");
+        opgaveSvgs.push(o);
+        svarSvgs.push(s);
+      }
+      const files = await buildPdfs({ opgaveSvgs, svarSvgs, name });
       setStageDoc(null);
       setExported({ doc, files });
       await downloadBoth(files);
@@ -452,12 +681,16 @@ export default function Opgavelab({ userKey }: AppProps) {
         }
         return;
       }
-      if (isTyping(e.target)) return;
       const cur = latest.current;
+      // Ctrl+Z virker også med fokus i et <select> (fx panelets "Side"); kun tekstfelter har deres egen fortryd.
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "z") {
+        if (isTextEntry(e.target)) return;
         e.preventDefault();
         cur.undo();
-      } else if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && cur.selectedId) {
+        return;
+      }
+      if (isTyping(e.target)) return;
+      if ((e.key === "Delete" || e.key === "Backspace") && !e.ctrlKey && !e.metaKey && cur.selectedId) {
         e.preventDefault();
         const sel = cur.selected;
         // En figur med regnestykker spørger først (PropertiesPanel viser bekræftelsen).
@@ -522,11 +755,22 @@ export default function Opgavelab({ userKey }: AppProps) {
       <ToolPanel
         {...toolHandlers}
         full={d.doc.objects.length >= LIMITS.objects}
+        waiting={fontWait}
       />
       <main className="ol-main">
+        <PageBar
+          page={d.page}
+          pageCount={d.doc.pageCount}
+          onPage={d.setPage}
+          onAdd={d.addPage}
+          onRemove={onRemovePage}
+          onMove={d.movePage}
+        />
         <SheetEditor
           doc={d.doc}
           mode={view}
+          page={d.page}
+          onPage={d.setPage}
           selectedId={d.selectedId}
           measure={measure}
           onSelect={select}
@@ -544,16 +788,19 @@ export default function Opgavelab({ userKey }: AppProps) {
         onUpdate={d.update}
         onSetParam={setParam}
         onAddCalc={(figureId, param) => {
+          if (fontWait) return;
           const fig = d.doc.objects.find((o) => o.type === "figure" && o.id === figureId);
           if (!fig || fig.type !== "figure") return;
           const at = placeCalc(d.doc, fig, param, measure);
           d.addCalc(figureId, param, at.x, at.y);
         }}
         onSelect={select}
+        onMoveToPage={moveToPage}
         onRequestDelete={setAskDelete}
         onCancelDelete={() => setAskDelete(null)}
         onRemove={remove}
         onSettings={d.setSettings}
+        waiting={fontWait}
       />
       {dialog?.kind === "saveAs" && (
         <SaveAsDialog
@@ -621,6 +868,22 @@ export default function Opgavelab({ userKey }: AppProps) {
           onConfirm={() => void removeDoc(dialog.doc)}
         />
       )}
+      {dialog?.kind === "deletePage" && (
+        <ConfirmDialog
+          title="Slet side"
+          message={`Slet side ${dialog.index + 1} og dens ${dialog.count} ${
+            dialog.count === 1 ? "objekt" : "objekter"
+          }? Du kan fortryde med Fortryd (Ctrl+Z).`}
+          confirmLabel="Slet side"
+          danger
+          onCancel={closeDialog}
+          onConfirm={() => {
+            removePageRaw(dialog.index);
+            setDialog(null);
+            refocusPageBar();
+          }}
+        />
+      )}
       {dialog?.kind === "exportWarn" && (
         <ConfirmDialog
           title={
@@ -632,23 +895,8 @@ export default function Opgavelab({ userKey }: AppProps) {
                   ? "Svararket afviger fra figuren"
                   : dialog.layoutTitle
           }
-          message={[
-            dialog.unsolved.length > 0
-              ? `Svararket vil vise ? for ${joinList(dialog.unsolved)}, fordi ${
-                  dialog.unsolved.length === 1 ? "den" : "de"
-                } ikke kan findes ud fra det, der er synligt på figuren.`
-              : "",
-            dialog.formula.length > 0
-              ? `Svararket vil vise ? for ${joinList(dialog.formula)}, fordi ${
-                  dialog.formula.length === 1 ? "stykket" : "stykkerne"
-                } ikke kan regnes ud — se fejlen i formelblokkens panel.`
-              : "",
-            ...dialog.drift.map((t) => `${t} — vis fx andre størrelser.`),
-            ...dialog.layout,
-            "Eksportér alligevel?",
-          ]
-            .filter(Boolean)
-            .join(" ")}
+          message={<ExportWarnMessage w={dialog} multi={d.doc.pageCount > 1} />}
+          wide={dialog.layout.length > 3}
           confirmLabel="Eksportér alligevel"
           onCancel={closeDialog}
           onConfirm={() => {
@@ -660,8 +908,21 @@ export default function Opgavelab({ userKey }: AppProps) {
       )}
       {stageDoc && (
         <div className="ol-export-stage" aria-hidden="true" data-ol-export-stage="">
-          <SheetSvg doc={stageDoc} mode="opgave" measure={measureText} svgRef={opgaveSvgRef} />
-          <SheetSvg doc={stageDoc} mode="svarark" measure={measureText} svgRef={svarSvgRef} />
+          {/* Alle sider af opgaven, derefter alle sider af svararket (samme sideinddeling). */}
+          {(["opgave", "svarark"] as const).map((mode) =>
+            Array.from({ length: stageDoc.pageCount }, (_, i) => (
+              <SheetSvg
+                key={`${mode}-${i}`}
+                doc={stageDoc}
+                mode={mode}
+                page={i}
+                measure={measureText}
+                svgRef={(el) => {
+                  (mode === "opgave" ? opgaveSvgRefs : svarSvgRefs).current[i] = el;
+                }}
+              />
+            )),
+          )}
         </div>
       )}
     </div>

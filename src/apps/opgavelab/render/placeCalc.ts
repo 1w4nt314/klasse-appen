@@ -13,6 +13,7 @@ import { LINE_HEIGHT, calcContent, objectBox, type Measure } from "./textLayout"
 const GAP_BELOW = 3; // mm mellem figurens nederste etiket og regnestykket
 const PAD = 1.5; // mm luft mellem regnestykket og andre objekter
 const X_STEP = 5; // mm mellem alternative vandrette placeringer
+const TEXT_WEIGHT = 20; // fuldt ark: så meget værre er det at dække tekst end en figurs udstrækning (pr. mm²)
 
 const hits = (a: Bounds, b: Bounds) =>
   a.minX < b.maxX + PAD && a.maxX > b.minX - PAD && a.minY < b.maxY + PAD && a.maxY > b.minY - PAD;
@@ -36,16 +37,18 @@ function calcLabelBox(doc: SheetDoc, calc: CalcObject, numbering: ReadonlyMap<st
 
 /**
  * De nummererede ting på arket, et regnestykke kan forveksles med: figurer (hele udstrækningen) og
- * regneark/formelblokke. `known`: allerede regnede bokse (editoren).
+ * regneark/formelblokke PÅ SIDEN `page` (en anden side kan aldrig forveksles med). `known`: allerede regnede bokse (editoren).
  */
 function numberedBoxes(
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
+  page: number,
   known?: ReadonlyMap<string, Bounds>,
 ): { id: string; box: Bounds }[] {
   const out: { id: string; box: Bounds }[] = [];
   for (const o of doc.objects) {
+    if (o.page !== page) continue;
     if (o.type !== "figure" && o.type !== "drill" && o.type !== "formula") continue;
     const box =
       known?.get(o.id) ??
@@ -69,7 +72,7 @@ export function calcStray(
   const box = calcLabelBox(doc, calc, numbering, measure);
   let own = Infinity;
   let other: { id: string; d: number } | null = null;
-  for (const n of numberedBoxes(doc, numbering, measure, known)) {
+  for (const n of numberedBoxes(doc, numbering, measure, calc.page, known)) {
     const d = boxGap(box, n.box);
     if (n.id === calc.figureId) own = d;
     else if (!other || d < other.d) other = { id: n.id, d };
@@ -77,14 +80,47 @@ export function calcStray(
   return other && other.d + OWN_MARGIN_MM < own ? other.id : null;
 }
 
+/** mm ekstra luft i placeBox' regnestykke-vagt: numre og "00"-bud kan ændre bredderne en smule efter placeringen. */
+const GUARD_SLACK_MM = 0.5;
+
 /**
- * Alt, der allerede står på arket, som rektangler. Figurer med hele udstrækningen (etiketter og
- * nummer, som på svararket); regnestykker, regneark og tekst med deres (svararks-)boks.
- * `ownId`/`ownExt`: en figur, hvis udstrækning allerede er regnet (placeCalc).
+ * Regnestykkerne på siden `page`, der i dag står ved deres egen figur (calcStray null), med opgavearkets boks og
+ * afstanden til figuren. placeBox bruger dem, så et nyt objekt (eller et, der flyttes hertil) ikke lægges nærmere et
+ * regnestykke end dets egen figur — så ville regnestykket blive "stray" (samme regel som calcStray).
  */
-export function takenBoxes(doc: SheetDoc, measure: Measure, ownId?: string, ownExt?: Bounds): Bounds[] {
+export type CalcGuard = { label: Bounds; own: number };
+
+export function calcGuards(doc: SheetDoc, measure: Measure, page: number): CalcGuard[] {
+  const out: CalcGuard[] = [];
+  let numbering: ReadonlyMap<string, string> | null = null;
+  for (const c of doc.objects) {
+    if (c.type !== "calc" || c.page !== page) continue;
+    const fig = doc.objects.find((o): o is FigureObject => o.type === "figure" && o.id === c.figureId);
+    if (!fig || fig.page !== page) continue;
+    numbering ??= numberSheet(doc, measure);
+    if (calcStray(doc, c, numbering, measure) !== null) continue; // advarer allerede
+    const label = calcLabelBox(doc, c, numbering, measure);
+    out.push({ label, own: boxGap(label, figureExtent(fig, numbering.get(fig.id) ?? "", measure)) });
+  }
+  return out;
+}
+
+/** Hvor mange af regnestykkerne `guards`, en nummereret ting med boksen `box` ville stå nærmere end deres egen figur. */
+export function strayCount(guards: readonly CalcGuard[], box: Bounds): number {
+  let n = 0;
+  for (const g of guards) if (boxGap(g.label, box) + OWN_MARGIN_MM < g.own + GUARD_SLACK_MM) n++;
+  return n;
+}
+
+/**
+ * Alt, der allerede står på siden `page`, som rektangler (andre sider ses ikke). Figurer med hele
+ * udstrækningen (etiketter og nummer, som på svararket); regnestykker, regneark og tekst med deres
+ * (svararks-)boks. Numrene regnes for hele dokumentet. `ownId`/`ownExt`: en figur, hvis udstrækning
+ * allerede er regnet (placeCalc).
+ */
+export function takenBoxes(doc: SheetDoc, measure: Measure, page: number, ownId?: string, ownExt?: Bounds): Bounds[] {
   const numbering = numberSheet(doc, measure);
-  return doc.objects.map((o) =>
+  return doc.objects.filter((o) => o.page === page).map((o) =>
     o.type === "figure"
       ? o.id === ownId && ownExt
         ? ownExt
@@ -94,19 +130,20 @@ export function takenBoxes(doc: SheetDoc, measure: Measure, ownId?: string, ownE
 }
 
 export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measure: Measure): Point {
-  // Svararket er bredest; bruges, så stykket også passer inden for margenen dér.
-  const probe: CalcObject = { id: "probe", type: "calc", x: 0, y: 0, figureId: fig.id, param };
+  // Den bredeste af svararket (facit) og opgavearket ("X = ________" er bredere end et kort svar eller "X = ?"),
+  // så stykket passer inden for margenen og ikke dækker noget på nogen af dem (som objectBox).
+  const probe: CalcObject = { id: "probe", type: "calc", x: 0, y: 0, figureId: fig.id, param, page: fig.page };
   const c = calcContent(doc, probe, "svarark", "00a", measure);
-  const w = c.widthMm;
+  const label = calcContent(doc, probe, "opgave", "00a", measure).widthMm;
+  const w = Math.max(c.widthMm, label);
   const h = c.sizeMm * LINE_HEIGHT;
   const ext = figureExtent(fig, "00", measure);
-  const taken = takenBoxes(doc, measure, fig.id, ext);
+  const taken = takenBoxes(doc, measure, fig.page, fig.id, ext);
   // Ejerskab måles med opgavearkets smalle boks (nummer + "X = ____"); de andre nummererede ting med deres udstrækning.
   const numbering = numberSheet(doc, measure);
-  const others = numberedBoxes(doc, numbering, measure)
+  const others = numberedBoxes(doc, numbering, measure, fig.page)
     .filter((n) => n.id !== fig.id)
     .map((n) => n.box);
-  const label = calcContent(doc, probe, "opgave", "00a", measure).widthMm;
   // Figurens udstrækning med sit rigtige nummer (som calcStray måler); `ext` med "00" holder fri plads til et længere nummer.
   const own = figureExtent(fig, numbering.get(fig.id) ?? "", measure);
 
@@ -115,11 +152,18 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
   const xMax = Math.max(PAGE.margin, PAGE.w - PAGE.margin - w);
   const x0 = r2(Math.min(Math.max(ext.minX, PAGE.margin), xMax));
   const free = (x: number, y: number) => !taken.some((b) => hits({ minX: x, minY: y, maxX: x + w, maxY: y + h }, b));
+  // Det rigtige nummer kendes først bagefter; "00a" er det bredeste bud, figurens nummer + "a" det smalleste.
+  // Ejerskabet skal holde for begge (et smallere nummer flytter boksens højre kant væk fra en figur til højre).
+  const labelMin = Math.min(label, calcContent(doc, probe, "opgave", `${numbering.get(fig.id) ?? ""}a`, measure).widthMm);
   /** Afstanden til egen figur, når regnestykket her står tydeligt nærmest sin egen figur; ellers null. */
   const ownGap = (x: number, y: number): number | null => {
     const b = { minX: x, minY: y, maxX: x + label, maxY: y + h };
     const d = boxGap(b, own);
-    return others.every((o) => d + OWN_MARGIN_MM <= boxGap(b, o)) ? d : null;
+    if (!others.every((o) => d + OWN_MARGIN_MM <= boxGap(b, o))) return null;
+    if (labelMin >= label - 1e-9) return d;
+    const n = { minX: x, minY: y, maxX: x + labelMin, maxY: y + h };
+    const dn = boxGap(n, own);
+    return others.every((o) => dn + OWN_MARGIN_MM <= boxGap(n, o)) ? d : null;
   };
   const ok = (x: number, y: number) => free(x, y) && ownGap(x, y) !== null;
 
@@ -166,6 +210,27 @@ export function placeCalc(doc: SheetDoc, fig: FigureObject, param: string, measu
     const y = column(x, free);
     if (y !== null) return { x, y };
   }
-  // Arket er fuldt: nederst i figurens spalte (læreren kan flytte det).
-  return { x: x0, y: Math.max(lo, hi) };
+  // Arket er fuldt: dér, hvor regnestykket dækker mindst (også figurens andre regnestykker, så to aldrig lægges
+  // oven i hinanden); ved lighed nærmest figurens spalte og nederst. Læreren kan flytte det; markeringen viser det.
+  // Tekst (regnestykker, tekstbokse, regneark, formler) vejer tungere end en figurs udstrækning, der mest er luft
+  // omkring stregerne: to tekster oven i hinanden kan ingen læse.
+  const weight = doc.objects.filter((o) => o.page === fig.page).map((o) => (o.type === "figure" ? 1 : TEXT_WEIGHT));
+  let full = { x: x0, y: Math.max(lo, hi), cost: Infinity, dx: Infinity };
+  for (const x of xs) {
+    const dx = Math.abs(x - x0);
+    for (let y = Math.max(lo, hi); y >= lo - 1e-9; y -= 1) {
+      const box = { minX: x, minY: y, maxX: x + w, maxY: y + h };
+      let cost = 0;
+      for (let i = 0; i < taken.length; i++) {
+        const b = taken[i];
+        cost +=
+          weight[i] *
+          Math.max(0, Math.min(box.maxX, b.maxX) - Math.max(box.minX, b.minX)) *
+          Math.max(0, Math.min(box.maxY, b.maxY) - Math.max(box.minY, b.minY));
+        if (cost > full.cost + 1e-6) break;
+      }
+      if (cost < full.cost - 1e-6 || (cost < full.cost + 1e-6 && dx < full.dx)) full = { x, y: r2(y), cost, dx };
+    }
+  }
+  return { x: full.x, y: full.y };
 }

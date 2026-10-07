@@ -15,13 +15,14 @@ import {
 } from "react";
 import { formatByKind } from "../core/format";
 import { calcDrift, calcProblem, defOf, displayName, dragOpts } from "../model/figures";
+import { pageObjects } from "../model/document";
 import { LIMITS, PAGE } from "../model/types";
 import type { Bounds, DragResult, Document as SheetDoc, FigureObject, FigureShape, Point, SheetObject } from "../model/types";
 import { keyStep } from "../core/keyStep";
 import { pushAllowed } from "../core/pushRule";
 import { SheetSvg, figureExtent, type SheetMode } from "../render/SheetSvg";
 import { objectBox, type Measure } from "../render/textLayout";
-import { blockProblem, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
+import { blockProblem, calcCovers, calcOutside, clampDelta, figureProblem, pushIntoSheet, type KnownBoxes } from "../render/placeBlock";
 import { numberSheet } from "../render/drillLayout";
 import { calcStray } from "../render/placeCalc";
 import { toSvg } from "./pointer";
@@ -73,6 +74,9 @@ type VertexDrag = {
 type Drag = MoveDrag | VertexDrag;
 
 /** Objektets udstrækning på arket; for figurer inkl. etiketter og opgavenummer. */
+/** Et regnestykkes layoutproblemer i editoren: uden for margenen, dækker noget, står ved en anden figur. */
+type CalcWarn = { off: boolean; cover: boolean; stray: boolean };
+
 function boxFor(o: SheetObject, doc: SheetDoc, numbering: ReadonlyMap<string, string>, measure: Measure): Bounds {
   return o.type === "figure" ? figureExtent(o, numbering.get(o.id) ?? "", measure) : objectBox(o, doc, numbering, measure);
 }
@@ -82,23 +86,10 @@ function handleLabel(def: { handleName?: (key: string, displayName: string) => s
   return def.handleName ? def.handleName(key, name) : `Hjørne ${name}`;
 }
 
-function clampRange(v: number, lo: number, hi: number): number {
-  return hi < lo ? lo : Math.min(Math.max(v, lo), hi);
-}
-
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
-/** Forskydning (dx, dy) begrænset, så boksen bliver inden for arkets margen. */
-function clampDelta(box: Bounds, dx: number, dy: number): Point {
-  const m = PAGE.margin;
-  return {
-    x: clampRange(dx, m - box.minX, PAGE.w - m - box.maxX),
-    y: clampRange(dy, m - box.minY, PAGE.h - m - box.maxY),
-  };
-}
-
 /**
- * Figurens regnestykker (id, placering, svararks-boks), som flytter med figuren — så et regnestykke aldrig bliver
+ * Figurens regnestykker (id, placering, bredeste boks af de to ark), som flytter med figuren — så et regnestykke aldrig bliver
  * stående ved en anden figur, når figurerne bytter plads (og numre).
  */
 function followersOf(obj: SheetObject, doc: SheetDoc, boxes: KnownBoxes): Follower[] {
@@ -160,6 +151,8 @@ function isTyping(t: EventTarget | null): boolean {
 export function SheetEditor({
   doc,
   mode,
+  page,
+  onPage,
   selectedId,
   measure,
   onSelect,
@@ -170,6 +163,10 @@ export function SheetEditor({
   doc: SheetDoc;
   /** "svarark" er en skrivebeskyttet forhåndsvisning (vælg, men ikke flyt). */
   mode: SheetMode;
+  /** Den viste og redigerede side (0-baseret); kun dens objekter tegnes, måles og kan markeres. */
+  page: number;
+  /** PageUp/PageDown: skift til denne side (SheetEditor holder den inden for dokumentet). */
+  onPage: (page: number) => void;
   selectedId: string | null;
   measure: Measure;
   onSelect: (id: string | null) => void;
@@ -202,13 +199,16 @@ export function SheetEditor({
   // Alle objekters udstrækning, én gang pr. render (figurernes gemmes desuden pr. objekt i figureExtent, så et
   // træk kun regner den trukne figur igen), og hvilke figurer/blokke der dækker andre eller går ud over arket —
   // med billige rektangel-tests i stedet for at regne alle udstrækninger igen for hver figur.
+  // Kun den aktive sides objekter (numrene regnes for hele dokumentet).
+  const pageObjs = useMemo(() => pageObjects(doc, page), [doc, page]);
   const boxes = useMemo<KnownBoxes>(
-    () => new Map(doc.objects.map((o) => [o.id, boxFor(o, doc, numbering, measure)])),
-    [doc, numbering, measure],
+    () => new Map(pageObjs.map((o) => [o.id, boxFor(o, doc, numbering, measure)])),
+    [doc, pageObjs, numbering, measure],
   );
-  const layoutWarn = useMemo(() => {
+  const { layoutWarn, calcWarn } = useMemo(() => {
     const out = new Set<string>();
-    for (const o of doc.objects) {
+    const calcs = new Map<string, CalcWarn>();
+    for (const o of pageObjs) {
       const p =
         o.type === "figure"
           ? figureProblem(doc, o, numbering, measure, boxes)
@@ -216,11 +216,22 @@ export function SheetEditor({
             ? blockProblem(doc, o, numbering, measure, boxes)
             : null;
       if (p) out.add(o.id);
-      // Et regnestykke, der står ved en anden figur end sin egen (fx flyttet med musen hen til den).
-      else if (o.type === "calc" && calcStray(doc, o, numbering, measure, boxes)) out.add(o.id);
+      else if (o.type === "calc") {
+        // Et regnestykke, der går ud over arket (fx et langt navn), dækker noget andet (fx trukket oven på et
+        // andet regnestykke) eller står ved en anden figur end sin egen (fx flyttet med musen hen til den).
+        const w: CalcWarn = {
+          off: calcOutside(doc, o, numbering, measure, boxes).length > 0,
+          cover: calcCovers(doc, o, numbering, measure, boxes) !== null,
+          stray: calcStray(doc, o, numbering, measure, boxes) !== null,
+        };
+        if (w.off || w.cover || w.stray) {
+          out.add(o.id);
+          calcs.set(o.id, w);
+        }
+      }
     }
-    return out;
-  }, [doc, numbering, measure, boxes]);
+    return { layoutWarn: out, calcWarn: calcs };
+  }, [doc, pageObjs, numbering, measure, boxes]);
 
   const sheetW = size ? Math.max(0, Math.min(size.w, (size.h * PAGE.w) / PAGE.h)) : 0;
   const sheetH = (sheetW * PAGE.h) / PAGE.w;
@@ -291,13 +302,26 @@ export function SheetEditor({
   }
 
   // Piletaster flytter det markerede objekt (1 mm, Shift = 5 mm); hvert tryk er ét fortryd-trin.
-  const latest = useRef({ doc, selected, boxes, onMove, onCommit, mode, keyVertex });
+  const latest = useRef({ doc, page, onPage, selected, boxes, onMove, onCommit, mode, keyVertex });
   useEffect(() => {
-    latest.current = { doc, selected, boxes, onMove, onCommit, mode, keyVertex };
+    latest.current = { doc, page, onPage, selected, boxes, onMove, onCommit, mode, keyVertex };
   });
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || isTyping(e.target)) return;
+      // PageDown/PageUp: næste/forrige side (ikke under træk eller bag en dialog).
+      if ((e.key === "PageDown" || e.key === "PageUp") && !e.shiftKey) {
+        if (drag.current || document.querySelector("dialog[open]")) return;
+        const { page: p, doc: dd, onPage: go } = latest.current;
+        const next = p + (e.key === "PageDown" ? 1 : -1);
+        // Første/sidste side: intet sideskift — browserens egen PageUp/PageDown (rul) virker som normalt.
+        if (next < 0 || next >= dd.pageCount) return;
+        e.preventDefault();
+        // Fokus på et objekt (der forsvinder med siden) flyttes til arket, så tastaturbrugeren ikke mister sin plads.
+        if (e.target instanceof Element && svgRef.current?.contains(e.target)) svgRef.current.focus({ preventScroll: true });
+        go(next);
+        return;
+      }
       const dir: Record<string, Point> = {
         ArrowLeft: { x: -1, y: 0 },
         ArrowRight: { x: 1, y: 0 },
@@ -503,6 +527,7 @@ export function SheetEditor({
           <SheetSvg
             doc={doc}
             mode={mode}
+            page={page}
             numbering={numbering}
             measure={measure}
             svgRef={svgRef}
@@ -522,12 +547,14 @@ export function SheetEditor({
           >
             <Overlay
               doc={doc}
+              objects={pageObjs}
               mode={mode}
               selected={selected}
               numbering={numbering}
               measure={measure}
               boxes={boxes}
               layoutWarn={layoutWarn}
+              calcWarn={calcWarn}
               activeHandle={activeHandle}
               onSelect={onSelect}
             />
@@ -563,16 +590,20 @@ function hitProps(id: string, label: string, pressed: boolean, onSelect: (id: st
 
 function Overlay({
   doc,
+  objects,
   mode,
   selected,
   numbering,
   measure,
   boxes,
   layoutWarn,
+  calcWarn,
   activeHandle,
   onSelect,
 }: {
   doc: SheetDoc;
+  /** Den aktive sides objekter. */
+  objects: readonly SheetObject[];
   mode: SheetMode;
   selected: SheetObject | null;
   numbering: ReadonlyMap<string, string>;
@@ -581,12 +612,14 @@ function Overlay({
   boxes: KnownBoxes;
   /** Figurer og blokke, der dækker andre objekter eller går ud over arket (figureProblem/blockProblem). */
   layoutWarn: ReadonlySet<string>;
+  /** Regnestykker med layoutproblemer, og hvilke (kun dem med mindst ét). */
+  calcWarn: ReadonlyMap<string, CalcWarn>;
   activeHandle: string | null;
   onSelect: (id: string | null) => void;
 }) {
   return (
     <g data-ol-overlay="">
-      {doc.objects.map((o) => {
+      {objects.map((o) => {
         const number = numbering.get(o.id);
         const pressed = selected?.id === o.id;
         if (o.type === "figure") {
@@ -627,8 +660,13 @@ function Overlay({
         const problem = o.type === "calc" && fig ? calcProblem(fig, o.param, doc.settings) : null;
         // Regneark og formelblokke, der går ud over arket eller dækker andre objekter (kun markering i editoren).
         const layoutProblem = (o.type === "drill" || o.type === "formula") && layoutWarn.has(o.id);
-        // Regnestykket står ved en anden figur end sin egen (calcStray).
-        const stray = o.type === "calc" && layoutWarn.has(o.id);
+        // Regnestykket går ud over arket (calcOutside), dækker noget andet (calcCovers) eller står ved en anden
+        // figur end sin egen (calcStray).
+        const cw = o.type === "calc" ? calcWarn.get(o.id) : undefined;
+        const calcOff = !!cw && (cw.off || cw.cover);
+        const stray = !!cw && cw.stray && !cw.off;
+        // Den bredeste boks (svararket med facit eller opgavearkets "X = ____"): den går ud over margenen eller dækker noget.
+        const ob = calcOff ? (boxes.get(o.id) ?? b) : b;
         const drift = o.type === "calc" && fig && !problem ? calcDrift(fig, o.param, doc.settings) : null;
         return (
           <g key={o.id}>
@@ -656,6 +694,23 @@ function Overlay({
                 y={b.minY - 1.2}
                 width={b.maxX - b.minX + 2.4}
                 height={b.maxY - b.minY + 2.4}
+                rx={1}
+                fill={WARN_FILL}
+                stroke={WARN}
+                strokeWidth={0.6}
+                strokeDasharray="2 1.2"
+                pointerEvents="none"
+              />
+            )}
+            {calcOff && (
+              // Kun i editoren: regnestykkets bredeste boks (af opgave- og svararket) går ud over arkets margen
+              // eller dækker et andet objekt (fx et andet regnestykke).
+              <rect
+                data-ol-layout-warn={o.id}
+                x={ob.minX - 1.2}
+                y={ob.minY - 1.2}
+                width={ob.maxX - ob.minX + 2.4}
+                height={ob.maxY - ob.minY + 2.4}
                 rx={1}
                 fill={WARN_FILL}
                 stroke={WARN}

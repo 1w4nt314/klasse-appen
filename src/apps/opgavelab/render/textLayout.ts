@@ -99,15 +99,17 @@ export function calcContent(
 }
 
 /**
- * Objektets udstrækning på arket i mm (til markering, flyt, margen og placeCalc). Et regnestykke er bredest
- * på svararket (standard); `mode: "opgave"` giver den smalle "X = ____"-boks til markering.
+ * Objektets udstrækning på arket i mm (til markering, flyt, margen og placeCalc). Et regnestykke har forskellig
+ * bredde på de to ark — som regel bredest på svararket (facit), men "X = ________" på opgavearket er bredere end
+ * et kort svar eller "X = ?" — så standarden (uden `mode`) er den bredeste af de to, så intet ligger oven i
+ * hinanden eller uden for margenen på nogen af dem. `mode` giver boksen på det ene ark (markering, ejerskab).
  */
 export function objectBox(
   obj: SheetObject,
   doc: SheetDoc,
   numbering: ReadonlyMap<string, string>,
   measure: Measure,
-  mode: "opgave" | "svarark" = "svarark",
+  mode?: "opgave" | "svarark",
 ): Bounds {
   if (obj.type === "figure") return figureBoundsOnSheet(obj);
   if (obj.type === "text") {
@@ -116,6 +118,8 @@ export function objectBox(
   }
   // Regneark og formelblokke: ens på opgave og svarark (pladsen til svaret er den bredeste af streg og svar).
   if (obj.type === "drill" || obj.type === "formula") return blockBox(obj, numbering.get(obj.id) ?? "", measure);
-  const c = calcContent(doc, obj, mode, numbering.get(obj.id) ?? "", measure);
-  return { minX: obj.x, minY: obj.y, maxX: obj.x + c.widthMm, maxY: obj.y + c.sizeMm * LINE_HEIGHT };
+  const num = numbering.get(obj.id) ?? "";
+  const c = calcContent(doc, obj, mode ?? "svarark", num, measure);
+  const w = mode ? c.widthMm : Math.max(c.widthMm, calcContent(doc, obj, "opgave", num, measure).widthMm);
+  return { minX: obj.x, minY: obj.y, maxX: obj.x + w, maxY: obj.y + c.sizeMm * LINE_HEIGHT };
 }
