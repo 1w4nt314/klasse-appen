@@ -8,6 +8,8 @@ stjerne deres favoritter.
 indbyggede `node:sqlite`) — alt kører på én web-instans på Render. Ingen eksterne
 tjenester.
 
+Hvad der er lavet, og hvad der kommer, står i [ROADMAP.md](ROADMAP.md).
+
 ## Apps
 
 Hver app ligger i sin egen mappe under [`src/apps/`](src/apps):
@@ -35,8 +37,8 @@ optages eller sendes). Så længe lyden er under lærerens grænse, kommer dyr
 langsomt ind på skærmen. Bliver det for højt i mere end ¼ sekund, stikker
 dyrene hurtigt af og kommer først igen efter 2 sekunders ro.
 
-Der er fire temaer — jungle, bondegård, akvarium og alien planet — hver med sin
-egen baggrund og sine egne figurer i `src/apps/stillezoonen/themes/<tema>/`
+Der er seks temaer — jungle, bondegård, akvarium, alien planet, Dino-dalen og
+Den danske skov — hver med sin egen baggrund og sine egne figurer i `src/apps/stillezoonen/themes/<tema>/`
 (`creatures.tsx`, `Background.tsx`, `index.ts`). Nyt tema: lav en mappe efter
 samme skabelon og tilføj det i `themes/index.ts`. Felter og bevægelsesformer er
 dokumenteret i `themes/types.ts`.
