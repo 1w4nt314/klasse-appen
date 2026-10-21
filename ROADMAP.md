@@ -15,6 +15,8 @@ Sidst opdateret: oktober 2026.
   miljøvariablerne er sat (se *Åbne punkter*).
 - App-oversigt med favoritter (stjerner).
 - **Ønsker:** lærere foreslår apps og giver hjerter. Admin sætter status.
+- **Eget domæne:** sitet kører på https://klasse-appen.dk, og
+  `APP_URL=https://klasse-appen.dk` er sat, så links i mails peger dertil.
 - **Platform-admin:** brugerliste (mail, navn, skole) og deaktivering med
   bekræftelse. Admin gives kun fra serverens shell.
 
@@ -75,8 +77,6 @@ Sidst opdateret: oktober 2026.
 
 ## Åbne punkter (drift)
 
-- **Domæne:** `klasse-appen.dk` venter på aktivering hos Punktum dk. Når
-  Render har verificeret domænet, sættes `APP_URL=https://klasse-appen.dk`.
 - **Mail:** `RESEND_API_KEY` og `EMAIL_FROM` sættes på Render → Environment.
   Afsenderdomænet skal være verificeret i Resend.
 
